@@ -10,11 +10,57 @@ import type { Session } from '../../src/api/types.gen';
 
 type SessionsState = 'loading' | 'loaded' | 'error' | 'no-connection';
 
+type ListItem = 
+  | { type: 'session'; data: Session }
+  | { type: 'date'; date: string; displayDate: string };
+
 export default function SessionsScreen() {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [listItems, setListItems] = useState<ListItem[]>([]);
   const [state, setState] = useState<SessionsState>('loading');
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string>('');
+
+  const groupSessionsByDate = useCallback((sessions: Session[]): ListItem[] => {
+    if (!sessions.length) return [];
+
+    // Sort sessions by updated time (newest first)
+    const sortedSessions = [...sessions].sort((a, b) => b.time.updated - a.time.updated);
+    
+    // Group by date
+    const grouped = new Map<string, Session[]>();
+    sortedSessions.forEach(session => {
+      const date = new Date(session.time.updated);
+      const dateKey = date.toDateString(); // "Mon Dec 25 2023"
+      
+      if (!grouped.has(dateKey)) {
+        grouped.set(dateKey, []);
+      }
+      grouped.get(dateKey)!.push(session);
+    });
+
+    // Create mixed array with date separators
+    const result: ListItem[] = [];
+    grouped.forEach((sessions, dateKey) => {
+      const date = new Date(dateKey);
+      const displayDate = date.toLocaleDateString(undefined, { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      // Add date separator
+      result.push({ type: 'date', date: dateKey, displayDate });
+      
+      // Add sessions for this date
+      sessions.forEach(session => {
+        result.push({ type: 'session', data: session });
+      });
+    });
+
+    return result;
+  }, []);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -60,7 +106,9 @@ export default function SessionsScreen() {
         throw new Error(`Failed to fetch sessions: ${JSON.stringify(response.error)}`);
       }
 
-      setSessions(response.data || []);
+      const sessionData = response.data || [];
+      setSessions(sessionData);
+      setListItems(groupSessionsByDate(sessionData));
       setState('loaded');
     } catch (error) {
       console.error('Error loading sessions:', error);
@@ -69,7 +117,7 @@ export default function SessionsScreen() {
       setState('error');
       toast.showError('Failed to load sessions', errorMsg);
     }
-  }, []);
+  }, [groupSessionsByDate]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -147,21 +195,31 @@ export default function SessionsScreen() {
     loadSessions();
   }, [loadSessions]);
 
-  const renderSession = ({ item }: { item: Session }) => (
-    <TouchableOpacity style={styles.sessionItem} onPress={() => handleSessionPress(item)}>
-      <View style={styles.sessionHeader}>
-        <Text style={styles.sessionTitle} numberOfLines={1}>
-          {item.title || 'Untitled Session'}
-        </Text>
-        <Text style={styles.sessionTime}>
-          {new Date(item.time.updated).toLocaleDateString()}
-        </Text>
-      </View>
-      <Text style={styles.sessionId} numberOfLines={1}>
-        ID: {item.id}
+  // Update grouped list when sessions change
+  useEffect(() => {
+    setListItems(groupSessionsByDate(sessions));
+  }, [sessions, groupSessionsByDate]);
+
+  const renderSession = (session: Session) => (
+    <TouchableOpacity style={styles.sessionItem} onPress={() => handleSessionPress(session)}>
+      <Text style={styles.sessionTitle} numberOfLines={2}>
+        {session.title || 'Untitled Session'}
       </Text>
     </TouchableOpacity>
   );
+
+  const renderDateSeparator = (displayDate: string) => (
+    <View style={styles.dateSeparator}>
+      <Text style={styles.dateText}>{displayDate}</Text>
+    </View>
+  );
+
+  const renderItem = ({ item }: { item: ListItem }) => {
+    if (item.type === 'date') {
+      return renderDateSeparator(item.displayDate);
+    }
+    return renderSession(item.data);
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -227,11 +285,11 @@ export default function SessionsScreen() {
         renderError()
       ) : (
         <FlatList
-          data={sessions}
-          renderItem={renderSession}
-          keyExtractor={(item) => item.id}
+          data={listItems}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.type === 'date' ? `date-${item.date}` : `session-${item.data.id}`}
           style={styles.sessionsList}
-          contentContainerStyle={sessions.length === 0 ? styles.emptyContainer : styles.listContent}
+          contentContainerStyle={listItems.length === 0 ? styles.emptyContainer : styles.listContent}
           ListEmptyComponent={renderEmptyState}
           refreshControl={
             <RefreshControl
@@ -296,27 +354,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2a2a2a',
   },
-  sessionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
   sessionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'normal',
     color: '#ffffff',
-    flex: 1,
-    marginRight: 12,
   },
-  sessionTime: {
-    fontSize: 12,
+  dateSeparator: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  dateText: {
+    fontSize: 13,
+    fontWeight: '500',
     color: '#9ca3af',
-  },
-  sessionId: {
-    fontSize: 12,
-    color: '#6b7280',
-    fontFamily: 'monospace',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   emptyState: {
     flex: 1,
