@@ -157,6 +157,16 @@ export default function Connect() {
     router.back();
   };
 
+  const handleSessions = () => {
+    // TODO: Navigate to sessions page
+    console.log('Navigate to sessions');
+  };
+
+  const handleNewChat = () => {
+    // TODO: Navigate to new chat page
+    console.log('Start new chat');
+  };
+
   const getStatusColor = () => {
     switch (status) {
       case 'connected': return '#10b981';
@@ -229,6 +239,18 @@ export default function Connect() {
           </View>
 
           <View style={styles.actions}>
+            {status === 'connected' && (
+              <>
+                <TouchableOpacity style={styles.primaryButton} onPress={handleNewChat}>
+                  <Text style={styles.primaryButtonText}>New Chat</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.secondaryButton} onPress={handleSessions}>
+                  <Text style={styles.secondaryButtonText}>Sessions</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            
             {status === 'error' && (
               <TouchableOpacity style={styles.retryButton} onPress={retry}>
                 <Text style={styles.retryButtonText}>Retry Connection</Text>
@@ -370,6 +392,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   backButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  primaryButton: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  primaryButtonText: {
+    color: "#0a0a0a",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  secondaryButton: {
+    backgroundColor: "#1a1a1a",
+    borderWidth: 1,
+    borderColor: "#ffffff",
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  secondaryButtonText: {
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "500",
