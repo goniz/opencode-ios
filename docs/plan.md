@@ -38,9 +38,9 @@ This document outlines the plan to refactor the current connection flow from a d
 - [x] Maintain error handling and timeout logic
 
 #### 1.2 Add Toast Notifications
-- [ ] Install and configure expo-notifications package
-- [ ] Set up notification permissions and configuration
-- [ ] Create toast notification utility functions
+- [x] Install and configure expo-notifications package
+- [x] Set up notification permissions and configuration
+- [x] Create toast notification utility functions
 - [ ] Implement toast for successful connection ("Connected!")
 - [ ] Implement toast for failed connections with error details
 - [ ] Style toasts to match app design (dark theme)
