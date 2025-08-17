@@ -88,6 +88,7 @@ This runs the development server in the background, allowing you to continue usi
 5. Follow React Native performance best practices
 6. Use Expo modules for native functionality
 7. Maintain cross-platform compatibility
+8. **ALWAYS prefer `expo install` over `npm install`** for installing packages - Expo install ensures compatibility with the current Expo SDK version
 
 ## TypeScript Guidelines
 - **NEVER use `any` type** - always specify proper types
@@ -98,10 +99,18 @@ This runs the development server in the background, allowing you to continue usi
 
 ## Examples and Resources
 - [Expo Examples Repository](https://github.com/expo/examples) - Official Expo examples and tutorials
+## Package Installation
+**IMPORTANT**: Always use `expo install` instead of `npm install` when adding new packages to ensure Expo SDK compatibility:
+- ✅ `expo install package-name` - Preferred method
+- ❌ `npm install package-name` - Avoid unless package is not available via Expo
+
+Expo install automatically selects the correct version compatible with your Expo SDK version and prevents version conflicts.
+
 ## Common Tasks
 - Adding new screens: Create files in `app/` directory
 - Creating components: Add to `components/` directory
 - Managing navigation: Use Expo Router patterns
 - Styling: Use React Native StyleSheet with theme support
 - Icons: Use @expo/vector-icons or expo-symbols
+- Installing packages: Use `expo install package-name` for compatibility
 - Testing: Run on Expo Go app or simulators
