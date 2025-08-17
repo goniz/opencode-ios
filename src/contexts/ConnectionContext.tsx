@@ -250,13 +250,15 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       dispatch({ type: 'SET_CONNECTED', payload: { client } });
 
       // Save the successful connection to both server storage and current connection
+      // Store only the host:port part, not the full URL with protocol
+      const hostPort = url.replace(/^https?:\/\//, '');
       const savedServer: SavedServer = {
-        url,
+        url: hostPort,
         lastConnected: Date.now(),
       };
       await Promise.all([
         saveServer(savedServer),
-        saveCurrentConnection(url)
+        saveCurrentConnection(url) // Keep full URL for connection persistence
       ]);
 
       // Fetch initial sessions
