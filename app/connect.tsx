@@ -97,7 +97,6 @@ export default function Connect() {
       
       // Try to get version from app response or fallback
       const appData = appResponse.data;
-      console.log('App data received:', appData);
       
       // Since there's no version endpoint, show API version and hostname
       const apiVersion = '1.0.0'; // From OpenAPI spec info.version
