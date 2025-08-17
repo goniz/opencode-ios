@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Text, View, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, StatusBar, KeyboardAvoidingView, Platform } from "react-native";
+import { router } from "expo-router";
 import * as Clipboard from 'expo-clipboard';
 
 export default function Index() {
@@ -11,8 +12,8 @@ export default function Index() {
       return;
     }
     
-    // TODO: Implement connection logic
-    Alert.alert("Connect", `Connecting to: ${serverUrl}`);
+    // Navigate to connect page with server URL
+    router.push(`/connect?url=${encodeURIComponent(serverUrl)}`);
   };
 
   const copyCommand = async () => {

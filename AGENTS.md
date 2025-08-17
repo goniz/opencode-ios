@@ -11,6 +11,7 @@ Expo Go-based React Native mobile application using Expo Router for navigation a
 - **Styling**: React Native StyleSheet
 - **State Management**: React hooks (built-in)
 - **Icons**: @expo/vector-icons, expo-symbols
+- **API Client**: Generated TypeScript client from OpenAPI schema using @hey-api/openapi-ts
 - **Development**: Expo CLI, ESLint
 
 ## Project Structure
@@ -30,6 +31,12 @@ components/            # Reusable UI components
 constants/            # App constants and configuration
 hooks/               # Custom React hooks
 assets/              # Images, fonts, and static files
+src/
+├── api/             # Generated TypeScript API client
+│   ├── client/      # HTTP client implementation
+│   ├── core/        # Core API utilities
+│   ├── sdk.gen.ts   # Generated SDK functions
+│   └── types.gen.ts # Generated TypeScript types
 ```
 
 ## Development Commands
@@ -38,6 +45,7 @@ assets/              # Images, fonts, and static files
 - `npm run android` - Run on Android emulator
 - `npm run web` - Run on web browser
 - `npm run lint` - Run ESLint
+- `npm run generate-api` - Generate TypeScript client from OpenAPI schema
 - `npm run reset-project` - Reset project to clean state
 
 ## Testing on Physical Device
