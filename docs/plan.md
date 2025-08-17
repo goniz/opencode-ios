@@ -67,15 +67,15 @@ This document outlines the plan to refactor the current connection flow from a d
 ### Phase 2: State Management (Priority 2)
 
 #### 2.1 Global Connection State
-- [ ] Create React Context for server connection state
-- [ ] Define state shape:
-  - [ ] `serverUrl: string`
-  - [ ] `client: ApiClient | null`
-  - [ ] `connectionStatus: 'idle' | 'connecting' | 'connected' | 'error'`
-  - [ ] `sessions: Session[]`
-  - [ ] `lastError: string | null`
-- [ ] Create context provider and consumer hooks
-- [ ] Integrate with existing serverStorage utility
+- [x] Create React Context for server connection state
+- [x] Define state shape:
+  - [x] `serverUrl: string`
+  - [x] `client: ApiClient | null`
+  - [x] `connectionStatus: 'idle' | 'connecting' | 'connected' | 'error'`
+  - [x] `sessions: Session[]`
+  - [x] `lastError: string | null`
+- [x] Create context provider and consumer hooks
+- [x] Integrate with existing serverStorage utility
 
 #### 2.2 Connection Persistence
 - [ ] Save successful connections to AsyncStorage
