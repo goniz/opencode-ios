@@ -28,6 +28,7 @@ export default function ChatScreen() {
     currentSession, 
     messages, 
     isLoadingMessages,
+    isStreamConnected,
     loadMessages, 
     sendMessage,
     setCurrentSession
@@ -65,6 +66,15 @@ export default function ChatScreen() {
     }
   }, [currentSession, loadMessages]);
 
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages]);
+
   const handleSendMessage = async () => {
     if (!inputText.trim() || !currentSession || isSending) return;
 
@@ -101,7 +111,9 @@ export default function ChatScreen() {
       })
       .join(' ');
     
-    const messageText = textParts || (item.info.role === 'user' ? 'User message' : 'Assistant response');
+    const messageText = textParts || (item.info.role === 'user' ? 'User message' : '');
+    const isAssistant = item.info.role === 'assistant';
+    const isStreaming = isAssistant && item.parts.length === 0 && isStreamConnected;
     
     return (
       <View style={[
@@ -112,12 +124,21 @@ export default function ChatScreen() {
           styles.messageBubble,
           item.info.role === 'user' ? styles.userBubble : styles.assistantBubble
         ]}>
-          <Text style={[
-            styles.messageText,
-            item.info.role === 'user' ? styles.userText : styles.assistantText
-          ]}>
-            {messageText}
-          </Text>
+          {isStreaming ? (
+            <View style={styles.streamingContainer}>
+              <ActivityIndicator size="small" color="#9ca3af" />
+              <Text style={[styles.messageText, styles.assistantText, styles.streamingText]}>
+                Thinking...
+              </Text>
+            </View>
+          ) : (
+            <Text style={[
+              styles.messageText,
+              item.info.role === 'user' ? styles.userText : styles.assistantText
+            ]}>
+              {messageText || (isAssistant ? 'Assistant response' : 'User message')}
+            </Text>
+          )}
         </View>
       </View>
     );
@@ -166,7 +187,15 @@ export default function ChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
-        <Text style={styles.title} numberOfLines={1}>{currentSession.title}</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.title} numberOfLines={1}>{currentSession.title}</Text>
+          {isStreamConnected && (
+            <View style={styles.streamStatus}>
+              <View style={styles.streamIndicator} />
+              <Text style={styles.streamText}>Live</Text>
+            </View>
+          )}
+        </View>
         <TouchableOpacity onPress={() => router.push('/(tabs)/sessions')}>
           <Ionicons name="list" size={24} color="#ffffff" />
         </TouchableOpacity>
@@ -235,6 +264,32 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#2a2a2a',
+  },
+  headerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  streamStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: '#1a2e1a',
+    borderRadius: 8,
+  },
+  streamIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10b981',
+    marginRight: 4,
+  },
+  streamText: {
+    fontSize: 10,
+    color: '#10b981',
+    fontWeight: '500',
   },
   title: {
     fontSize: 18,
@@ -309,6 +364,15 @@ const styles = StyleSheet.create({
   },
   assistantText: {
     color: '#ffffff',
+  },
+  streamingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  streamingText: {
+    marginLeft: 8,
+    fontStyle: 'italic',
+    opacity: 0.8,
   },
   inputContainer: {
     flexDirection: 'row',

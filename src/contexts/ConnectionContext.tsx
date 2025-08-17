@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '../api/client';
 import type { Client } from '../api/client/types.gen';
-import type { Session, Message, Part } from '../api/types.gen';
-import { sessionList, sessionMessages, sessionChat } from '../api/sdk.gen';
+import type { Session, Message, Part, Event, EventMessageUpdated, EventMessagePartUpdated } from '../api/types.gen';
+import { sessionList, sessionMessages, sessionChat, eventSubscribe } from '../api/sdk.gen';
 import { saveServer, type SavedServer } from '../utils/serverStorage';
 
 const CURRENT_CONNECTION_KEY = 'current_connection';
@@ -31,11 +31,12 @@ export interface ConnectionState {
   currentSession: Session | null;
   messages: MessageWithParts[];
   isLoadingMessages: boolean;
+  isStreamConnected: boolean;
 }
 
 export interface ConnectionContextType extends ConnectionState {
   connect: (url: string, timeout?: number) => Promise<void>;
-  disconnect: () => void;
+  disconnect: () => Promise<void>;
   refreshSessions: () => Promise<void>;
   clearError: () => void;
   autoReconnect: () => Promise<void>;
@@ -54,6 +55,9 @@ type ConnectionAction =
   | { type: 'SET_MESSAGES'; payload: { messages: MessageWithParts[] } }
   | { type: 'SET_LOADING_MESSAGES'; payload: { isLoading: boolean } }
   | { type: 'ADD_MESSAGE'; payload: { message: MessageWithParts } }
+  | { type: 'UPDATE_MESSAGE'; payload: { messageId: string; info: Message } }
+  | { type: 'UPDATE_MESSAGE_PART'; payload: { messageId: string; partId: string; part: Part } }
+  | { type: 'SET_STREAM_CONNECTED'; payload: { connected: boolean } }
   | { type: 'DISCONNECT' }
   | { type: 'CLEAR_ERROR' };
 
@@ -66,6 +70,7 @@ const initialState: ConnectionState = {
   currentSession: null,
   messages: [],
   isLoadingMessages: false,
+  isStreamConnected: false,
 };
 
 function connectionReducer(state: ConnectionState, action: ConnectionAction): ConnectionState {
@@ -117,6 +122,38 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
       return {
         ...state,
         messages: [...state.messages, action.payload.message],
+      };
+    case 'UPDATE_MESSAGE':
+      return {
+        ...state,
+        messages: state.messages.map(msg => 
+          msg.info.id === action.payload.messageId 
+            ? { ...msg, info: action.payload.info }
+            : msg
+        ),
+      };
+    case 'UPDATE_MESSAGE_PART':
+      return {
+        ...state,
+        messages: state.messages.map(msg => 
+          msg.info.id === action.payload.messageId 
+            ? {
+                ...msg,
+                parts: msg.parts.some(p => p.id === action.payload.partId)
+                  ? msg.parts.map(part => 
+                      part.id === action.payload.partId 
+                        ? action.payload.part
+                        : part
+                    )
+                  : [...msg.parts, action.payload.part]
+              }
+            : msg
+        ),
+      };
+    case 'SET_STREAM_CONNECTED':
+      return {
+        ...state,
+        isStreamConnected: action.payload.connected,
       };
     case 'DISCONNECT':
       return {
@@ -216,6 +253,7 @@ const clearCurrentSession = async (): Promise<void> => {
 
 export function ConnectionProvider({ children }: ConnectionProviderProps) {
   const [state, dispatch] = useReducer(connectionReducer, initialState);
+  const eventStreamRef = useRef<ReadableStreamDefaultReader | null>(null);
 
   const connectWithTimeout = async (client: Client, timeoutMs: number): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -264,6 +302,9 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       // Fetch initial sessions
       await refreshSessionsInternal(client);
       
+      // Start event stream for real-time updates
+      await startEventStream(client);
+      
       // Try to restore the last active session
       const savedSession = await getCurrentSession();
       if (savedSession) {
@@ -280,11 +321,104 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
   }, []);
 
-  const disconnect = useCallback((): void => {
+  const stopEventStream = useCallback(async (): Promise<void> => {
+    if (eventStreamRef.current) {
+      try {
+        await eventStreamRef.current.cancel();
+      } catch (error) {
+        console.error('Error canceling stream:', error);
+      } finally {
+        eventStreamRef.current = null;
+        dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
+      }
+    }
+  }, []);
+
+  const startEventStream = useCallback(async (client: Client): Promise<void> => {
+    try {
+      // First stop any existing stream
+      await stopEventStream();
+
+      const response = await eventSubscribe({ client });
+      
+      if (response.response?.body) {
+        const reader = response.response.body.getReader();
+        eventStreamRef.current = reader;
+        dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: true } });
+
+        // Process stream events
+        const processStream = async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              // Decode the stream chunk
+              const chunk = new TextDecoder().decode(value);
+              const lines = chunk.split('\n').filter(line => line.trim());
+
+              for (const line of lines) {
+                try {
+                  // Parse SSE format (data: {...})
+                  const eventMatch = line.match(/^data:\s*(.+)$/);
+                  if (eventMatch) {
+                    const event: Event = JSON.parse(eventMatch[1]);
+                    
+                    // Handle different event types
+                    switch (event.type) {
+                      case 'message.updated':
+                        const messageEvent = event as EventMessageUpdated;
+                        dispatch({ 
+                          type: 'UPDATE_MESSAGE', 
+                          payload: { 
+                            messageId: messageEvent.properties.info.id,
+                            info: messageEvent.properties.info
+                          } 
+                        });
+                        break;
+                        
+                      case 'message.part.updated':
+                        const partEvent = event as EventMessagePartUpdated;
+                        dispatch({ 
+                          type: 'UPDATE_MESSAGE_PART', 
+                          payload: { 
+                            messageId: partEvent.properties.part.messageID,
+                            partId: partEvent.properties.part.id,
+                            part: partEvent.properties.part
+                          } 
+                        });
+                        break;
+                    }
+                  }
+                } catch (parseError) {
+                  console.error('Error parsing event:', parseError);
+                }
+              }
+            }
+          } catch (streamError) {
+            console.error('Stream processing error:', streamError);
+          } finally {
+            dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
+            eventStreamRef.current = null;
+          }
+        };
+
+        // Start processing stream in background
+        processStream();
+      }
+    } catch (error) {
+      console.error('Failed to start event stream:', error);
+      dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
+    }
+  }, [stopEventStream]);
+
+  const disconnect = useCallback(async (): Promise<void> => {
+    // Stop event stream first
+    await stopEventStream();
     // Clear persisted connection when user explicitly disconnects
     clearCurrentConnection();
     dispatch({ type: 'DISCONNECT' });
-  }, []);
+  }, [stopEventStream]);
 
   const autoReconnect = useCallback(async (): Promise<void> => {
     try {
@@ -396,6 +530,27 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
 
     try {
+      // Add user message immediately for instant feedback
+      const userMessage: MessageWithParts = {
+        info: {
+          role: 'user',
+          id: `user-${Date.now()}`,
+          sessionID: sessionId,
+          time: {
+            created: Date.now()
+          }
+        },
+        parts: [{
+          id: `part-${Date.now()}`,
+          sessionID: sessionId,
+          messageID: `user-${Date.now()}`,
+          type: 'text',
+          text: message
+        }]
+      };
+      dispatch({ type: 'ADD_MESSAGE', payload: { message: userMessage } });
+
+      // Send the message - the response will come through the event stream
       const response = await sessionChat({
         client: state.client,
         path: { id: sessionId },
@@ -410,35 +565,13 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       });
 
       if (response.data) {
-        // Add user message first (simulate user message display)
-        const userMessage: MessageWithParts = {
-          info: {
-            role: 'user',
-            id: `user-${Date.now()}`,
-            sessionID: sessionId,
-            time: {
-              created: Date.now()
-            }
-          },
-          parts: [{
-            id: `part-${Date.now()}`,
-            sessionID: sessionId,
-            messageID: `user-${Date.now()}`,
-            type: 'text',
-            text: message
-          }]
+        // The assistant message will be updated via event stream,
+        // but we add an initial placeholder to show it's processing
+        const assistantMessage: MessageWithParts = {
+          info: response.data,
+          parts: [] // Parts will be added via streaming updates
         };
-        dispatch({ type: 'ADD_MESSAGE', payload: { message: userMessage } });
-        
-        // Reload all messages to get the complete conversation including the new response
-        const messagesResponse = await sessionMessages({ 
-          client: state.client, 
-          path: { id: sessionId } 
-        });
-        
-        if (messagesResponse.data) {
-          dispatch({ type: 'SET_MESSAGES', payload: { messages: messagesResponse.data } });
-        }
+        dispatch({ type: 'ADD_MESSAGE', payload: { message: assistantMessage } });
       }
     } catch (error) {
       console.error('Failed to send message:', error);
