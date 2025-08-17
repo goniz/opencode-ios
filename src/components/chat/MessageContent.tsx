@@ -1,95 +1,92 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import type { Part } from '../../api/types.gen';
+import { PartComponentSelector } from './parts';
 
 interface MessageContentProps {
   role: string;
   part: Part;
+  isLast?: boolean;
+  partIndex?: number;
+  totalParts?: number;
 }
 
-export function MessageContent({ role, part }: MessageContentProps) {
-  const renderPartContent = () => {
+export function MessageContent({ 
+  role, 
+  part, 
+  isLast = false, 
+  partIndex = 0, 
+  totalParts = 1 
+}: MessageContentProps) {
+  // Determine if this is the last part of the last message
+  const isLastPart = isLast && partIndex === totalParts - 1;
+  
+  // Convert API part format to component part format
+  const getComponentPart = () => {
+    const basePart = {
+      type: part.type,
+    };
+
     switch (part.type) {
       case 'text':
-        return (
-          <Text style={[
-            styles.contentText,
-            role === 'user' ? styles.userText : styles.assistantText
-          ]}>
-            {part.text || ''}
-          </Text>
-        );
-
+        return {
+          ...basePart,
+          content: part.text || '',
+        };
+        
       case 'reasoning':
-        return (
-          <View style={styles.reasoningContainer}>
-            <Text style={styles.reasoningLabel}>Thinking</Text>
-            <Text style={styles.reasoningText}>
-              {part.text || ''}
-            </Text>
-          </View>
-        );
-
+        return {
+          ...basePart,
+          content: part.text || '',
+          thinking: part.text || '',
+        };
+        
       case 'tool':
-        const toolState = part.state;
-        return (
-          <View style={styles.toolContainer}>
-            <Text style={styles.toolHeader}>
-              {part.tool}
-            </Text>
-            {toolState.status === 'completed' && (
-              <>
-                <Text style={styles.toolTitle}>
-                  {toolState.title}
-                </Text>
-                <Text style={styles.toolOutput}>
-                  {toolState.output}
-                </Text>
-              </>
-            )}
-            {toolState.status === 'error' && (
-              <Text style={styles.toolError}>
-                Error: {toolState.error}
-              </Text>
-            )}
-          </View>
-        );
-
+        return {
+          ...basePart,
+          tool: part.tool || '',
+          result: part.state?.status === 'completed' ? part.state.output : '',
+          error: part.state?.status === 'error' ? part.state.error : undefined,
+        };
+        
       case 'file':
-        return (
-          <View style={styles.fileContainer}>
-            <Text style={styles.fileText}>
-              📁 {part.filename || 'File attachment'}
-            </Text>
-          </View>
-        );
-
+        return {
+          ...basePart,
+          file: {
+            path: part.filename || 'Unknown file',
+            content: '', // File content would come from another source
+          },
+        };
+        
       case 'step-start':
-        return (
-          <Text style={styles.stepText}>
-            Starting task...
-          </Text>
-        );
-
-      case 'agent':
-        return (
-          <Text style={styles.agentText}>
-            Agent: {part.name}
-          </Text>
-        );
-
+        return {
+          ...basePart,
+          step: 'Starting task...',
+        };
+        
+        case 'agent':
+        return {
+          ...basePart,
+          content: `Agent: ${(part as { name?: string }).name || 'Unknown'}`,
+        };
+        
       default:
-        return (
-          <Text style={styles.contentText}>
-            Unknown part type: {part.type}
-          </Text>
-        );
+        return {
+          ...basePart,
+          content: `Unknown part type: ${part.type}`,
+        };
     }
   };
 
+  const componentPart = getComponentPart();
+
   return (
     <View style={styles.contentColumn}>
-      {renderPartContent()}
+      <PartComponentSelector
+        part={componentPart}
+        isLast={isLastPart}
+        messageRole={role as 'user' | 'assistant'}
+      />
     </View>
   );
 }

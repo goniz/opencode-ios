@@ -177,6 +177,9 @@ export default function ChatScreen() {
               <MessageContent 
                 role={item.info.role}
                 part={part}
+                isLast={index === messages.length - 1}
+                partIndex={partIndex}
+                totalParts={filteredParts.length}
               />
             </View>
           );
