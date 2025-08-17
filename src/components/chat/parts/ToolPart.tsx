@@ -1,26 +1,26 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { MessagePartProps, MessagePartContainer } from './MessagePart';
+import { useExpandable } from '../../../hooks/useExpandable';
+import { ExpandButton } from '../ExpandButton';
 
 export const ToolPart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
-  const [isResultExpanded, setIsResultExpanded] = useState(false);
-  
   const toolName = part.tool || 'unknown';
   const result = part.result || '';
   const error = part.error;
   const hasError = !!error;
   
-  // Auto-expand errors and last parts
-  const shouldAutoExpand = hasError || isLast;
-  const shouldShowExpandButton = result.length > 200 && !shouldAutoExpand;
-  
-  const toggleResult = () => {
-    setIsResultExpanded(!isResultExpanded);
-  };
-
-  const displayResult = shouldShowExpandButton && !isResultExpanded 
-    ? result.substring(0, 200) + '...'
-    : result;
+  // Use expandable hook for results
+  const {
+    isExpanded,
+    shouldShowExpandButton,
+    displayContent: displayResult,
+    toggleExpanded,
+  } = useExpandable({
+    content: result,
+    autoExpand: hasError || isLast,
+    contentType: 'tool',
+  });
 
   return (
     <MessagePartContainer>
@@ -49,14 +49,13 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
             </Text>
             
             {shouldShowExpandButton && !hasError && (
-              <TouchableOpacity 
-                onPress={toggleResult}
-                style={styles.expandButton}
-              >
-                <Text style={styles.expandButtonText}>
-                  {isResultExpanded ? 'Show less' : 'Show results'}
-                </Text>
-              </TouchableOpacity>
+              <ExpandButton
+                isExpanded={isExpanded}
+                onPress={toggleExpanded}
+                expandText="Show results"
+                collapseText="Show less"
+                variant="tool"
+              />
             )}
           </View>
         )}
@@ -112,13 +111,5 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#f87171',
   },
-  expandButton: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-  },
-  expandButtonText: {
-    color: '#60a5fa',
-    fontSize: 11,
-    fontWeight: '500',
-  },
+
 });

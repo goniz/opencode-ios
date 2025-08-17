@@ -1,23 +1,23 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { MessagePartProps, MessagePartContainer } from './MessagePart';
+import { useExpandable } from '../../../hooks/useExpandable';
+import { ExpandButton } from '../ExpandButton';
 
 export const ReasoningPart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
-  const [isExpanded, setIsExpanded] = useState(isLast);
-  
   const thinkingContent = part.thinking || part.content || '';
   
-  // Auto-expand last parts
-  const shouldAutoExpand = isLast;
-  const shouldShowExpandButton = thinkingContent.length > 400 && !shouldAutoExpand;
-  
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-  };
-
-  const displayContent = shouldShowExpandButton && !isExpanded 
-    ? thinkingContent.substring(0, 400) + '...'
-    : thinkingContent;
+  // Use expandable hook for reasoning content
+  const {
+    isExpanded,
+    shouldShowExpandButton,
+    displayContent,
+    toggleExpanded,
+  } = useExpandable({
+    content: thinkingContent,
+    autoExpand: isLast,
+    contentType: 'reasoning',
+  });
 
   return (
     <MessagePartContainer>
@@ -37,14 +37,13 @@ export const ReasoningPart: React.FC<MessagePartProps> = ({ part, isLast = false
           </Text>
           
           {shouldShowExpandButton && (
-            <TouchableOpacity 
+            <ExpandButton
+              isExpanded={isExpanded}
               onPress={toggleExpanded}
-              style={styles.expandButton}
-            >
-              <Text style={styles.expandButtonText}>
-                {isExpanded ? 'Show less' : 'Show full reasoning'}
-              </Text>
-            </TouchableOpacity>
+              expandText="Show full reasoning"
+              collapseText="Show less"
+              variant="reasoning"
+            />
           )}
         </View>
       </View>
@@ -91,13 +90,5 @@ const styles = StyleSheet.create({
     color: '#e0e7ff',
     fontStyle: 'italic',
   },
-  expandButton: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-  },
-  expandButtonText: {
-    color: '#a855f7',
-    fontSize: 11,
-    fontWeight: '500',
-  },
+
 });

@@ -1,26 +1,27 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { MessagePartProps, MessagePartContainer } from './MessagePart';
+import { useExpandable } from '../../../hooks/useExpandable';
+import { ExpandButton } from '../ExpandButton';
 
 export const TextPart: React.FC<MessagePartProps> = ({ 
   part, 
   isLast = false, 
   messageRole = 'assistant' 
 }) => {
-  const [isExpanded, setIsExpanded] = useState(isLast);
   const content = part.content || '';
   
-  // Simple line estimation for collapse logic
-  const estimatedLines = Math.ceil(content.length / 50);
-  const shouldShowExpandButton = estimatedLines > 3 && !isLast;
-  
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-  };
-
-  const displayContent = shouldShowExpandButton && !isExpanded 
-    ? content.substring(0, 150) + '...'
-    : content;
+  const {
+    isExpanded,
+    shouldShowExpandButton,
+    displayContent,
+    toggleExpanded,
+  } = useExpandable({
+    content,
+    maxLines: 3,
+    autoExpand: isLast,
+    contentType: 'text',
+  });
 
   return (
     <MessagePartContainer>
@@ -33,14 +34,12 @@ export const TextPart: React.FC<MessagePartProps> = ({
         </Text>
         
         {shouldShowExpandButton && (
-          <TouchableOpacity 
+          <ExpandButton
+            isExpanded={isExpanded}
             onPress={toggleExpanded}
-            style={styles.expandButton}
-          >
-            <Text style={styles.expandButtonText}>
-              {isExpanded ? 'Show less' : 'Show more'}
-            </Text>
-          </TouchableOpacity>
+            expandText="Show more"
+            collapseText="Show less"
+          />
         )}
       </View>
     </MessagePartContainer>
@@ -61,14 +60,5 @@ const styles = StyleSheet.create({
   },
   assistantText: {
     color: '#e5e7eb',
-  },
-  expandButton: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-  },
-  expandButtonText: {
-    color: '#60a5fa',
-    fontSize: 12,
-    fontWeight: '500',
   },
 });

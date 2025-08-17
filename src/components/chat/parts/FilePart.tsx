@@ -1,24 +1,26 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { MessagePartProps, MessagePartContainer } from './MessagePart';
+import { useExpandable } from '../../../hooks/useExpandable';
+import { ExpandButton } from '../ExpandButton';
 
 export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
-  const [isContentExpanded, setIsContentExpanded] = useState(isLast);
-  
   const filePath = part.file?.path || 'Unknown file';
   const fileContent = part.file?.content || '';
   
-  // Auto-expand last parts or small files
-  const shouldAutoExpand = isLast || fileContent.length < 500;
-  const shouldShowExpandButton = fileContent.length > 500 && !shouldAutoExpand;
-  
-  const toggleContent = () => {
-    setIsContentExpanded(!isContentExpanded);
-  };
-
-  const displayContent = shouldShowExpandButton && !isContentExpanded 
-    ? fileContent.substring(0, 300) + '...'
-    : fileContent;
+  // Use expandable hook for file content
+  const {
+    isExpanded,
+    shouldShowExpandButton,
+    displayContent,
+    toggleExpanded,
+  } = useExpandable({
+    content: fileContent,
+    autoExpand: isLast || fileContent.length < 500,
+    contentType: 'text',
+    maxLines: 10,
+    estimatedCharsPerLine: 60,
+  });
 
   // Extract file name from path
   const fileName = filePath.split('/').pop() || filePath;
@@ -52,14 +54,12 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
             </Text>
             
             {shouldShowExpandButton && (
-              <TouchableOpacity 
-                onPress={toggleContent}
-                style={styles.expandButton}
-              >
-                <Text style={styles.expandButtonText}>
-                  {isContentExpanded ? 'Show less' : 'Show full file'}
-                </Text>
-              </TouchableOpacity>
+              <ExpandButton
+                isExpanded={isExpanded}
+                onPress={toggleExpanded}
+                expandText="Show full file"
+                collapseText="Show less"
+              />
             )}
           </View>
         )}
@@ -117,13 +117,5 @@ const styles = StyleSheet.create({
   codeText: {
     fontFamily: 'monospace',
   },
-  expandButton: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-  },
-  expandButtonText: {
-    color: '#60a5fa',
-    fontSize: 11,
-    fontWeight: '500',
-  },
+
 });
