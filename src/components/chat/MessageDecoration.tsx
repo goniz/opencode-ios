@@ -3,30 +3,44 @@ import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Part } from '../../api/types.gen';
 import { getPartIcon, getRoleIcon } from '../../utils/iconMapping';
+import { ProviderIcon } from '../icons/ProviderIcons';
 
 interface MessageDecorationProps {
   role: string;
   part?: Part;
   isFirstPart: boolean;
   isLastPart: boolean;
+  providerID?: string;
+  modelID?: string;
 }
 
-export function MessageDecoration({ role, part, isFirstPart, isLastPart }: MessageDecorationProps) {
+export function MessageDecoration({ role, part, isFirstPart, isLastPart, providerID, modelID }: MessageDecorationProps) {
   // Use role icon for first part, part icon for subsequent parts
   const iconInfo = isFirstPart ? getRoleIcon(role) : (part ? getPartIcon(part) : getRoleIcon(role));
   
+  // Show provider icon for first part of assistant messages
+  const showProviderIcon = isFirstPart && role === 'assistant' && (providerID || modelID);
+  
   return (
     <View style={styles.decorationColumn}>
-      <View style={[
-        styles.iconContainer,
-        iconInfo.backgroundColor && { backgroundColor: iconInfo.backgroundColor }
-      ]}>
-        <Ionicons 
-          name={iconInfo.name as keyof typeof Ionicons.glyphMap} 
-          size={16} 
-          color={iconInfo.color} 
+      {showProviderIcon ? (
+        <ProviderIcon 
+          providerID={providerID}
+          modelID={modelID}
+          size={16}
         />
-      </View>
+      ) : (
+        <View style={[
+          styles.iconContainer,
+          iconInfo.backgroundColor && { backgroundColor: iconInfo.backgroundColor }
+        ]}>
+          <Ionicons 
+            name={iconInfo.name as keyof typeof Ionicons.glyphMap} 
+            size={16} 
+            color={iconInfo.color} 
+          />
+        </View>
+      )}
       {!isLastPart && (
         <View style={styles.verticalLine} />
       )}

@@ -174,6 +174,8 @@ export default function ChatScreen() {
                 part={part}
                 isFirstPart={isFirstPart}
                 isLastPart={isLastPart}
+                providerID={item.info.role === 'assistant' ? (item.info as any).providerID : undefined}
+                modelID={item.info.role === 'assistant' ? (item.info as any).modelID : undefined}
               />
               <MessageContent 
                 role={item.info.role}
