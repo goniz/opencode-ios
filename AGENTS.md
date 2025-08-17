@@ -82,12 +82,19 @@ This runs the development server in the background, allowing you to continue usi
 
 ## Development Guidelines
 1. Use Expo Router for navigation and routing
-2. Follow TypeScript best practices
+2. Follow TypeScript best practices - **ALWAYS use proper TypeScript types, avoid `any` type**
 3. Use themed components for consistent styling
 4. Test on multiple platforms (iOS, Android, Web)
 5. Follow React Native performance best practices
 6. Use Expo modules for native functionality
 7. Maintain cross-platform compatibility
+
+## TypeScript Guidelines
+- **NEVER use `any` type** - always specify proper types
+- Use `unknown` for error handling and uncertain types
+- Use type guards (e.g., `instanceof Error`) to narrow types
+- Prefer interfaces over type aliases for object shapes
+- Use proper generic types for API responses and functions
 
 ## Examples and Resources
 - [Expo Examples Repository](https://github.com/expo/examples) - Official Expo examples and tutorials

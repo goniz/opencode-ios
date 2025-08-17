@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Text, View, TouchableOpacity, StyleSheet, ScrollView, StatusBar, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { sessionList } from '../src/api/sdk.gen';
+import { sessionList, appGet } from '../src/api/sdk.gen';
 import { createClient, createConfig } from '../src/api/client';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'idle';
@@ -13,6 +13,8 @@ export default function Connect() {
   const [status, setStatus] = useState<ConnectionStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [sessionCount, setSessionCount] = useState<number | null>(null);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [rootPath, setRootPath] = useState<string | null>(null);
 
   const connectToServer = useCallback(async () => {
     if (!serverUrl) {
@@ -25,28 +27,109 @@ export default function Connect() {
     setErrorMessage('');
 
     try {
+      // Validate URL format
+      const urlPattern = /^[^:\/]+:\d+$/;
+      if (!urlPattern.test(serverUrl)) {
+        throw new Error('Invalid URL format. Expected: host:port (e.g., 192.168.1.100:3000)');
+      }
+
+      const baseUrl = `http://${serverUrl}`;
+      console.log('Attempting connection to:', baseUrl);
+
+      // First, try a simple fetch to test basic connectivity
+      try {
+        const testController = new AbortController();
+        const testTimeoutId = setTimeout(() => testController.abort(), 5000); // 5 second timeout
+        
+        const testResponse = await fetch(baseUrl, {
+          method: 'HEAD',
+          signal: testController.signal,
+        });
+        clearTimeout(testTimeoutId);
+        console.log('Basic connectivity test:', testResponse.status);
+      } catch (testError: unknown) {
+        const errorMessage = testError instanceof Error ? testError.message : 'Unknown error';
+        console.log('Basic connectivity failed:', errorMessage);
+        // Continue anyway as the server might not support HEAD requests
+      }
+
       // Create client with the server URL
       const client = createClient(createConfig({
-        baseUrl: `http://${serverUrl}`
+        baseUrl,
+        // Add timeout and better error handling
+        fetch: async (request: Request) => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          
+          try {
+            const response = await fetch(request, {
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            return response;
+          } catch (error: unknown) {
+            clearTimeout(timeoutId);
+            if (error instanceof Error && error.name === 'AbortError') {
+              throw new Error('Connection timeout - server may be unreachable');
+            }
+            throw error;
+          }
+        }
       }));
 
-      // Test connection by trying to list sessions
-      const response = await sessionList({ client });
+      // Test connection and fetch app info
+      const [sessionResponse, appResponse] = await Promise.all([
+        sessionList({ client }),
+        appGet({ client })
+      ]);
       
-      if (response.error) {
-        throw new Error(String(response.error));
+      if (sessionResponse.error) {
+        console.error('Session API Error:', sessionResponse.error);
+        throw new Error(`Session API Error: ${JSON.stringify(sessionResponse.error)}`);
       }
-      setSessionCount(response.data?.length || 0);
+
+      if (appResponse.error) {
+        console.error('App API Error:', appResponse.error);
+        throw new Error(`App API Error: ${JSON.stringify(appResponse.error)}`);
+      }
+      
+      setSessionCount(sessionResponse.data?.length || 0);
+      
+      // Try to get version from app response or fallback
+      const appData = appResponse.data;
+      console.log('App data received:', appData);
+      
+      // Since there's no version endpoint, show API version and hostname
+      const apiVersion = '1.0.0'; // From OpenAPI spec info.version
+      const hostname = appData?.hostname || 'localhost';
+      const rootPathValue = appData?.path?.root || 'unknown';
+      
+      setAppVersion(`API v${apiVersion} (${hostname})`);
+      setRootPath(rootPathValue);
+      
       setStatus('connected');
+      console.log('Successfully connected to server');
     } catch (error) {
       console.error('Connection error:', error);
       setStatus('error');
       
+      let errorMsg = 'Failed to connect to server';
+      
       if (error instanceof Error) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage('Failed to connect to server');
+        if (error.message.includes('Network request failed')) {
+          errorMsg = 'Network error - check if server is running and reachable from this device';
+        } else if (error.message.includes('timeout')) {
+          errorMsg = 'Connection timeout - server may be slow or unreachable';
+        } else if (error.message.includes('ECONNREFUSED')) {
+          errorMsg = 'Connection refused - server is not listening on this port';
+        } else if (error.message.includes('ENOTFOUND')) {
+          errorMsg = 'Host not found - check the server address';
+        } else {
+          errorMsg = error.message;
+        }
       }
+      
+      setErrorMessage(errorMsg);
     }
   }, [serverUrl]);
 
@@ -117,7 +200,10 @@ export default function Connect() {
                   Active Sessions: {sessionCount}
                 </Text>
                 <Text style={styles.detailText}>
-                  SDK Version: Connected
+                  Server: {appVersion || 'Connected'}
+                </Text>
+                <Text style={styles.detailText}>
+                  Root Path: {rootPath || 'Unknown'}
                 </Text>
               </View>
             )}
