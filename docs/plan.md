@@ -84,10 +84,10 @@ This document outlines the plan to refactor the current connection flow from a d
 - [x] Clear stale connection data when appropriate
 
 #### 2.3 Cross-Tab State Sharing
-- [ ] Make connection state available across all tabs
-- [ ] Update tab navigation to reflect connection status
-- [ ] Ensure sessions data is accessible from chat tab
-- [ ] Handle state updates when connection changes
+- [x] Make connection state available across all tabs
+- [x] Update tab navigation to reflect connection status
+- [x] Ensure sessions data is accessible from chat tab
+- [x] Handle state updates when connection changes
 
 ### Phase 3: UX Polish (Priority 3)
 

@@ -2,24 +2,25 @@ import { useState, useEffect, useCallback } from 'react';
 import { Text, View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { sessionList, sessionCreate } from '../../src/api/sdk.gen';
-import { createClient, createConfig } from '../../src/api/client';
-import { getSavedServers } from '../../src/utils/serverStorage';
+import { sessionCreate } from '../../src/api/sdk.gen';
+import { useConnection } from '../../src/contexts/ConnectionContext';
 import { toast } from '../../src/utils/toast';
 import type { Session } from '../../src/api/types.gen';
-
-type SessionsState = 'loading' | 'loaded' | 'error' | 'no-connection';
 
 type ListItem = 
   | { type: 'session'; data: Session }
   | { type: 'date'; date: string; displayDate: string };
 
 export default function SessionsScreen() {
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const { 
+    connectionStatus, 
+    sessions, 
+    client, 
+    refreshSessions, 
+    lastError 
+  } = useConnection();
   const [listItems, setListItems] = useState<ListItem[]>([]);
-  const [state, setState] = useState<SessionsState>('loading');
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string>('');
 
   const groupSessionsByDate = useCallback((sessions: Session[]): ListItem[] => {
     if (!sessions.length) return [];
@@ -63,61 +64,18 @@ export default function SessionsScreen() {
   }, []);
 
   const loadSessions = useCallback(async () => {
+    if (connectionStatus !== 'connected' || !client) {
+      return;
+    }
+
     try {
-      setState('loading');
-      setError('');
-
-      // Get the most recent server connection
-      const savedServers = await getSavedServers();
-      if (!savedServers.length) {
-        setState('no-connection');
-        return;
-      }
-
-      const mostRecent = savedServers[0];
-      const baseUrl = `http://${mostRecent.url}`;
-      
-      const client = createClient(createConfig({
-        baseUrl,
-        fetch: async (request: Request) => {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000);
-          
-          try {
-            const response = await fetch(request, {
-              signal: controller.signal,
-            });
-            clearTimeout(timeoutId);
-            return response;
-          } catch (error: unknown) {
-            clearTimeout(timeoutId);
-            if (error instanceof Error && error.name === 'AbortError') {
-              throw new Error('Connection timeout - server may be unreachable');
-            }
-            throw error;
-          }
-        }
-      }));
-
-      const response = await sessionList({ client });
-      
-      if (response.error) {
-        console.error('Sessions API Error:', response.error);
-        throw new Error(`Failed to fetch sessions: ${JSON.stringify(response.error)}`);
-      }
-
-      const sessionData = response.data || [];
-      setSessions(sessionData);
-      setListItems(groupSessionsByDate(sessionData));
-      setState('loaded');
+      await refreshSessions();
     } catch (error) {
-      console.error('Error loading sessions:', error);
+      console.error('Error refreshing sessions:', error);
       const errorMsg = error instanceof Error ? error.message : 'Failed to load sessions';
-      setError(errorMsg);
-      setState('error');
       toast.showError('Failed to load sessions', errorMsg);
     }
-  }, [groupSessionsByDate]);
+  }, [connectionStatus, client, refreshSessions]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -126,40 +84,13 @@ export default function SessionsScreen() {
   }, [loadSessions]);
 
   const handleNewChat = async () => {
+    if (connectionStatus !== 'connected' || !client) {
+      Alert.alert('No Connection', 'Please connect to a server first');
+      router.push('/(tabs)');
+      return;
+    }
+
     try {
-      // Get the most recent server connection
-      const savedServers = await getSavedServers();
-      if (!savedServers.length) {
-        Alert.alert('No Connection', 'Please connect to a server first');
-        router.push('/(tabs)');
-        return;
-      }
-
-      const mostRecent = savedServers[0];
-      const baseUrl = `http://${mostRecent.url}`;
-      
-      const client = createClient(createConfig({
-        baseUrl,
-        fetch: async (request: Request) => {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000);
-          
-          try {
-            const response = await fetch(request, {
-              signal: controller.signal,
-            });
-            clearTimeout(timeoutId);
-            return response;
-          } catch (error: unknown) {
-            clearTimeout(timeoutId);
-            if (error instanceof Error && error.name === 'AbortError') {
-              throw new Error('Connection timeout - server may be unreachable');
-            }
-            throw error;
-          }
-        }
-      }));
-
       const response = await sessionCreate({ client });
       
       if (response.error) {
@@ -199,6 +130,13 @@ export default function SessionsScreen() {
   useEffect(() => {
     setListItems(groupSessionsByDate(sessions));
   }, [sessions, groupSessionsByDate]);
+
+  // Load sessions when connection is established
+  useEffect(() => {
+    if (connectionStatus === 'connected') {
+      loadSessions();
+    }
+  }, [connectionStatus, loadSessions]);
 
   const renderSession = (session: Session) => (
     <TouchableOpacity style={styles.sessionItem} onPress={() => handleSessionPress(session)}>
@@ -248,14 +186,14 @@ export default function SessionsScreen() {
     <View style={styles.emptyState}>
       <Ionicons name="warning-outline" size={64} color="#ef4444" style={styles.emptyIcon} />
       <Text style={styles.emptyTitle}>Failed to load sessions</Text>
-      <Text style={styles.emptySubtitle}>{error}</Text>
+      <Text style={styles.emptySubtitle}>{lastError || 'Unknown error occurred'}</Text>
       <TouchableOpacity style={styles.retryButton} onPress={loadSessions}>
         <Text style={styles.retryButtonText}>Retry</Text>
       </TouchableOpacity>
     </View>
   );
 
-  if (state === 'no-connection') {
+  if (connectionStatus === 'idle' || connectionStatus === 'error') {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -276,12 +214,12 @@ export default function SessionsScreen() {
         </TouchableOpacity>
       </View>
 
-      {state === 'loading' && !refreshing ? (
+      {connectionStatus === 'connecting' && !refreshing ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ffffff" />
           <Text style={styles.loadingText}>Loading sessions...</Text>
         </View>
-      ) : state === 'error' ? (
+      ) : lastError ? (
         renderError()
       ) : (
         <FlatList

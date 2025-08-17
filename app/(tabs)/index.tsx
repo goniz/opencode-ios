@@ -2,19 +2,22 @@ import { useState, useEffect, useCallback } from "react";
 import { Text, View, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, StatusBar, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from 'expo-clipboard';
-import { getSavedServers, removeServer, SavedServer, saveServer } from '../../src/utils/serverStorage';
-import { sessionList, appGet } from '../../src/api/sdk.gen';
-import { createClient, createConfig } from '../../src/api/client';
+import { getSavedServers, removeServer, SavedServer } from '../../src/utils/serverStorage';
+import { appGet } from '../../src/api/sdk.gen';
+import { useConnection } from '../../src/contexts/ConnectionContext';
 import { toast } from '../../src/utils/toast';
 
-type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'idle';
-
 export default function Index() {
+  const { 
+    connectionStatus, 
+    connect, 
+    lastError, 
+    sessions, 
+    client, 
+    serverUrl: connectedServerUrl 
+  } = useConnection();
   const [serverUrl, setServerUrl] = useState("");
   const [savedServers, setSavedServers] = useState<SavedServer[]>([]);
-  const [status, setStatus] = useState<ConnectionStatus>('idle');
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [sessionCount, setSessionCount] = useState<number | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [rootPath, setRootPath] = useState<string | null>(null);
 
@@ -29,13 +32,8 @@ export default function Index() {
 
   const connectToServer = useCallback(async (urlToConnect: string) => {
     if (!urlToConnect) {
-      setStatus('error');
-      setErrorMessage('No server URL provided');
       return;
     }
-
-    setStatus('connecting');
-    setErrorMessage('');
 
     try {
       // Validate URL format
@@ -47,88 +45,27 @@ export default function Index() {
       const baseUrl = `http://${urlToConnect}`;
       console.log('Attempting connection to:', baseUrl);
 
-      // First, try a simple fetch to test basic connectivity
-      try {
-        const testController = new AbortController();
-        const testTimeoutId = setTimeout(() => testController.abort(), 5000); // 5 second timeout
-        
-        const testResponse = await fetch(baseUrl, {
-          method: 'HEAD',
-          signal: testController.signal,
-        });
-        clearTimeout(testTimeoutId);
-        console.log('Basic connectivity test:', testResponse.status);
-      } catch (testError: unknown) {
-        const errorMessage = testError instanceof Error ? testError.message : 'Unknown error';
-        console.log('Basic connectivity failed:', errorMessage);
-        // Continue anyway as the server might not support HEAD requests
-      }
+      // Use the connection context to connect
+      await connect(baseUrl);
 
-      // Create client with the server URL
-      const client = createClient(createConfig({
-        baseUrl,
-        // Add timeout and better error handling
-        fetch: async (request: Request) => {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      // Fetch app info after successful connection
+      if (client) {
+        try {
+          const appResponse = await appGet({ client });
           
-          try {
-            const response = await fetch(request, {
-              signal: controller.signal,
-            });
-            clearTimeout(timeoutId);
-            return response;
-          } catch (error: unknown) {
-            clearTimeout(timeoutId);
-            if (error instanceof Error && error.name === 'AbortError') {
-              throw new Error('Connection timeout - server may be unreachable');
-            }
-            throw error;
+          if (!appResponse.error && appResponse.data) {
+            const appData = appResponse.data;
+            const apiVersion = '1.0.0'; // From OpenAPI spec info.version
+            const hostname = appData.hostname || 'localhost';
+            const rootPathValue = appData.path?.root || 'unknown';
+            
+            setAppVersion(`API v${apiVersion} (${hostname})`);
+            setRootPath(rootPathValue);
           }
+        } catch (error) {
+          console.error('Failed to fetch app info:', error);
         }
-      }));
-
-      // Test connection and fetch app info
-      const [sessionResponse, appResponse] = await Promise.all([
-        sessionList({ client }),
-        appGet({ client })
-      ]);
-      
-      if (sessionResponse.error) {
-        console.error('Session API Error:', sessionResponse.error);
-        throw new Error(`Session API Error: ${JSON.stringify(sessionResponse.error)}`);
       }
-
-      if (appResponse.error) {
-        console.error('App API Error:', appResponse.error);
-        throw new Error(`App API Error: ${JSON.stringify(appResponse.error)}`);
-      }
-      
-      setSessionCount(sessionResponse.data?.length || 0);
-      
-      // Try to get version from app response or fallback
-      const appData = appResponse.data;
-      
-      // Since there's no version endpoint, show API version and hostname
-      const apiVersion = '1.0.0'; // From OpenAPI spec info.version
-      const hostname = appData?.hostname || 'localhost';
-      const rootPathValue = appData?.path?.root || 'unknown';
-      
-      setAppVersion(`API v${apiVersion} (${hostname})`);
-      setRootPath(rootPathValue);
-      
-      setStatus('connected');
-      console.log('Successfully connected to server');
-      
-      await saveServer({
-        url: urlToConnect,
-        lastConnected: Date.now(),
-        connectionDetails: {
-          appVersion: `API v${apiVersion} (${hostname})`,
-          rootPath: rootPathValue,
-          sessionCount: sessionResponse.data?.length || 0,
-        }
-      });
 
       // Reload saved servers to show the newly connected server
       loadSavedServers();
@@ -136,10 +73,9 @@ export default function Index() {
       // Auto-navigate to Sessions tab after successful connection
       setTimeout(() => {
         router.push('/(tabs)/sessions');
-      }, 500); // Even shorter delay since no toast to show
+      }, 500);
     } catch (error) {
       console.error('Connection error:', error);
-      setStatus('error');
       
       let errorMsg = 'Failed to connect to server';
       
@@ -156,13 +92,8 @@ export default function Index() {
           errorMsg = error.message;
         }
       }
-      
-      setErrorMessage(errorMsg);
-      
-      // Show error toast (don't await to avoid blocking UI)
-      toast.showConnectionError(errorMsg);
     }
-  }, []);
+  }, [connect, client, loadSavedServers]);
 
   const handleConnect = () => {
     if (!serverUrl.trim()) {
@@ -185,7 +116,7 @@ export default function Index() {
   };
 
   const getStatusColor = () => {
-    switch (status) {
+    switch (connectionStatus) {
       case 'connected': return '#10b981';
       case 'error': return '#ef4444';
       case 'connecting': return '#f59e0b';
@@ -194,7 +125,7 @@ export default function Index() {
   };
 
   const getStatusText = () => {
-    switch (status) {
+    switch (connectionStatus) {
       case 'connecting': return 'Connecting...';
       case 'connected': return 'Connected';
       case 'error': return 'Connection Failed';
@@ -273,33 +204,33 @@ export default function Index() {
           </View>
 
           <TouchableOpacity 
-            style={[styles.connectButton, status === 'connecting' && styles.connectButtonDisabled]} 
+            style={[styles.connectButton, connectionStatus === 'connecting' && styles.connectButtonDisabled]} 
             onPress={handleConnect}
-            disabled={status === 'connecting'}
+            disabled={connectionStatus === 'connecting'}
           >
-            {status === 'connecting' ? (
+            {connectionStatus === 'connecting' ? (
               <ActivityIndicator size="small" color="#0a0a0a" />
             ) : (
               <Text style={styles.connectButtonText}>Connect</Text>
             )}
           </TouchableOpacity>
 
-          {status !== 'idle' && (
+          {connectionStatus !== 'idle' && (
             <View style={[styles.statusCard, { borderColor: getStatusColor() }]}>
               <View style={styles.statusHeader}>
                 <View style={[styles.statusIndicator, { backgroundColor: getStatusColor() }]} />
                 <Text style={[styles.statusText, { color: getStatusColor() }]}>
                   {getStatusText()}
                 </Text>
-                {status === 'connecting' && (
+                {connectionStatus === 'connecting' && (
                   <ActivityIndicator size="small" color={getStatusColor()} style={styles.spinner} />
                 )}
               </View>
 
-              {status === 'connected' && (
+              {connectionStatus === 'connected' && (
                 <View style={styles.connectionDetails}>
                   <Text style={styles.detailText}>
-                    Active Sessions: {sessionCount}
+                    Active Sessions: {sessions.length}
                   </Text>
                   <Text style={styles.detailText}>
                     Server: {appVersion || 'Connected'}
@@ -310,9 +241,9 @@ export default function Index() {
                 </View>
               )}
 
-              {status === 'error' && (
+              {connectionStatus === 'error' && (
                 <View style={styles.errorDetails}>
-                  <Text style={styles.errorText}>{errorMessage}</Text>
+                  <Text style={styles.errorText}>{lastError || 'Unknown error occurred'}</Text>
                   <Text style={styles.errorHint}>
                     Make sure the server is running and accessible from this device.
                   </Text>
