@@ -5,6 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { getSavedServers, removeServer, SavedServer, saveServer } from '../../src/utils/serverStorage';
 import { sessionList, appGet } from '../../src/api/sdk.gen';
 import { createClient, createConfig } from '../../src/api/client';
+import { toast } from '../../src/utils/toast';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'idle';
 

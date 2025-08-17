@@ -43,8 +43,8 @@ This document outlines the plan to refactor the current connection flow from a d
 - [x] Create toast notification utility functions
 - [x] Implement toast for successful connection ("Connected!")
 - [x] Implement toast for failed connections with error details
-- [ ] Style toasts to match app design (dark theme)
-- [ ] Ensure toasts don't interfere with existing UI
+- [x] Style toasts to match app design (dark theme)
+- [x] Ensure toasts don't interfere with existing UI
 
 #### 1.3 Auto-Navigation to Sessions
 - [ ] Add automatic tab navigation on successful connection
