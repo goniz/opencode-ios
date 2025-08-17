@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Text, View, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, StatusBar, KeyboardAvoidingView, Platform } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from 'expo-clipboard';
-import { getSavedServers, removeServer, SavedServer } from '../src/utils/serverStorage';
+import { getSavedServers, removeServer, SavedServer } from '../../src/utils/serverStorage';
 
 export default function Index() {
   const [serverUrl, setServerUrl] = useState("");
