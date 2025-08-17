@@ -99,19 +99,49 @@ export default function ChatScreen() {
     }
   };
 
-  const renderMessage = ({ item }: { item: MessageWithParts }) => {
-    // Extract text from parts
-    const textParts = item.parts
-      .filter(part => part.type === 'text')
-      .map(part => {
-        if (part.type === 'text' && 'text' in part) {
-          return part.text;
+  const renderPartContent = (part: Part) => {
+    switch (part.type) {
+      case 'text':
+        return part.text;
+      case 'reasoning':
+        return `🧠 ${part.text}`;
+      case 'tool':
+        const toolState = part.state;
+        if (toolState.status === 'pending') {
+          return `🔧 ${part.tool} (pending)`;
+        } else if (toolState.status === 'running') {
+          return `🔧 ${part.tool}: ${toolState.title || 'Running...'}`;
+        } else if (toolState.status === 'completed') {
+          return `🔧 ${part.tool}: ${toolState.title}\n${toolState.output}`;
+        } else if (toolState.status === 'error') {
+          return `🔧 ${part.tool}: Error - ${toolState.error}`;
         }
+        return `🔧 ${part.tool}`;
+      case 'file':
+        return `📁 ${part.filename || 'File attachment'}`;
+      case 'step-start':
+        return '▶️ Step started';
+      case 'step-finish':
+        return '✅ Step completed';
+      case 'snapshot':
+        return '📸 Snapshot created';
+      case 'patch':
+        return `🔄 Patch applied (${part.files.length} files)`;
+      case 'agent':
+        return `🤖 Agent: ${part.name}`;
+      default:
         return '';
-      })
-      .join(' ');
+    }
+  };
+
+  const renderMessage = ({ item }: { item: MessageWithParts }) => {
+    // Process all parts and render their content
+    const allContent = item.parts
+      .map(part => renderPartContent(part))
+      .filter(content => content.length > 0)
+      .join('\n\n');
     
-    const messageText = textParts || (item.info.role === 'user' ? 'User message' : '');
+    const messageText = allContent || (item.info.role === 'user' ? 'User message' : '');
     const isAssistant = item.info.role === 'assistant';
     const isStreaming = isAssistant && item.parts.length === 0 && isStreamConnected;
     
