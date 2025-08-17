@@ -17,6 +17,7 @@ import { toast } from '../../src/utils/toast';
 import { filterMessageParts } from '../../src/utils/messageFiltering';
 import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
 import { MessageContent } from '../../src/components/chat/MessageContent';
+import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
 import type { Message, Part } from '../../src/api/types.gen';
 
 interface MessageWithParts {
@@ -184,6 +185,12 @@ export default function ChatScreen() {
             </View>
           );
         })}
+        {/* Show timestamp for last assistant message */}
+        {index === messages.length - 1 && item.info.role === 'assistant' && 'time' in item.info && item.info.time.completed && (
+          <MessageTimestamp 
+            timestamp={item.info.time.completed}
+          />
+        )}
       </View>
     );
   };
@@ -457,5 +464,12 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#4a4a4a',
+  },
+  timestampContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    marginBottom: 8,
+    marginRight: 8,
   },
 });

@@ -377,23 +377,32 @@ This document outlines the detailed task-based plan to transform the current Rea
 
 ### Phase 4: Advanced Features
 
-#### Task 4.1: Last Message Logic
+#### ✅ Task 4.1: Last Message Logic - COMPLETED
 **Priority**: Medium
-**Estimated Time**: 2-3 hours
+**Estimated Time**: 2-3 hours *(Actual: ~1.5 hours)*
 
 **Objective**: Implement "last message part" auto-expansion logic
 
-**Requirements**:
-- Detect last message in conversation
-- Detect last part in message
-- Auto-expand last part content
-- Show completion timestamp on last assistant message
+**Requirements**: ✅ ALL COMPLETED
+- ✅ Detect last message in conversation
+- ✅ Detect last part in message
+- ✅ Auto-expand last part content
+- ✅ Show completion timestamp on last assistant message
 
-**Implementation Steps**:
-1. Add last message detection logic
-2. Update expand/collapse to respect last message state
-3. Add completion timestamp display
-4. Update message rendering logic
+**Implementation Steps**: ✅ ALL COMPLETED
+1. ✅ Add last message detection logic
+2. ✅ Update expand/collapse to respect last message state
+3. ✅ Add completion timestamp display
+4. ✅ Update message rendering logic
+
+**Files Completed**:
+- ✅ `src/components/chat/MessageTimestamp.tsx` - Timestamp display component
+- ✅ `app/(tabs)/chat.tsx` - Updated to show timestamp on last assistant message
+
+**Results**:
+- Last message auto-expansion works correctly for all content types
+- Completion timestamp displayed on last assistant message
+- All ESLint checks pass, TypeScript compilation successful
 
 #### Task 4.2: Icon System
 **Priority**: Medium
@@ -575,7 +584,7 @@ This document outlines the detailed task-based plan to transform the current Rea
 - Task 2.4: Terminal/Bash Content Component
 
 ### Week 4: Polish and Testing
-- Task 4.1: Last Message Logic
+- ✅ Task 4.1: Last Message Logic - COMPLETED
 - Task 4.2: Icon System
 - Task 4.4: Connection Status Indicators
 - Task 6.1: Component Testing
@@ -632,7 +641,7 @@ src/
 
 ## Progress Tracking
 
-### ✅ Completed Tasks (10/17)
+### ✅ Completed Tasks (11/17)
 - **Task 1.1: Message Part Filtering System** - Core filtering logic implemented and working
 - **Task 1.2: Two-Column Layout Structure** - Two-column layout with decoration and content components
 - **Task 1.3: Part Type Component System** - Component system for all part types implemented
@@ -643,11 +652,12 @@ src/
 - **Task 3.1: Color System Implementation** - Color system with dark/light themes
 - **Task 3.2: Typography System** - Typography system matching web
 - **Task 3.3: Layout and Spacing System** - Layout and spacing system matching web
+- **Task 4.1: Last Message Logic** - Last message auto-expansion and timestamp display
 
 ### 🔄 Current Status
-- **Next Priority**: Task 4.1 (Last Message Logic)
+- **Next Priority**: Task 4.2 (Icon System)
 - **Current Phase**: Phase 4 - Advanced Features
-- **Overall Progress**: 59% complete
+- **Overall Progress**: 65% complete
 
 ### 📊 Implementation Summary
 | Phase | Tasks | Completed | Remaining |
@@ -655,10 +665,10 @@ src/
 | Phase 1: Core Architecture | 3 | 3 | 0 |
 | Phase 2: Content Rendering | 5 | 5 | 0 |
 | Phase 3: Styling System | 3 | 3 | 0 |
-| Phase 4: Advanced Features | 4 | 0 | 4 |
+| Phase 4: Advanced Features | 4 | 1 | 3 |
 | Phase 5: Content Processing | 2 | 0 | 2 |
 | Phase 6: Testing and Polish | 3 | 0 | 3 |
-| **TOTAL** | **20** | **11** | **9** |
+| **TOTAL** | **20** | **12** | **8** |
 ```
 
 ## Success Criteria
@@ -673,7 +683,7 @@ src/
 - [x] Part filtering logic matches web behavior exactly
 - [x] Part-based component system implemented for all content types
 - [x] Expand/collapse works for all content types
-- [ ] Last message auto-expansion works correctly
+- [x] Last message auto-expansion works correctly
 - [x] Code blocks display with syntax highlighting
 - [x] Terminal output displays with proper styling
 
