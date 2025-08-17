@@ -92,7 +92,7 @@ This document outlines the plan to refactor the current connection flow from a d
 ### Phase 3: UX Polish (Priority 3)
 
 #### 3.1 Enhanced Sessions Page
-- [ ] Implement pull-to-refresh functionality
+- [x] Implement pull-to-refresh functionality
 - [ ] Add session search/filter capability
 - [ ] Implement session management features:
   - [ ] Delete session
