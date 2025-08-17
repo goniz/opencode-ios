@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, View, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, StatusBar } from "react-native";
+import { Text, View, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, StatusBar, KeyboardAvoidingView, Platform } from "react-native";
 import * as Clipboard from 'expo-clipboard';
 
 export default function Index() {
@@ -21,9 +21,17 @@ export default function Index() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
       <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <Text style={styles.logo}>opencode</Text>
           <Text style={styles.subtitle}>The AI coding agent built for the terminal.</Text>
@@ -64,7 +72,7 @@ export default function Index() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -74,52 +82,51 @@ const styles = StyleSheet.create({
     backgroundColor: "#0a0a0a",
   },
   scrollContent: {
-    flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingTop: 60,
     paddingBottom: 40,
   },
   header: {
     alignItems: "center",
-    marginBottom: 60,
+    marginBottom: 24,
   },
   logo: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: "300",
     color: "#ffffff",
-    marginBottom: 12,
+    marginBottom: 8,
     fontFamily: "monospace",
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 16,
     textAlign: "center",
     color: "#9ca3af",
     fontWeight: "400",
-    lineHeight: 26,
+    lineHeight: 22,
   },
   content: {
     flex: 1,
   },
   sectionTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "600",
     color: "#ffffff",
-    marginBottom: 32,
+    marginBottom: 16,
   },
   step: {
-    marginBottom: 32,
+    marginBottom: 16,
   },
   stepTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     color: "#ffffff",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   stepDescription: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#9ca3af",
-    marginBottom: 16,
-    lineHeight: 24,
+    marginBottom: 12,
+    lineHeight: 20,
   },
   codeBlock: {
     backgroundColor: "#1a1a1a",
@@ -146,7 +153,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inputContainer: {
-    marginBottom: 32,
+    marginBottom: 16,
   },
   input: {
     backgroundColor: "#1a1a1a",
@@ -162,10 +169,10 @@ const styles = StyleSheet.create({
   connectButton: {
     backgroundColor: "#ffffff",
     borderRadius: 8,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 24,
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 4,
   },
   connectButtonText: {
     color: "#0a0a0a",
