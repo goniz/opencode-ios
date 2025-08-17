@@ -132,6 +132,11 @@ export default function Index() {
 
       // Reload saved servers to show the newly connected server
       loadSavedServers();
+
+      // Auto-navigate to Sessions tab after successful connection
+      setTimeout(() => {
+        router.push('/(tabs)/sessions');
+      }, 500); // Even shorter delay since no toast to show
     } catch (error) {
       console.error('Connection error:', error);
       setStatus('error');
@@ -153,6 +158,9 @@ export default function Index() {
       }
       
       setErrorMessage(errorMsg);
+      
+      // Show error toast (don't await to avoid blocking UI)
+      toast.showConnectionError(errorMsg);
     }
   }, []);
 
