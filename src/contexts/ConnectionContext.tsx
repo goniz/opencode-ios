@@ -1,12 +1,13 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '../api/client';
 import type { Client } from '../api/client/types.gen';
-import type { Session } from '../api/types.gen';
-import { sessionList } from '../api/sdk.gen';
+import type { Session, Message, Part } from '../api/types.gen';
+import { sessionList, sessionMessages, sessionChat } from '../api/sdk.gen';
 import { saveServer, type SavedServer } from '../utils/serverStorage';
 
 const CURRENT_CONNECTION_KEY = 'current_connection';
+const CURRENT_SESSION_KEY = 'current_session';
 const CONNECTION_TIMEOUT = 10000; // 10 seconds default timeout
 
 interface PersistedConnection {
@@ -16,12 +17,20 @@ interface PersistedConnection {
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
+interface MessageWithParts {
+  info: Message;
+  parts: Part[];
+}
+
 export interface ConnectionState {
   serverUrl: string;
   client: Client | null;
   connectionStatus: ConnectionStatus;
   sessions: Session[];
   lastError: string | null;
+  currentSession: Session | null;
+  messages: MessageWithParts[];
+  isLoadingMessages: boolean;
 }
 
 export interface ConnectionContextType extends ConnectionState {
@@ -31,6 +40,9 @@ export interface ConnectionContextType extends ConnectionState {
   clearError: () => void;
   autoReconnect: () => Promise<void>;
   retryConnection: () => Promise<void>;
+  setCurrentSession: (session: Session | null) => void;
+  loadMessages: (sessionId: string) => Promise<void>;
+  sendMessage: (sessionId: string, message: string) => Promise<void>;
 }
 
 type ConnectionAction =
@@ -38,6 +50,10 @@ type ConnectionAction =
   | { type: 'SET_CONNECTED'; payload: { client: Client } }
   | { type: 'SET_ERROR'; payload: { error: string } }
   | { type: 'SET_SESSIONS'; payload: { sessions: Session[] } }
+  | { type: 'SET_CURRENT_SESSION'; payload: { session: Session | null } }
+  | { type: 'SET_MESSAGES'; payload: { messages: MessageWithParts[] } }
+  | { type: 'SET_LOADING_MESSAGES'; payload: { isLoading: boolean } }
+  | { type: 'ADD_MESSAGE'; payload: { message: MessageWithParts } }
   | { type: 'DISCONNECT' }
   | { type: 'CLEAR_ERROR' };
 
@@ -47,6 +63,9 @@ const initialState: ConnectionState = {
   connectionStatus: 'idle',
   sessions: [],
   lastError: null,
+  currentSession: null,
+  messages: [],
+  isLoadingMessages: false,
 };
 
 function connectionReducer(state: ConnectionState, action: ConnectionAction): ConnectionState {
@@ -76,6 +95,28 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
       return {
         ...state,
         sessions: action.payload.sessions,
+      };
+    case 'SET_CURRENT_SESSION':
+      return {
+        ...state,
+        currentSession: action.payload.session,
+        messages: [], // Clear messages when switching sessions
+      };
+    case 'SET_MESSAGES':
+      return {
+        ...state,
+        messages: action.payload.messages,
+        isLoadingMessages: false,
+      };
+    case 'SET_LOADING_MESSAGES':
+      return {
+        ...state,
+        isLoadingMessages: action.payload.isLoading,
+      };
+    case 'ADD_MESSAGE':
+      return {
+        ...state,
+        messages: [...state.messages, action.payload.message],
       };
     case 'DISCONNECT':
       return {
@@ -144,6 +185,35 @@ const clearCurrentConnection = async (): Promise<void> => {
   }
 };
 
+const saveCurrentSession = async (session: Session): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(CURRENT_SESSION_KEY, JSON.stringify(session));
+  } catch (error) {
+    console.error('Failed to save current session:', error);
+  }
+};
+
+const getCurrentSession = async (): Promise<Session | null> => {
+  try {
+    const stored = await AsyncStorage.getItem(CURRENT_SESSION_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to get current session:', error);
+    return null;
+  }
+};
+
+const clearCurrentSession = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(CURRENT_SESSION_KEY);
+  } catch (error) {
+    console.error('Failed to clear current session:', error);
+  }
+};
+
 export function ConnectionProvider({ children }: ConnectionProviderProps) {
   const [state, dispatch] = useReducer(connectionReducer, initialState);
 
@@ -191,6 +261,13 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
 
       // Fetch initial sessions
       await refreshSessionsInternal(client);
+      
+      // Try to restore the last active session
+      const savedSession = await getCurrentSession();
+      if (savedSession) {
+        // We'll validate the session later when sessions are loaded
+        dispatch({ type: 'SET_CURRENT_SESSION', payload: { session: savedSession } });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Connection failed';
       dispatch({ type: 'SET_ERROR', payload: { error: errorMessage } });
@@ -201,11 +278,11 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
   }, []);
 
-  const disconnect = (): void => {
+  const disconnect = useCallback((): void => {
     // Clear persisted connection when user explicitly disconnects
     clearCurrentConnection();
     dispatch({ type: 'DISCONNECT' });
-  };
+  }, []);
 
   const autoReconnect = useCallback(async (): Promise<void> => {
     try {
@@ -227,14 +304,26 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     autoReconnect();
   }, [autoReconnect]);
 
-  const retryConnection = async (): Promise<void> => {
+  // Validate current session when sessions change
+  useEffect(() => {
+    if (state.currentSession && state.sessions.length > 0) {
+      const sessionExists = state.sessions.some(s => s.id === state.currentSession!.id);
+      if (!sessionExists) {
+        // Session no longer exists, clear it
+        clearCurrentSession();
+        dispatch({ type: 'SET_CURRENT_SESSION', payload: { session: null } });
+      }
+    }
+  }, [state.sessions, state.currentSession]);
+
+  const retryConnection = useCallback(async (): Promise<void> => {
     if (state.serverUrl) {
       await connect(state.serverUrl);
     } else {
       // Try to use persisted connection if no current server URL
       await autoReconnect();
     }
-  };
+  }, [state.serverUrl, connect, autoReconnect]);
 
   const refreshSessionsInternal = async (client: Client): Promise<void> => {
     try {
@@ -255,17 +344,107 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
   };
 
-  const refreshSessions = async (): Promise<void> => {
+  const refreshSessions = useCallback(async (): Promise<void> => {
     if (state.client && state.connectionStatus === 'connected') {
       await refreshSessionsInternal(state.client);
     }
-  };
+  }, [state.client, state.connectionStatus]);
 
-  const clearError = (): void => {
+  const clearError = useCallback((): void => {
     dispatch({ type: 'CLEAR_ERROR' });
-  };
+  }, []);
 
-  const contextValue: ConnectionContextType = {
+  const setCurrentSession = useCallback((session: Session | null): void => {
+    dispatch({ type: 'SET_CURRENT_SESSION', payload: { session } });
+    // Persist the current session
+    if (session) {
+      saveCurrentSession(session);
+    } else {
+      clearCurrentSession();
+    }
+  }, []);
+
+  const loadMessages = useCallback(async (sessionId: string): Promise<void> => {
+    if (!state.client || state.connectionStatus !== 'connected') {
+      throw new Error('Not connected to server');
+    }
+
+    try {
+      dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: true } });
+      
+      const response = await sessionMessages({ 
+        client: state.client, 
+        path: { id: sessionId } 
+      });
+      
+      if (response.data) {
+        // Store the full message objects with parts
+        dispatch({ type: 'SET_MESSAGES', payload: { messages: response.data } });
+      }
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+      dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: false } });
+      throw error;
+    }
+  }, [state.client, state.connectionStatus]);
+
+  const sendMessage = useCallback(async (sessionId: string, message: string): Promise<void> => {
+    if (!state.client || state.connectionStatus !== 'connected') {
+      throw new Error('Not connected to server');
+    }
+
+    try {
+      const response = await sessionChat({
+        client: state.client,
+        path: { id: sessionId },
+        body: {
+          providerID: 'anthropic',
+          modelID: 'claude-3-5-sonnet-20241022',
+          parts: [{
+            type: 'text',
+            text: message
+          }]
+        }
+      });
+
+      if (response.data) {
+        // Add user message first (simulate user message display)
+        const userMessage: MessageWithParts = {
+          info: {
+            role: 'user',
+            id: `user-${Date.now()}`,
+            sessionID: sessionId,
+            time: {
+              created: Date.now()
+            }
+          },
+          parts: [{
+            id: `part-${Date.now()}`,
+            sessionID: sessionId,
+            messageID: `user-${Date.now()}`,
+            type: 'text',
+            text: message
+          }]
+        };
+        dispatch({ type: 'ADD_MESSAGE', payload: { message: userMessage } });
+        
+        // Reload all messages to get the complete conversation including the new response
+        const messagesResponse = await sessionMessages({ 
+          client: state.client, 
+          path: { id: sessionId } 
+        });
+        
+        if (messagesResponse.data) {
+          dispatch({ type: 'SET_MESSAGES', payload: { messages: messagesResponse.data } });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      throw error;
+    }
+  }, [state.client, state.connectionStatus]);
+
+  const contextValue: ConnectionContextType = useMemo(() => ({
     ...state,
     connect,
     disconnect,
@@ -273,7 +452,21 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     clearError,
     autoReconnect,
     retryConnection,
-  };
+    setCurrentSession,
+    loadMessages,
+    sendMessage,
+  }), [
+    state,
+    connect,
+    disconnect,
+    refreshSessions,
+    clearError,
+    autoReconnect,
+    retryConnection,
+    setCurrentSession,
+    loadMessages,
+    sendMessage,
+  ]);
 
   return (
     <ConnectionContext.Provider value={contextValue}>
