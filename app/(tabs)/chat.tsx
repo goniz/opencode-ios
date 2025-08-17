@@ -14,6 +14,9 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 import { toast } from '../../src/utils/toast';
+import { filterMessageParts } from '../../src/utils/messageFiltering';
+import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
+import { MessageContent } from '../../src/components/chat/MessageContent';
 import type { Message, Part } from '../../src/api/types.gen';
 
 interface MessageWithParts {
@@ -99,77 +102,85 @@ export default function ChatScreen() {
     }
   };
 
-  const renderPartContent = (part: Part) => {
-    switch (part.type) {
-      case 'text':
-        return part.text;
-      case 'reasoning':
-        return `🧠 ${part.text}`;
-      case 'tool':
-        const toolState = part.state;
-        if (toolState.status === 'pending') {
-          return `🔧 ${part.tool} (pending)`;
-        } else if (toolState.status === 'running') {
-          return `🔧 ${part.tool}: ${toolState.title || 'Running...'}`;
-        } else if (toolState.status === 'completed') {
-          return `🔧 ${part.tool}: ${toolState.title}\n${toolState.output}`;
-        } else if (toolState.status === 'error') {
-          return `🔧 ${part.tool}: Error - ${toolState.error}`;
-        }
-        return `🔧 ${part.tool}`;
-      case 'file':
-        return `📁 ${part.filename || 'File attachment'}`;
-      case 'step-start':
-        return '▶️ Step started';
-      case 'step-finish':
-        return '✅ Step completed';
-      case 'snapshot':
-        return '📸 Snapshot created';
-      case 'patch':
-        return `🔄 Patch applied (${part.files.length} files)`;
-      case 'agent':
-        return `🤖 Agent: ${part.name}`;
-      default:
-        return '';
-    }
-  };
-
-  const renderMessage = ({ item }: { item: MessageWithParts }) => {
-    // Process all parts and render their content
-    const allContent = item.parts
-      .map(part => renderPartContent(part))
-      .filter(content => content.length > 0)
-      .join('\n\n');
+  const renderMessage = ({ item, index }: { item: MessageWithParts; index: number }) => {
+    // Filter parts using the existing filtering logic
+    const { filteredParts, hasContent } = (() => {
+      const filtered = filterMessageParts(item.parts);
+      return {
+        filteredParts: filtered,
+        hasContent: filtered.length > 0
+      };
+    })();
     
-    const messageText = allContent || (item.info.role === 'user' ? 'User message' : '');
     const isAssistant = item.info.role === 'assistant';
-    const isStreaming = isAssistant && item.parts.length === 0 && isStreamConnected;
+    const isStreaming = isAssistant && !hasContent && isStreamConnected;
+    // const isLastMessage = index === messages.length - 1;
     
-    return (
-      <View style={[
-        styles.messageContainer,
-        item.info.role === 'user' ? styles.userMessage : styles.assistantMessage
-      ]}>
-        <View style={[
-          styles.messageBubble,
-          item.info.role === 'user' ? styles.userBubble : styles.assistantBubble
-        ]}>
-          {isStreaming ? (
-            <View style={styles.streamingContainer}>
-              <ActivityIndicator size="small" color="#9ca3af" />
-              <Text style={[styles.messageText, styles.assistantText, styles.streamingText]}>
-                Thinking...
+    // Handle streaming state
+    if (isStreaming) {
+      return (
+        <View style={styles.messageContainer}>
+          <View style={styles.twoColumnLayout}>
+            <MessageDecoration 
+              role={item.info.role} 
+              isFirstPart={true}
+              isLastPart={true}
+            />
+            <View style={styles.contentColumn}>
+              <View style={styles.streamingContainer}>
+                <ActivityIndicator size="small" color="#9ca3af" />
+                <Text style={[styles.messageText, styles.assistantText, styles.streamingText]}>
+                  Thinking...
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    // Handle empty content (fallback for user messages without parts)
+    if (filteredParts.length === 0 && item.info.role === 'user') {
+      return (
+        <View style={styles.messageContainer}>
+          <View style={styles.twoColumnLayout}>
+            <MessageDecoration 
+              role={item.info.role} 
+              isFirstPart={true}
+              isLastPart={true}
+            />
+            <View style={styles.contentColumn}>
+              <Text style={[styles.messageText, styles.userText]}>
+                {item.info.role === 'user' ? 'User message' : 'Assistant response'}
               </Text>
             </View>
-          ) : (
-            <Text style={[
-              styles.messageText,
-              item.info.role === 'user' ? styles.userText : styles.assistantText
-            ]}>
-              {messageText || (isAssistant ? 'Assistant response' : 'User message')}
-            </Text>
-          )}
+          </View>
         </View>
+      );
+    }
+
+    // Render each part as a separate row in the two-column layout
+    return (
+      <View style={styles.messageContainer}>
+        {filteredParts.map((part, partIndex) => {
+          const isFirstPart = partIndex === 0;
+          const isLastPart = partIndex === filteredParts.length - 1;
+          
+          return (
+            <View key={`${item.info.id}-${partIndex}`} style={styles.twoColumnLayout}>
+              <MessageDecoration 
+                role={item.info.role}
+                part={part}
+                isFirstPart={isFirstPart}
+                isLastPart={isLastPart}
+              />
+              <MessageContent 
+                role={item.info.role}
+                part={part}
+              />
+            </View>
+          );
+        })}
       </View>
     );
   };
@@ -366,6 +377,15 @@ const styles = StyleSheet.create({
   },
   messageContainer: {
     marginBottom: 16,
+  },
+  twoColumnLayout: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  contentColumn: {
+    flex: 1,
+    paddingLeft: 8,
   },
   userMessage: {
     alignItems: 'flex-end',
