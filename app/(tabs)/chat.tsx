@@ -18,6 +18,7 @@ import { filterMessageParts } from '../../src/utils/messageFiltering';
 import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
 import { MessageContent } from '../../src/components/chat/MessageContent';
 import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
+import { ConnectionStatus } from '../../src/components/chat/ConnectionStatus';
 import type { Message, Part } from '../../src/api/types.gen';
 
 interface MessageWithParts {
@@ -242,16 +243,22 @@ export default function ChatScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.title} numberOfLines={1}>{currentSession.title}</Text>
+          <ConnectionStatus 
+            status={connectionStatus}
+            style={styles.connectionStatus}
+          />
+        </View>
+        <View style={styles.headerRight}>
           {isStreamConnected && (
             <View style={styles.streamStatus}>
               <View style={styles.streamIndicator} />
               <Text style={styles.streamText}>Live</Text>
             </View>
           )}
+          <TouchableOpacity onPress={() => router.push('/(tabs)/sessions')}>
+            <Ionicons name="list" size={24} color="#ffffff" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/sessions')}>
-          <Ionicons name="list" size={24} color="#ffffff" />
-        </TouchableOpacity>
       </View>
 
       {isLoadingMessages ? (
@@ -323,6 +330,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   streamStatus: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -349,6 +360,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
     flex: 1,
+  },
+  connectionStatus: {
+    marginLeft: 12,
   },
   subtitle: {
     fontSize: 16,
