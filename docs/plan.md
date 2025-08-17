@@ -31,11 +31,11 @@ This document outlines the plan to refactor the current connection flow from a d
 ### Phase 1: Core Connection Flow (Priority 1)
 
 #### 1.1 Refactor Connection Logic
-- [ ] Move connection logic from `connect.tsx` into `index.tsx`
-- [ ] Remove navigation to separate connect page
-- [ ] Handle connection states in-place (connecting, success, error)
-- [ ] Preserve existing server storage functionality
-- [ ] Maintain error handling and timeout logic
+- [x] Move connection logic from `connect.tsx` into `index.tsx`
+- [x] Remove navigation to separate connect page
+- [x] Handle connection states in-place (connecting, success, error)
+- [x] Preserve existing server storage functionality
+- [x] Maintain error handling and timeout logic
 
 #### 1.2 Add Toast Notifications
 - [ ] Install and configure expo-notifications package
