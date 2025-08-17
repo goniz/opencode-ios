@@ -1,10 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Text, View, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, StatusBar, KeyboardAvoidingView, Platform } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from 'expo-clipboard';
+import { getSavedServers, removeServer, SavedServer } from '../src/utils/serverStorage';
 
 export default function Index() {
   const [serverUrl, setServerUrl] = useState("");
+  const [savedServers, setSavedServers] = useState<SavedServer[]>([]);
+
+  useEffect(() => {
+    loadSavedServers();
+  }, []);
+
+  const loadSavedServers = async () => {
+    const servers = await getSavedServers();
+    setSavedServers(servers);
+  };
 
   const handleConnect = () => {
     if (!serverUrl.trim()) {
@@ -14,6 +25,28 @@ export default function Index() {
     
     // Navigate to connect page with server URL
     router.push(`/connect?url=${encodeURIComponent(serverUrl)}`);
+  };
+
+  const handleQuickConnect = (url: string) => {
+    router.push(`/connect?url=${encodeURIComponent(url)}`);
+  };
+
+  const handleRemoveServer = async (url: string) => {
+    Alert.alert(
+      "Remove Server",
+      "Are you sure you want to remove this server from your saved list?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            await removeServer(url);
+            loadSavedServers();
+          }
+        }
+      ]
+    );
   };
 
   const copyCommand = async () => {
@@ -71,6 +104,35 @@ export default function Index() {
           <TouchableOpacity style={styles.connectButton} onPress={handleConnect}>
             <Text style={styles.connectButtonText}>Connect</Text>
           </TouchableOpacity>
+
+          {savedServers.length > 0 && (
+            <View style={styles.savedServersSection}>
+              <Text style={styles.savedServersTitle}>Recent Servers</Text>
+              {savedServers.slice(0, 5).map((server) => (
+                <View key={server.url} style={styles.savedServerItem}>
+                  <TouchableOpacity 
+                    style={styles.savedServerButton}
+                    onPress={() => handleQuickConnect(server.url)}
+                  >
+                    <View style={styles.savedServerInfo}>
+                      <Text style={styles.savedServerUrl}>{server.url}</Text>
+                      <Text style={styles.savedServerDetails}>
+                        Last connected: {new Date(server.lastConnected).toLocaleDateString()}
+                        {server.connectionDetails?.sessionCount !== undefined && 
+                          ` • ${server.connectionDetails.sessionCount} sessions`}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.removeServerButton}
+                    onPress={() => handleRemoveServer(server.url)}
+                  >
+                    <Text style={styles.removeServerText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -179,5 +241,57 @@ const styles = StyleSheet.create({
     color: "#0a0a0a",
     fontSize: 16,
     fontWeight: "600",
+  },
+  savedServersSection: {
+    marginTop: 32,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: "#2a2a2a",
+  },
+  savedServersTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#ffffff",
+    marginBottom: 16,
+  },
+  savedServerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  savedServerButton: {
+    flex: 1,
+    backgroundColor: "#1a1a1a",
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
+  },
+  savedServerInfo: {
+    flex: 1,
+  },
+  savedServerUrl: {
+    fontSize: 16,
+    color: "#ffffff",
+    fontFamily: "monospace",
+    marginBottom: 4,
+  },
+  savedServerDetails: {
+    fontSize: 12,
+    color: "#9ca3af",
+  },
+  removeServerButton: {
+    marginLeft: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#2a2a2a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  removeServerText: {
+    fontSize: 18,
+    color: "#9ca3af",
+    fontWeight: "bold",
   },
 });

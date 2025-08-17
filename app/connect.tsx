@@ -3,6 +3,7 @@ import { Text, View, TouchableOpacity, StyleSheet, ScrollView, StatusBar, Activi
 import { useLocalSearchParams, router } from "expo-router";
 import { sessionList, appGet } from '../src/api/sdk.gen';
 import { createClient, createConfig } from '../src/api/client';
+import { saveServer } from '../src/utils/serverStorage';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'idle';
 
@@ -108,6 +109,16 @@ export default function Connect() {
       
       setStatus('connected');
       console.log('Successfully connected to server');
+      
+      await saveServer({
+        url: serverUrl,
+        lastConnected: Date.now(),
+        connectionDetails: {
+          appVersion: `API v${apiVersion} (${hostname})`,
+          rootPath: rootPathValue,
+          sessionCount: sessionResponse.data?.length || 0,
+        }
+      });
     } catch (error) {
       console.error('Connection error:', error);
       setStatus('error');
