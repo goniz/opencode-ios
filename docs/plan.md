@@ -78,10 +78,10 @@ This document outlines the plan to refactor the current connection flow from a d
 - [x] Integrate with existing serverStorage utility
 
 #### 2.2 Connection Persistence
-- [ ] Save successful connections to AsyncStorage
-- [ ] Auto-reconnect on app launch if previous connection exists
-- [ ] Handle connection timeouts and implement retry logic
-- [ ] Clear stale connection data when appropriate
+- [x] Save successful connections to AsyncStorage
+- [x] Auto-reconnect on app launch if previous connection exists
+- [x] Handle connection timeouts and implement retry logic
+- [x] Clear stale connection data when appropriate
 
 #### 2.3 Cross-Tab State Sharing
 - [ ] Make connection state available across all tabs
