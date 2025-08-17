@@ -260,27 +260,34 @@ This document outlines the detailed task-based plan to transform the current Rea
 - Error state styling for stderr content
 - All ESLint checks pass, TypeScript compilation successful
 
-#### Task 2.5: Tool Results Component
+#### ✅ Task 2.5: Tool Results Component - COMPLETED
 **Priority**: Medium
-**Estimated Time**: 4-5 hours
+**Estimated Time**: 4-5 hours *(Actual: ~3 hours)*
 
 **Objective**: Create collapsible tool results display
 
-**Requirements**:
-- Collapsed by default with "Show results" button
-- Count indicators (e.g., "5 matches")
-- Error states always expanded
-- Different styling per tool type
+**Requirements**: ✅ ALL COMPLETED
+- ✅ Collapsed by default with "Show results" button
+- ✅ Count indicators (e.g., "5 matches")
+- ✅ Error states always expanded
+- ✅ Different styling per tool type
 
-**Implementation Steps**:
-1. Create `ToolResults` component
-2. Add collapsible results container
-3. Implement result count display
-4. Add error state handling
-5. Style per tool type variations
+**Implementation Steps**: ✅ ALL COMPLETED
+1. ✅ Create `ToolResults` component
+2. ✅ Add collapsible results container
+3. ✅ Implement result count display
+4. ✅ Add error state handling
+5. ✅ Style per tool type variations
 
-**Files to Create**:
-- `src/components/chat/content/ToolResults.tsx`
+**Files Completed**:
+- ✅ `src/components/chat/content/ToolResults.tsx` - Tool results component
+
+**Results**:
+- Tool results component fully implemented
+- Collapsible results with count indicators
+- Error states automatically expanded
+- Tool-specific styling with badges
+- All ESLint checks pass, TypeScript compilation successful
 
 ### Phase 3: Styling System
 
@@ -541,6 +548,7 @@ This document outlines the detailed task-based plan to transform the current Rea
 - Task 2.2: Text Content Component - In Progress
 - ✅ Task 2.3: Code Content Component - COMPLETED
 - ✅ Task 2.4: Terminal/Bash Content Component - COMPLETED
+- ✅ Task 2.5: Tool Results Component - COMPLETED
 
 ### Week 3: Styling and Advanced Features
 - Task 3.1: Color System Implementation
@@ -606,29 +614,30 @@ src/
 
 ## Progress Tracking
 
-### ✅ Completed Tasks (6/17)
+### ✅ Completed Tasks (7/17)
 - **Task 1.1: Message Part Filtering System** - Core filtering logic implemented and working
 - **Task 1.2: Two-Column Layout Structure** - Two-column layout with decoration and content components
 - **Task 1.3: Part Type Component System** - Component system for all part types implemented
 - **Task 2.1: Expandable Content System** - Expand/collapse functionality for all content types
 - **Task 2.3: Code Content Component** - Code block component with syntax highlighting
 - **Task 2.4: Terminal/Bash Content Component** - Terminal output component
+- **Task 2.5: Tool Results Component** - Tool results display component
 
 ### 🔄 Current Status
 - **Next Priority**: Task 2.2 (Text Content Component) - In Progress
 - **Current Phase**: Phase 2 - Content Rendering Components
-- **Overall Progress**: 35% complete
+- **Overall Progress**: 41% complete
 
 ### 📊 Implementation Summary
 | Phase | Tasks | Completed | Remaining |
 |-------|-------|-----------|-----------|
 | Phase 1: Core Architecture | 3 | 3 | 0 |
-| Phase 2: Content Rendering | 5 | 3 | 2 |
+| Phase 2: Content Rendering | 5 | 4 | 1 |
 | Phase 3: Styling System | 3 | 0 | 3 |
 | Phase 4: Advanced Features | 4 | 0 | 4 |
 | Phase 5: Content Processing | 2 | 0 | 2 |
 | Phase 6: Testing and Polish | 3 | 0 | 3 |
-| **TOTAL** | **20** | **6** | **14** |
+| **TOTAL** | **20** | **7** | **13** |
 ```
 
 ## Success Criteria
