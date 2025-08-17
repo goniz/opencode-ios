@@ -53,16 +53,16 @@ This document outlines the plan to refactor the current connection flow from a d
 - [x] Handle navigation timing with toast notifications
 
 #### 1.4 Implement Sessions Page
-- [ ] Replace placeholder sessions.tsx with full implementation
-- [ ] Integrate `sessionList({ client })` API call
-- [ ] Design session list item component with:
-  - [ ] Session name/title
-  - [ ] Last modified timestamp
-  - [ ] Session preview/summary
-- [ ] Implement "New Chat" button at top of screen
-- [ ] Handle empty state ("No sessions yet" message)
-- [ ] Add loading state during session fetch
-- [ ] Handle API errors gracefully
+- [x] Replace placeholder sessions.tsx with full implementation
+- [x] Integrate `sessionList({ client })` API call
+- [x] Design session list item component with:
+  - [x] Session name/title
+  - [x] Last modified timestamp
+  - [x] Session preview/summary
+- [x] Implement "New Chat" button at top of screen
+- [x] Handle empty state ("No sessions yet" message)
+- [x] Add loading state during session fetch
+- [x] Handle API errors gracefully
 
 ### Phase 2: State Management (Priority 2)
 
