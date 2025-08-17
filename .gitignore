@@ -36,5 +36,8 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# iOS native files
+ios/
+
 app-example
 openapi-ts-error-*.log
