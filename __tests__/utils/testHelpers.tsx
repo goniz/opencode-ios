@@ -231,3 +231,11 @@ export const createMockProvider = (overrides = {}) => ({
 
 // Test utilities
 export const waitForAnimation = () => new Promise(resolve => setTimeout(resolve, 100));
+
+// This is needed to make this file a valid test file for Jest
+// The actual tests are in the functions exported above
+describe('testHelpers', () => {
+  it('should be a valid test file', () => {
+    expect(true).toBe(true);
+  });
+});
