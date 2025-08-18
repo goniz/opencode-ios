@@ -1,0 +1,94 @@
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { MessagePartProps, MessagePartContainer } from './MessagePart';
+import { useExpandable } from '../../../hooks/useExpandable';
+import { ExpandButton } from '../ExpandButton';
+
+export const ReasoningPart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
+  const thinkingContent = part.thinking || part.content || '';
+  
+  // Use expandable hook for reasoning content
+  const {
+    isExpanded,
+    shouldShowExpandButton,
+    displayContent,
+    toggleExpanded,
+  } = useExpandable({
+    content: thinkingContent,
+    autoExpand: isLast,
+    contentType: 'reasoning',
+  });
+
+  return (
+    <MessagePartContainer>
+      <View style={styles.container}>
+        {/* Reasoning header */}
+        <View style={styles.header}>
+          <View style={styles.thinkingIcon}>
+            <Text style={styles.thinkingIconText}>🤔</Text>
+          </View>
+          <Text style={styles.headerText}>AI Reasoning</Text>
+        </View>
+
+        {/* Thinking content */}
+        <View style={styles.contentContainer}>
+          <Text style={styles.contentText}>
+            {displayContent}
+          </Text>
+          
+          {shouldShowExpandButton && (
+            <ExpandButton
+              isExpanded={isExpanded}
+              onPress={toggleExpanded}
+              expandText="Show full reasoning"
+              collapseText="Show less"
+              variant="reasoning"
+            />
+          )}
+        </View>
+      </View>
+    </MessagePartContainer>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  thinkingIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#7c3aed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  thinkingIconText: {
+    fontSize: 14,
+  },
+  headerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#a855f7',
+  },
+  contentContainer: {
+    backgroundColor: '#1e1b4b',
+    borderRadius: 6,
+    padding: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#7c3aed',
+  },
+  contentText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#e0e7ff',
+    fontStyle: 'italic',
+  },
+
+});

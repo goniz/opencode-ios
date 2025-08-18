@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { getSavedServers, removeServer, SavedServer } from '../../src/utils/serverStorage';
 import { appGet } from '../../src/api/sdk.gen';
 import { useConnection } from '../../src/contexts/ConnectionContext';
-import { toast } from '../../src/utils/toast';
+
 
 export default function Index() {
   const { 
@@ -13,22 +13,21 @@ export default function Index() {
     connect, 
     lastError, 
     sessions, 
-    client, 
-    serverUrl: connectedServerUrl 
+    client 
   } = useConnection();
   const [serverUrl, setServerUrl] = useState("");
   const [savedServers, setSavedServers] = useState<SavedServer[]>([]);
   const [appVersion, setAppVersion] = useState<string | null>(null);
-  const [rootPath, setRootPath] = useState<string | null>(null);
+const [rootPath, setRootPath] = useState<string | null>(null);
+
+  const loadSavedServers = useCallback(async () => {
+    const servers = await getSavedServers();
+    setSavedServers(servers);
+  }, []);
 
   useEffect(() => {
     loadSavedServers();
-  }, []);
-
-  const loadSavedServers = async () => {
-    const servers = await getSavedServers();
-    setSavedServers(servers);
-  };
+  }, [loadSavedServers]);
 
   const connectToServer = useCallback(async (urlToConnect: string) => {
     if (!urlToConnect) {
@@ -91,6 +90,7 @@ export default function Index() {
         } else {
           errorMsg = error.message;
         }
+        Alert.alert("Connection Error", errorMsg);
       }
     }
   }, [connect, client, loadSavedServers]);

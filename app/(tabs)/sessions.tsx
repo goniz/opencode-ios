@@ -17,7 +17,8 @@ export default function SessionsScreen() {
     sessions, 
     client, 
     refreshSessions, 
-    lastError 
+    lastError,
+    setCurrentSession
   } = useConnection();
   const [listItems, setListItems] = useState<ListItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -91,6 +92,7 @@ export default function SessionsScreen() {
     }
 
     try {
+      console.log('Creating new session...');
       const response = await sessionCreate({ client });
       
       if (response.error) {
@@ -98,11 +100,17 @@ export default function SessionsScreen() {
         throw new Error(`Failed to create session: ${JSON.stringify(response.error)}`);
       }
 
-      // Refresh sessions list to show the new session
-      await loadSessions();
-      
-      // Navigate to chat tab (for future implementation)
-      router.push('/(tabs)/chat');
+      if (response.data) {
+        console.log('New session created:', response.data.id, response.data.title);
+        // Set the newly created session as current
+        setCurrentSession(response.data);
+        
+        // Refresh sessions list to show the new session
+        await loadSessions();
+        
+        // Navigate to chat tab
+        router.push('/(tabs)/chat');
+      }
     } catch (error) {
       console.error('Error creating session:', error);
       const errorMsg = error instanceof Error ? error.message : 'Failed to create session';
@@ -111,15 +119,10 @@ export default function SessionsScreen() {
   };
 
   const handleSessionPress = (session: Session) => {
-    // For now, just show session details
-    Alert.alert(
-      session.title,
-      `Created: ${new Date(session.time.created).toLocaleDateString()}\nUpdated: ${new Date(session.time.updated).toLocaleDateString()}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Open Chat', onPress: () => router.push('/(tabs)/chat') }
-      ]
-    );
+    console.log('Session selected:', session.id, session.title);
+    // Set the selected session as current and navigate to chat
+    setCurrentSession(session);
+    router.push('/(tabs)/chat');
   };
 
   useEffect(() => {
