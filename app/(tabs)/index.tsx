@@ -6,19 +6,18 @@ import { getSavedServers, removeServer, SavedServer } from '../../src/utils/serv
 import { appGet } from '../../src/api/sdk.gen';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 
-
 export default function Index() {
   const { 
     connectionStatus, 
     connect, 
     lastError, 
     sessions, 
-    client 
+    client
   } = useConnection();
   const [serverUrl, setServerUrl] = useState("");
   const [savedServers, setSavedServers] = useState<SavedServer[]>([]);
   const [appVersion, setAppVersion] = useState<string | null>(null);
-const [rootPath, setRootPath] = useState<string | null>(null);
+  const [rootPath, setRootPath] = useState<string | null>(null);
 
   const loadSavedServers = useCallback(async () => {
     const servers = await getSavedServers();
@@ -75,23 +74,6 @@ const [rootPath, setRootPath] = useState<string | null>(null);
       }, 500);
     } catch (error) {
       console.error('Connection error:', error);
-      
-      let errorMsg = 'Failed to connect to server';
-      
-      if (error instanceof Error) {
-        if (error.message.includes('Network request failed')) {
-          errorMsg = 'Network error - check if server is running and reachable from this device';
-        } else if (error.message.includes('timeout')) {
-          errorMsg = 'Connection timeout - server may be slow or unreachable';
-        } else if (error.message.includes('ECONNREFUSED')) {
-          errorMsg = 'Connection refused - server is not listening on this port';
-        } else if (error.message.includes('ENOTFOUND')) {
-          errorMsg = 'Host not found - check the server address';
-        } else {
-          errorMsg = error.message;
-        }
-        Alert.alert("Connection Error", errorMsg);
-      }
     }
   }, [connect, client, loadSavedServers]);
 

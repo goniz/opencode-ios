@@ -4,32 +4,48 @@ import { MessagePartProps, MessagePartContainer } from './MessagePart';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 
+interface FilePartData {
+  file?: {
+    path?: string;
+    content?: string;
+  };
+  source?: {
+    path?: string;
+    text?: {
+      value?: string;
+    };
+  };
+  filename?: string;
+}
+
 export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
   // Handle both the MessagePartProps interface and actual API FilePart type
-  const filePart = part as any;
+  const filePart = part as FilePartData;
   
   // Try to get file info from different possible sources
   const filePath = filePart.file?.path || filePart.source?.path || filePart.filename || 'Unknown file';
   const fileContent = filePart.file?.content || filePart.source?.text?.value || '';
   
-  // Fallback if no content is available
-  if (!filePath && !fileContent) {
-    return null;
-  }
-  
-  // Use expandable hook for file content
+  // Always call useExpandable hook to maintain hook order
+  const expandableResult = useExpandable({
+    content: fileContent || '',
+    autoExpand: isLast || (fileContent ? fileContent.length < 500 : false),
+    contentType: 'text',
+    maxLines: 10,
+    estimatedCharsPerLine: 60,
+  });
+
   const {
     isExpanded,
     shouldShowExpandButton,
     displayContent,
     toggleExpanded,
-  } = useExpandable({
-    content: fileContent,
-    autoExpand: isLast || fileContent.length < 500,
-    contentType: 'text',
-    maxLines: 10,
-    estimatedCharsPerLine: 60,
-  });
+  } = expandableResult;
+
+  // Fallback if no content is available
+  if (!filePath && !fileContent) {
+    return null;
+  }
 
   // Extract file name from path
   const fileName = filePath ? filePath.split('/').pop() || filePath : 'Unknown file';
