@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import EventSource from 'react-native-sse';
 import { createClient } from '../api/client';
 import type { Client } from '../api/client/types.gen';
 import type { Session, Message, Part } from '../api/types.gen';
-import { sessionList, sessionMessages, sessionChat, eventSubscribe } from '../api/sdk.gen';
+import { sessionList, sessionMessages, sessionChat } from '../api/sdk.gen';
 import { saveServer, type SavedServer } from '../utils/serverStorage';
 
 const CURRENT_CONNECTION_KEY = 'current_connection';
@@ -124,32 +125,50 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
         messages: [...state.messages, action.payload.message],
       };
     case 'UPDATE_MESSAGE':
-      return {
-        ...state,
-        messages: state.messages.map(msg => 
-          msg.info.id === action.payload.messageId 
-            ? { ...msg, info: action.payload.info }
-            : msg
-        ),
-      };
+      const existingMessageIndex = state.messages.findIndex(msg => msg.info.id === action.payload.messageId);
+      if (existingMessageIndex >= 0) {
+        // Update existing message
+        return {
+          ...state,
+          messages: state.messages.map(msg => 
+            msg.info.id === action.payload.messageId 
+              ? { ...msg, info: action.payload.info }
+              : msg
+          ),
+        };
+      } else {
+        // Add new message if it doesn't exist
+        return {
+          ...state,
+          messages: [...state.messages, { info: action.payload.info, parts: [] }],
+        };
+      }
     case 'UPDATE_MESSAGE_PART':
-      return {
-        ...state,
-        messages: state.messages.map(msg => 
-          msg.info.id === action.payload.messageId 
-            ? {
-                ...msg,
-                parts: msg.parts.some(p => p.id === action.payload.partId)
-                  ? msg.parts.map(part => 
-                      part.id === action.payload.partId 
-                        ? action.payload.part
-                        : part
-                    )
-                  : [...msg.parts, action.payload.part]
-              }
-            : msg
-        ),
-      };
+      const messageIndex = state.messages.findIndex(msg => msg.info.id === action.payload.messageId);
+      if (messageIndex >= 0) {
+        // Update existing message's parts
+        return {
+          ...state,
+          messages: state.messages.map(msg => 
+            msg.info.id === action.payload.messageId 
+              ? {
+                  ...msg,
+                  parts: msg.parts.some(p => p.id === action.payload.partId)
+                    ? msg.parts.map(part => 
+                        part.id === action.payload.partId 
+                          ? action.payload.part
+                          : part
+                      )
+                    : [...msg.parts, action.payload.part]
+                }
+              : msg
+          ),
+        };
+      } else {
+        // Create new message with this part if message doesn't exist
+        console.warn('Received part for non-existent message:', action.payload.messageId);
+        return state; // Could also create a placeholder message here
+      }
     case 'SET_STREAM_CONNECTED':
       return {
         ...state,
@@ -253,7 +272,7 @@ const clearCurrentSession = async (): Promise<void> => {
 
 export function ConnectionProvider({ children }: ConnectionProviderProps) {
   const [state, dispatch] = useReducer(connectionReducer, initialState);
-  const eventStreamRef = useRef<ReadableStreamDefaultReader | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   const connectWithTimeout = async (client: Client, timeoutMs: number): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -444,34 +463,9 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
 
     console.log('Sending message to session:', sessionId, 'message:', message);
 
-    // Optimistically add user message to the UI immediately
-    const tempId = `temp-${Date.now()}`;
-    dispatch({
-      type: 'ADD_MESSAGE',
-      payload: {
-        message: {
-          info: {
-            id: tempId,
-            role: 'user' as const,
-            sessionID: sessionId,
-            time: {
-              created: Date.now()
-            }
-          },
-          parts: [{
-            type: 'text' as const,
-            id: `${tempId}-part-0`,
-            sessionID: sessionId,
-            messageID: tempId,
-            text: message
-          }]
-        }
-      }
-    });
-
     try {
       // Send the message - the response will come through the event stream
-      const response = await sessionChat({
+      await sessionChat({
         client: state.client,
         path: { id: sessionId },
         body: {
@@ -484,15 +478,8 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         }
       });
 
-      if (response.data) {
-        // The assistant message will be updated via event stream,
-        // but we add an initial placeholder to show it's processing
-        const assistantMessage: MessageWithParts = {
-          info: response.data,
-          parts: [] // Parts will be added via streaming updates
-        };
-        dispatch({ type: 'ADD_MESSAGE', payload: { message: assistantMessage } });
-      }
+      // Don't add empty assistant message - let the stream handle it
+      // The stream events will create and update the assistant message properly
     } catch (error) {
       console.error('Failed to send message:', error);
       throw error;
@@ -501,102 +488,121 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
 
   // Event stream management functions
   const stopEventStream = useCallback(async (): Promise<void> => {
-    if (eventStreamRef.current) {
+    if (eventSourceRef.current) {
       try {
-        await eventStreamRef.current.cancel();
+        eventSourceRef.current.close();
       } catch (error) {
-        console.error('Error canceling stream:', error);
+        console.error('Error closing event source:', error);
       } finally {
-        eventStreamRef.current = null;
+        eventSourceRef.current = null;
         dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
       }
     }
   }, []);
 
-const startEventStream = useCallback(async (client: Client): Promise<void> => {
+const startEventStream = useCallback(async (client: Client, retryCount = 0): Promise<void> => {
+    const maxRetries = 3;
+    
     // First stop any existing stream
     await stopEventStream();
 
     try {
-      // Start the event stream for real-time updates
-      const response = await eventSubscribe({ 
-        client,
-        // Set parseAs to 'stream' to get the raw response
-        parseAs: 'stream'
-      });
+      console.log('Starting event stream...');
       
-      // Access the response through the response property
-      if (response.response?.body) {
-        // Handle SSE stream
-        const reader = response.response.body.getReader();
-        if (reader) {
-          eventStreamRef.current = reader;
-          dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: true } });
-          
-          const decoder = new TextDecoder();
-          
-          const processStream = async () => {
-            try {
-              while (true) {
-                const { done, value } = await reader.read();
-                
-                if (done) {
-                  dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
-                  break;
-                }
-                
-                const text = decoder.decode(value);
-                const lines = text.split('\n');
-                
-                for (const line of lines) {
-                  if (line.startsWith('data: ')) {
-                    try {
-                      const eventData = JSON.parse(line.slice(6));
-                      
-                      switch (eventData.type) {
-                        case 'message.updated':
-                          dispatch({ 
-                            type: 'UPDATE_MESSAGE', 
-                            payload: { 
-                              messageId: eventData.properties.info.id, 
-                              info: eventData.properties.info 
-                            } 
-                          });
-                          break;
-                          
-                        case 'message.part.updated':
-                          const part = eventData.properties.part;
-                          dispatch({ 
-                            type: 'UPDATE_MESSAGE_PART', 
-                            payload: { 
-                              messageId: part.messageID, 
-                              partId: part.id, 
-                              part: part 
-                            } 
-                          });
-                          break;
-                      }
-                    } catch (parseError) {
-                      console.error('Failed to parse event data:', parseError);
-                    }
-                  }
-                }
-              }
-            } catch (error) {
-              console.error('Error processing event stream:', error);
-              dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
-            }
-          };
-          
-          processStream().catch(error => {
-            console.error('Error in stream processing:', error);
-            dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
-          });
+      // Get the base URL from the client
+      const config = (client as any).getConfig?.() || {};
+      const baseUrl = config.baseUrl || '';
+      const eventUrl = `${baseUrl}/event`;
+      
+      console.log('Event stream URL:', eventUrl);
+      
+      // Create EventSource for SSE
+      const eventSource = new EventSource(eventUrl);
+      eventSourceRef.current = eventSource;
+      
+      const handleStreamEvent = (eventData: any) => {
+        console.log('Processing stream event:', eventData.type);
+        
+        switch (eventData.type) {
+          case 'message.updated':
+            console.log('Updating message:', eventData.properties.info.id);
+            dispatch({ 
+              type: 'UPDATE_MESSAGE', 
+              payload: { 
+                messageId: eventData.properties.info.id, 
+                info: eventData.properties.info 
+              } 
+            });
+            break;
+            
+          case 'message.part.updated':
+            const part = eventData.properties.part;
+            console.log('Updating message part:', part.messageID, part.id);
+            dispatch({ 
+              type: 'UPDATE_MESSAGE_PART', 
+              payload: { 
+                messageId: part.messageID, 
+                partId: part.id, 
+                part: part 
+              } 
+            });
+            break;
+            
+          default:
+            console.log('Unhandled event type:', eventData.type);
         }
-      }
+      };
+
+      eventSource.addEventListener('open', () => {
+        console.log('Event stream connected');
+        dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: true } });
+      });
+
+      eventSource.addEventListener('message', (event: any) => {
+        try {
+          const eventData = JSON.parse(event.data);
+          console.log('Received event:', eventData);
+          handleStreamEvent(eventData);
+        } catch (parseError) {
+          console.error('Failed to parse event data:', parseError);
+        }
+      });
+
+      eventSource.addEventListener('error', (error: any) => {
+        console.error('Event stream error:', error);
+        dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
+        
+        // Auto-reconnect with exponential backoff
+        if (retryCount < maxRetries) {
+          const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+          console.log(`Retrying event stream in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          setTimeout(() => {
+            startEventStream(client, retryCount + 1);
+          }, delay);
+        } else {
+          console.log('Max retry attempts reached for event stream');
+        }
+      });
+
     } catch (error) {
       console.error('Failed to start event stream:', error);
+      console.error('Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        cause: error instanceof Error ? error.cause : undefined
+      });
       dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
+      
+      // Auto-reconnect with exponential backoff
+      if (retryCount < maxRetries) {
+        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        console.log(`Retrying event stream in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        setTimeout(() => {
+          startEventStream(client, retryCount + 1);
+        }, delay);
+      } else {
+        console.log('Max retry attempts reached for event stream');
+      }
     }
 }, [stopEventStream]); // eslint-disable-line react-hooks/exhaustive-deps
 

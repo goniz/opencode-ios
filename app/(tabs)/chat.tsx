@@ -57,7 +57,9 @@ export default function ChatScreen() {
     console.log('Chat screen - currentSession:', currentSession);
     console.log('Chat screen - sessions count:', sessions.length);
     console.log('Chat screen - connectionStatus:', connectionStatus);
-  }, [currentSession, sessions, connectionStatus]);
+    console.log('Chat screen - messages count:', messages.length);
+    console.log('Chat screen - isStreamConnected:', isStreamConnected);
+  }, [currentSession, sessions, connectionStatus, messages.length, isStreamConnected]);
 
   // Load available providers and models when connected
   useEffect(() => {
