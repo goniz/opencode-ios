@@ -8,7 +8,9 @@ import {
   TextInput, 
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Alert,
+  SafeAreaView
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +22,7 @@ import { MessageContent } from '../../src/components/chat/MessageContent';
 import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
 import { ConnectionStatus } from '../../src/components/chat/ConnectionStatus';
 import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
+import { configProviders } from '../../src/api/sdk.gen';
 
 interface MessageWithParts {
   info: Message;
@@ -36,11 +39,14 @@ export default function ChatScreen() {
     isStreamConnected,
     loadMessages, 
     sendMessage,
-    setCurrentSession
+    setCurrentSession,
+    client
   } = useConnection();
   
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [currentModel, setCurrentModel] = useState<{providerID: string, modelID: string} | null>(null);
+  const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string}[]>([]);
   const flatListRef = useRef<FlatList>(null);
 
   // Debug logging
@@ -49,6 +55,56 @@ export default function ChatScreen() {
     console.log('Chat screen - sessions count:', sessions.length);
     console.log('Chat screen - connectionStatus:', connectionStatus);
   }, [currentSession, sessions, connectionStatus]);
+
+  // Load available models when connected
+  useEffect(() => {
+    const loadModels = async () => {
+      if (connectionStatus === 'connected' && client) {
+        try {
+          const response = await configProviders({ client });
+          if (response.data) {
+            const models: {providerID: string, modelID: string, displayName: string}[] = [];
+            
+            // Extract models from providers
+            response.data.providers.forEach(provider => {
+              Object.keys(provider.models).forEach(modelKey => {
+                const model = provider.models[modelKey];
+                models.push({
+                  providerID: provider.id,
+                  modelID: model.id,
+                  displayName: `${provider.name} / ${model.name}`
+                });
+              });
+            });
+            
+            setAvailableModels(models);
+            
+            // Set default model if none selected
+            if (!currentModel && models.length > 0) {
+              // Try to find a default model from the config
+              let defaultModel = null;
+              if (response.data.default && Object.keys(response.data.default).length > 0) {
+                const [providerID, modelID] = Object.entries(response.data.default)[0];
+                defaultModel = { providerID, modelID };
+              } else {
+                // Use first available model as fallback
+                defaultModel = {
+                  providerID: models[0].providerID,
+                  modelID: models[0].modelID
+                };
+              }
+              setCurrentModel(defaultModel);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load models:', error);
+          toast.showError('Failed to load models', error instanceof Error ? error.message : 'Unknown error');
+        }
+      }
+    };
+
+    loadModels();
+  }, [connectionStatus, client, currentModel]);
 
   // Auto-select the most recent session if none is selected but sessions exist
   useEffect(() => {
@@ -88,7 +144,12 @@ export default function ChatScreen() {
     setIsSending(true);
 
     try {
-      await sendMessage(currentSession.id, messageText);
+      await sendMessage(
+        currentSession.id, 
+        messageText,
+        currentModel?.providerID,
+        currentModel?.modelID
+      );
       // Scroll to bottom after sending
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
@@ -104,7 +165,7 @@ export default function ChatScreen() {
     }
   };
 
-  const renderMessage = ({ item, index }: { item: MessageWithParts; index: number }) => {
+const renderMessage = ({ item, index }: { item: MessageWithParts; index: number }) => {
     // Filter parts using the existing filtering logic
     const { filteredParts, hasContent } = (() => {
       const filtered = filterMessageParts(item.parts);
@@ -115,6 +176,7 @@ export default function ChatScreen() {
     })();
     
     const isAssistant = item.info.role === 'assistant';
+    const isUser = item.info.role === 'user';
     const isStreaming = isAssistant && !hasContent && isStreamConnected;
     // const isLastMessage = index === messages.length - 1;
     
@@ -122,7 +184,7 @@ export default function ChatScreen() {
     if (isStreaming) {
       return (
         <View style={styles.messageContainer}>
-          <View style={styles.twoColumnLayout}>
+          <View style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
             <MessageDecoration 
               role={item.info.role} 
               isFirstPart={true}
@@ -145,16 +207,18 @@ export default function ChatScreen() {
     if (filteredParts.length === 0 && item.info.role === 'user') {
       return (
         <View style={styles.messageContainer}>
-          <View style={styles.twoColumnLayout}>
+          <View style={[styles.twoColumnLayout, styles.userMessageContainer]}>
             <MessageDecoration 
               role={item.info.role} 
               isFirstPart={true}
               isLastPart={true}
             />
-            <View style={styles.contentColumn}>
-              <Text style={[styles.messageText, styles.userText]}>
-                {item.info.role === 'user' ? 'User message' : 'Assistant response'}
-              </Text>
+            <View style={[styles.contentColumn, styles.userContentColumn]}>
+              <View style={styles.userMessageBubble}>
+                <Text style={styles.userMessageText}>
+                  User message
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -169,22 +233,36 @@ export default function ChatScreen() {
           const isLastPart = partIndex === filteredParts.length - 1;
           
           return (
-            <View key={`${item.info.id}-${partIndex}`} style={styles.twoColumnLayout}>
+            <View key={`${item.info.id}-${partIndex}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
               <MessageDecoration 
                 role={item.info.role}
                 part={part}
                 isFirstPart={isFirstPart}
                 isLastPart={isLastPart}
-providerID={item.info.role === 'assistant' ? (item.info as AssistantMessage).providerID : undefined}
-modelID={item.info.role === 'assistant' ? (item.info as AssistantMessage).modelID : undefined}
+ providerID={item.info.role === 'assistant' ? (item.info as AssistantMessage).providerID : undefined}
+ modelID={item.info.role === 'assistant' ? (item.info as AssistantMessage).modelID : undefined}
               />
-              <MessageContent 
-                role={item.info.role}
-                part={part}
-                isLast={index === messages.length - 1}
-                partIndex={partIndex}
-                totalParts={filteredParts.length}
-              />
+              <View style={[styles.contentColumn, isUser && styles.userContentColumn]}>
+                {isUser ? (
+                  <View style={styles.userMessageBubble}>
+                    <MessageContent 
+                      role={item.info.role}
+                      part={part}
+                      isLast={index === messages.length - 1}
+                      partIndex={partIndex}
+                      totalParts={filteredParts.length}
+                    />
+                  </View>
+                ) : (
+                  <MessageContent 
+                    role={item.info.role}
+                    part={part}
+                    isLast={index === messages.length - 1}
+                    partIndex={partIndex}
+                    totalParts={filteredParts.length}
+                  />
+                )}
+              </View>
             </View>
           );
         })}
@@ -236,71 +314,94 @@ modelID={item.info.role === 'assistant' ? (item.info as AssistantMessage).modelI
   }
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.title} numberOfLines={1}>{currentSession.title}</Text>
-          <ConnectionStatus 
-            status={connectionStatus}
-            style={styles.connectionStatus}
-          />
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>{currentSession.title}</Text>
+          <View style={styles.headerBottom}>
+            <ConnectionStatus 
+              status={connectionStatus}
+            />
+            {isStreamConnected && (
+              <View style={styles.streamStatus}>
+                <View style={styles.streamIndicator} />
+                <Text style={styles.streamText}>Live</Text>
+              </View>
+            )}
+            <TouchableOpacity onPress={() => {
+              if (availableModels.length > 0) {
+                Alert.alert(
+                  'Select Model',
+                  'Choose a model for this conversation',
+                  [
+                    ...availableModels.map(model => ({
+                      text: model.displayName,
+                      onPress: () => setCurrentModel({
+                        providerID: model.providerID,
+                        modelID: model.modelID
+                      })
+                    })),
+                    { text: 'Cancel', style: 'cancel' }
+                  ]
+                );
+              }
+            }}>
+              <View style={styles.modelSelector}>
+                <Text style={styles.modelSelectorText} numberOfLines={1}>
+                  {currentModel ? 
+                    availableModels.find(m => m.providerID === currentModel.providerID && m.modelID === currentModel.modelID)?.displayName || 
+                    `${currentModel.providerID}/${currentModel.modelID}` : 
+                    'Select Model'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.headerRight}>
-          {isStreamConnected && (
-            <View style={styles.streamStatus}>
-              <View style={styles.streamIndicator} />
-              <Text style={styles.streamText}>Live</Text>
-            </View>
-          )}
-          <TouchableOpacity onPress={() => router.push('/(tabs)/sessions')}>
-            <Ionicons name="list" size={24} color="#ffffff" />
+
+        {isLoadingMessages ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#ffffff" />
+            <Text style={styles.loadingText}>Loading messages...</Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.info.id}
+            style={styles.messagesList}
+            contentContainerStyle={styles.messagesContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.textInput}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Type a message..."
+            placeholderTextColor="#6b7280"
+            multiline
+            maxLength={4000}
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, (!inputText.trim() || isSending) && styles.sendButtonDisabled]}
+            onPress={handleSendMessage}
+            disabled={!inputText.trim() || isSending}
+          >
+            {isSending ? (
+              <ActivityIndicator size="small" color="#0a0a0a" />
+            ) : (
+              <Ionicons name="send" size={20} color="#0a0a0a" />
+            )}
           </TouchableOpacity>
         </View>
-      </View>
-
-      {isLoadingMessages ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#ffffff" />
-          <Text style={styles.loadingText}>Loading messages...</Text>
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.info.id}
-          style={styles.messagesList}
-          contentContainerStyle={styles.messagesContent}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
-
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.textInput}
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="Type a message..."
-          placeholderTextColor="#6b7280"
-          multiline
-          maxLength={4000}
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, (!inputText.trim() || isSending) && styles.sendButtonDisabled]}
-          onPress={handleSendMessage}
-          disabled={!inputText.trim() || isSending}
-        >
-          {isSending ? (
-            <ActivityIndicator size="small" color="#0a0a0a" />
-          ) : (
-            <Ionicons name="send" size={20} color="#0a0a0a" />
-          )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -316,23 +417,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#2a2a2a',
   },
-  headerLeft: {
-    flex: 1,
+  headerBottom: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 8,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  headerButton: {
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    maxWidth: 150,
+  },
+  headerButtonText: {
+    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: '500',
   },
   streamStatus: {
     flexDirection: 'row',
@@ -355,14 +467,26 @@ const styles = StyleSheet.create({
     color: '#10b981',
     fontWeight: '500',
   },
+  modelSelector: {
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    marginLeft: 12,
+    maxWidth: 120,
+  },
+  modelSelectorText: {
+    fontSize: 11,
+    color: '#ffffff',
+    fontWeight: '500',
+  },
   title: {
     fontSize: 18,
     fontWeight: '600',
     color: '#ffffff',
-    flex: 1,
-  },
-  connectionStatus: {
-    marginLeft: 12,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
@@ -409,8 +533,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 4,
   },
+  userMessageContainer: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
   contentColumn: {
     flex: 1,
+    paddingLeft: 8,
+  },
+  userContentColumn: {
     paddingLeft: 8,
   },
   userMessage: {
@@ -431,12 +565,25 @@ const styles = StyleSheet.create({
   assistantBubble: {
     backgroundColor: '#2a2a2a',
   },
+  userMessageBubble: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    maxWidth: '100%',
+  },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
   },
   userText: {
     color: '#0a0a0a',
+  },
+  userMessageText: {
+    color: '#ffffff',
+    fontSize: 16,
+    lineHeight: 22,
   },
   assistantText: {
     color: '#ffffff',
