@@ -12,7 +12,7 @@ import {
   Alert,
   SafeAreaView
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 import { toast } from '../../src/utils/toast';
@@ -30,6 +30,7 @@ interface MessageWithParts {
 }
 
 export default function ChatScreen() {
+  const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
   const { 
     connectionStatus, 
     sessions,
@@ -52,6 +53,20 @@ export default function ChatScreen() {
   const [currentProviderModels, setCurrentProviderModels] = useState<{modelID: string, name: string}[]>([]);
   const flatListRef = useRef<FlatList>(null);
 
+  // Handle session ID from navigation parameters
+  useEffect(() => {
+    if (sessionId && sessions.length > 0) {
+      console.log('Chat screen - sessionId from params:', sessionId);
+      const targetSession = sessions.find(s => s.id === sessionId);
+      if (targetSession && (!currentSession || currentSession.id !== sessionId)) {
+        console.log('Chat screen - Setting session from params:', targetSession.id, targetSession.title);
+        setCurrentSession(targetSession);
+      } else if (!targetSession) {
+        console.warn('Chat screen - Session not found for ID:', sessionId);
+      }
+    }
+  }, [sessionId, sessions, currentSession, setCurrentSession]);
+
   // Debug logging
   useEffect(() => {
     console.log('Chat screen - currentSession:', currentSession);
@@ -59,7 +74,8 @@ export default function ChatScreen() {
     console.log('Chat screen - connectionStatus:', connectionStatus);
     console.log('Chat screen - messages count:', messages.length);
     console.log('Chat screen - isStreamConnected:', isStreamConnected);
-  }, [currentSession, sessions, connectionStatus, messages.length, isStreamConnected]);
+    console.log('Chat screen - sessionId param:', sessionId);
+  }, [currentSession, sessions, connectionStatus, messages.length, isStreamConnected, sessionId]);
 
   // Load available providers and models when connected
   useEffect(() => {
@@ -149,22 +165,7 @@ export default function ChatScreen() {
     }
   }, [currentProvider, availableModels, currentModel]);
 
-  // Auto-select the most recent session if none is selected but sessions exist
-  useEffect(() => {
-    if (!currentSession && sessions.length > 0 && connectionStatus === 'connected') {
-      // Small delay to allow for proper session setting from navigation
-      const timer = setTimeout(() => {
-        // Check again if currentSession is still not set
-        if (!currentSession) {
-          // Sort sessions by updated time and select the most recent
-          const mostRecentSession = [...sessions].sort((a, b) => b.time.updated - a.time.updated)[0];
-          setCurrentSession(mostRecentSession);
-        }
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [currentSession, sessions, connectionStatus, setCurrentSession]);
+
 
   useEffect(() => {
     if (currentSession) {
@@ -385,9 +386,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             }
           </Text>
           <TouchableOpacity style={styles.connectButton} onPress={() => router.push('/(tabs)/sessions')}>
-            <Text style={styles.connectButtonText}>
-              {sessions.length === 0 ? "Create New Chat" : "Go to Sessions"}
-            </Text>
+            <Text style={styles.connectButtonText}>Go to Sessions</Text>
           </TouchableOpacity>
         </View>
       </View>

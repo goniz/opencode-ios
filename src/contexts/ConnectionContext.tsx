@@ -419,6 +419,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
   }, []);
 
   const setCurrentSession = useCallback((session: Session | null): void => {
+    console.log('ConnectionContext: setCurrentSession called with:', session ? `${session.id} (${session.title})` : 'null');
     dispatch({ type: 'SET_CURRENT_SESSION', payload: { session } });
     // Persist the current session
     if (session) {
