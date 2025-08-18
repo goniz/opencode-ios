@@ -127,7 +127,7 @@ export default function ChatScreen() {
     }
   }, [currentSession, loadMessages]);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change and on initial load
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => {
@@ -135,6 +135,22 @@ export default function ChatScreen() {
       }, 100);
     }
   }, [messages]);
+
+  // Scroll to newest message on session load - ensure complete scroll
+  useEffect(() => {
+    if (currentSession && !isLoadingMessages && messages.length > 0) {
+      // Multiple attempts to ensure complete scrolling
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }, 300);
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }, 500);
+    }
+  }, [currentSession, isLoadingMessages, messages.length]);
 
   const handleSendMessage = async () => {
     if (!inputText.trim() || !currentSession || isSending) return;

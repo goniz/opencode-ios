@@ -43,7 +43,7 @@ export interface ConnectionContextType extends ConnectionState {
   retryConnection: () => Promise<void>;
   setCurrentSession: (session: Session | null) => void;
   loadMessages: (sessionId: string) => Promise<void>;
-  sendMessage: (sessionId: string, message: string) => Promise<void>;
+  sendMessage: (sessionId: string, message: string, providerID?: string, modelID?: string) => Promise<void>;
 }
 
 type ConnectionAction =
@@ -433,7 +433,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
   }, [state.client, state.connectionStatus]);
 
-  const sendMessage = useCallback(async (sessionId: string, message: string): Promise<void> => {
+  const sendMessage = useCallback(async (sessionId: string, message: string, providerID?: string, modelID?: string): Promise<void> => {
     if (!state.client || state.connectionStatus !== 'connected') {
       throw new Error('Not connected to server');
     }
@@ -464,8 +464,8 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         client: state.client,
         path: { id: sessionId },
         body: {
-          providerID: 'anthropic',
-          modelID: 'claude-3-5-sonnet-20241022',
+          providerID: providerID || 'anthropic',
+          modelID: modelID || 'claude-3-5-sonnet-20241022',
           parts: [{
             type: 'text',
             text: message
