@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import SyntaxHighlighter from 'react-native-syntax-highlighter';
 // @ts-ignore
-import atomOneDark from 'react-syntax-highlighter/styles/prism/atom-dark';
+import atomOneDark from 'react-syntax-highlighter/dist/cjs/styles/prism/atom-dark';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 

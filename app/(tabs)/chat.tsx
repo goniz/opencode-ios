@@ -102,19 +102,26 @@ export default function ChatScreen() {
   // Set default provider and model from last assistant message
   useEffect(() => {
     if (messages.length > 0 && availableProviders.length > 0 && !currentProvider && !currentModel) {
-      // Find the last assistant message
+      // Find the last assistant message with proper type checking
       const lastAssistantMessage = [...messages]
         .reverse()
-        .find(msg => msg.info.role === 'assistant') as { info: AssistantMessage } | undefined;
-      
-      if (lastAssistantMessage?.info.providerID && lastAssistantMessage?.info.modelID) {
-        const providerExists = availableProviders.find(p => p.id === lastAssistantMessage.info.providerID);
-        if (providerExists) {
-          setCurrentProvider(lastAssistantMessage.info.providerID);
-          setCurrentModel({
-            providerID: lastAssistantMessage.info.providerID,
-            modelID: lastAssistantMessage.info.modelID
-          });
+        .find(msg => msg.info.role === 'assistant');
+
+      // Type guard to ensure it's actually an AssistantMessage
+      if (lastAssistantMessage && 
+          'providerID' in lastAssistantMessage.info && 
+          'modelID' in lastAssistantMessage.info) {
+        const assistantMessage = lastAssistantMessage.info as AssistantMessage;
+        
+        if (assistantMessage.providerID && assistantMessage.modelID) {
+          const providerExists = availableProviders.find(p => p.id === assistantMessage.providerID);
+          if (providerExists) {
+            setCurrentProvider(assistantMessage.providerID);
+            setCurrentModel({
+              providerID: assistantMessage.providerID,
+              modelID: assistantMessage.modelID
+            });
+          }
         }
       }
     }
@@ -154,7 +161,7 @@ export default function ChatScreen() {
       console.log('Loading messages for session:', currentSession.id, currentSession.title);
       loadMessages(currentSession.id).catch(error => {
         console.error('Failed to load messages:', error);
-        toast.showError('Failed to load messages', error.message);
+        toast.showError('Failed to load messages', error instanceof Error ? error.message : 'Unknown error');
       });
     } else {
       console.log('No current session set');
@@ -172,18 +179,22 @@ export default function ChatScreen() {
 
   // Scroll to newest message on session load - ensure complete scroll
   useEffect(() => {
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+
     if (currentSession && !isLoadingMessages && messages.length > 0) {
-      // Multiple attempts to ensure complete scrolling
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-      }, 100);
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-      }, 300);
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-      }, 500);
+      // Multiple attempts to ensure complete scrolling with cleanup
+      [100, 300, 500].forEach(delay => {
+        const timeout = setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: false });
+        }, delay);
+        timeouts.push(timeout);
+      });
     }
+
+    // Cleanup function to clear timeouts if component unmounts
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+    };
   }, [currentSession, isLoadingMessages, messages.length]);
 
   const handleSendMessage = async () => {
@@ -206,9 +217,14 @@ export default function ChatScreen() {
         currentModel.modelID
       );
       // Scroll to bottom after sending
-      setTimeout(() => {
+      const scrollTimeout = setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
+
+      // Clean up timeout if component unmounts
+      return () => {
+        clearTimeout(scrollTimeout);
+      };
     } catch (error) {
       console.error('Failed to send message:', error);
       const errorMsg = error instanceof Error ? error.message : 'Failed to send message';

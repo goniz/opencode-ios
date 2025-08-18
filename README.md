@@ -1,18 +1,35 @@
-# opencode-mobile
+# opencode-ios
 
-Expo Go-based React Native mobile application for OpenCode using Expo Router for navigation.
+A native iOS/Android mobile application for OpenCode built with Expo and React Native. Features a modern chat interface for interacting with Claude AI, complete with syntax highlighting, tool execution visualization, and real-time messaging.
+
+## Features
+
+- 🤖 **AI Chat Interface** - Native chat experience with Claude AI
+- 💬 **Real-time Messaging** - WebSocket-based communication
+- 🎨 **Syntax Highlighting** - Code blocks with proper language detection
+- 🔧 **Tool Visualization** - See AI tool executions in real-time  
+- 📱 **Cross-Platform** - iOS, Android, and Web support
+- 🌙 **Theme Support** - Light and dark mode
+- ⚡ **Expo Router** - File-based navigation with typed routes
+- 🔄 **Session Management** - Manage multiple chat sessions
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js 18.x or 20.x
 - npm or yarn
-- Expo CLI (`npm install -g expo-cli`)
+- Expo CLI (`npm install -g @expo/cli`)
+- iOS Simulator (for iOS development)
+- Android Studio/Emulator (for Android development)
 
 ### Installation
 
 ```bash
+# Clone and install dependencies
 npm install
+
+# Generate API client
+npm run generate-api
 ```
 
 ### Development
@@ -22,38 +39,51 @@ npm install
 npm start
 
 # Run on specific platforms
-npm run ios     # iOS simulator
-npm run android # Android emulator
+npm run ios     # iOS simulator/device
+npm run android # Android emulator/device  
 npm run web     # Web browser
+
+# Development with type checking
+npm run typecheck
 ```
 
-### Testing on Device
+### Testing on Physical Device
 1. Install Expo Go from App Store (iOS) or Google Play (Android)
-2. Run `npm start`
-3. Scan QR code with camera (iOS) or Expo Go app (Android)
+2. Run `npm start` to start the development server
+3. Scan QR code with your device camera or Expo Go app
+4. The app will load and hot-reload as you make changes
 
-## Scripts
+## Available Scripts
 
 ```bash
 npm start              # Start Expo development server
-npm run ios            # Run on iOS simulator
-npm run android        # Run on Android emulator
+npm run ios            # Run on iOS simulator/device
+npm run android        # Run on Android emulator/device
 npm run web            # Run on web browser
 npm run lint           # Run ESLint
+npm run typecheck      # TypeScript type checking
 npm run test           # Run tests in watch mode
-npm run test:ci        # Run tests for CI (no watch, with coverage)
-npm run generate-api   # Generate API client from OpenAPI schema
+npm run test:ci        # Run tests for CI with coverage
+npm run generate-api   # Generate TypeScript API client from OpenAPI schema
 ```
 
 ## Technology Stack
 
-- **Framework**: Expo ~53.0.20 with React Native 0.79.5
-- **Navigation**: Expo Router ~5.1.4
-- **Language**: TypeScript ~5.8.3
-- **UI**: React 19.0.0 with React Native components
-- **API Client**: Generated from OpenAPI with @hey-api/openapi-ts
+- **Framework**: Expo ~53.0.20 with React Native 0.79.5 (New Architecture enabled)
+- **Navigation**: Expo Router ~5.1.4 with typed routes
+- **Language**: TypeScript ~5.8.3 with strict mode
+- **UI Components**: React 19.0.0 with React Native components
+- **Styling**: React Native StyleSheet with theme system
+- **State Management**: React Context + hooks
+- **API Client**: Auto-generated from OpenAPI with @hey-api/openapi-ts
+- **Real-time**: WebSocket for live chat communication
+- **Syntax Highlighting**: react-native-syntax-highlighter
+- **Markdown**: react-native-markdown-display
+- **Icons**: @expo/vector-icons, expo-symbols
+- **Animations**: react-native-reanimated
+- **Storage**: @react-native-async-storage/async-storage
 - **Testing**: Jest with React Native Testing Library
-- **Linting**: ESLint with Expo config
+- **Linting**: ESLint with Expo TypeScript config
 
 ## Testing
 
@@ -76,32 +106,145 @@ GitHub Actions workflows are configured for:
 ## Project Structure
 
 ```
-app/                   # Expo Router screens
-├── (tabs)/           # Tab navigation group
-├── _layout.tsx       # Root layout
+app/                          # Expo Router screens (file-based routing)
+├── (tabs)/                   # Tab navigation group
+│   ├── _layout.tsx          # Tab navigator layout
+│   ├── index.tsx            # Home/Welcome screen
+│   ├── chat.tsx             # Main chat interface
+│   └── sessions.tsx         # Session management
+├── _layout.tsx              # Root app layout
+assets/                      # Static assets
+├── images/                  # App icons and images
+└── fonts/                   # Custom fonts
 src/
-├── api/              # Generated API client
-├── contexts/         # React contexts
-└── utils/            # Utility functions
-__tests__/            # Test files and setup
-.github/              # GitHub Actions workflows
+├── api/                     # Generated TypeScript API client
+│   ├── client/             # HTTP client implementation  
+│   ├── core/               # Core API utilities
+│   ├── sdk.gen.ts          # Generated SDK functions
+│   └── types.gen.ts        # Generated TypeScript types
+├── components/             # Reusable UI components
+│   ├── chat/              # Chat-specific components
+│   │   ├── content/       # Message content renderers
+│   │   └── parts/         # Message part components
+│   └── icons/             # Custom icon components
+├── contexts/              # React Context providers
+│   ├── ConnectionContext.tsx  # WebSocket connection state
+│   └── ThemeContext.tsx      # Theme management
+├── hooks/                 # Custom React hooks
+├── styles/                # Global styles and theme
+├── types/                 # TypeScript type definitions
+└── utils/                 # Utility functions
+__tests__/                 # Test files and setup
+├── example.test.tsx       # Example tests
+└── README.md             # Testing guidelines
+.github/                   # GitHub Actions CI/CD
+├── workflows/            # Automated workflows
+└── dependabot.yml        # Dependency updates
+components/                # Legacy component exports
+docs/                     # Project documentation
 ```
+
+## App Configuration
+
+The app is configured for cross-platform deployment:
+
+- **Bundle ID**: `com.goniz.opencodemobile`
+- **Scheme**: `opencodemobile://`
+- **New Architecture**: Enabled for React Native
+- **Edge-to-Edge**: Android edge-to-edge display
+- **Network Security**: Configured for local development
 
 ## Development Guidelines
 
-1. Use Expo Router for navigation
-2. Follow TypeScript best practices - avoid `any` type
-3. Use `expo install` instead of `npm install` for packages
-4. Test on multiple platforms (iOS, Android, Web)
-5. Write tests for new components and utilities
-6. Follow ESLint rules and fix warnings
+### Code Standards
+1. **TypeScript First** - Always use proper TypeScript types, never `any`
+2. **Expo Router** - Use file-based routing for navigation  
+3. **Component Structure** - Follow established patterns in `src/components/`
+4. **Theme System** - Use the centralized theme system in `src/styles/`
+5. **Error Handling** - Use proper error boundaries and type guards
+
+### Package Management  
+- **Always use `expo install`** instead of `npm install` for Expo-compatible packages
+- Use `npm install` only for pure JavaScript packages without native dependencies
+- Check compatibility with current Expo SDK version before installing
+
+### Testing
+- Write unit tests for utilities and hooks
+- Use React Native Testing Library for component tests
+- Follow testing patterns in `__tests__/` directory
+- Run tests before submitting PRs
+
+### Platform Support
+- Test on iOS, Android, and Web platforms
+- Use platform-specific code when necessary (`Platform.OS`)
+- Ensure responsive design across screen sizes
+- Test on both physical devices and simulators
 
 ## Building for Production
 
-Use EAS Build for production builds:
-
+### EAS Build (Recommended)
 ```bash
+# Build for specific platform
 npx eas build --platform ios
 npx eas build --platform android
+
+# Build for all platforms
 npx eas build --platform all
+
+# Local build (requires proper setup)
+npx eas build --local
+```
+
+### Development Builds
+```bash
+# Create development build
+npx eas build --profile development
+
+# Install on device
+npx eas build --profile development --platform ios --local
+```
+
+## Deployment
+
+The project uses EAS (Expo Application Services) for building and deployment:
+- **Project ID**: `98dafe4d-c4a9-4988-b49c-3c6a01228764` 
+- **Owner**: `goniz`
+- Configured for both App Store and Google Play distribution
+
+## API Integration
+
+The app communicates with OpenCode servers via:
+- **REST API**: Auto-generated TypeScript client from OpenAPI schema
+- **WebSocket**: Real-time chat messaging
+- **Authentication**: Managed through connection context
+- **Local Development**: Supports HTTP connections to localhost
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes following the development guidelines
+4. Run tests and linting (`npm run test && npm run lint`)
+5. Commit your changes with conventional commits
+6. Push to your branch and create a Pull Request
+
+## Troubleshooting
+
+### Common Issues
+- **Metro bundler issues**: Clear cache with `npx expo start --clear`
+- **iOS build failures**: Clean build folder in Xcode
+- **Android issues**: Clear Gradle cache and rebuild
+- **Type errors**: Run `npm run typecheck` to identify issues
+- **API client issues**: Regenerate with `npm run generate-api`
+
+### Development Server
+```bash
+# Start with cache clearing
+npx expo start --clear
+
+# Start in production mode
+npx expo start --no-dev --minify
+
+# Start with specific port
+npx expo start --port 8081
 ```

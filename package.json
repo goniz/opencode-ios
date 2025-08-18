@@ -55,6 +55,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@hey-api/openapi-ts": "^0.80.11",
+    "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.2.2",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.0.10",
@@ -68,6 +69,9 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "setupFilesAfterEnv": [
+      "<rootDir>/__tests__/setup/jest.setup.ts"
+    ],
     "collectCoverage": true,
     "collectCoverageFrom": [
       "**/*.{ts,tsx,js,jsx}",
@@ -77,7 +81,8 @@
       "!**/expo-env.d.ts",
       "!**/.expo/**",
       "!**/eas.json",
-      "!**/app.json"
+      "!**/app.json",
+      "!**/__tests__/**"
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg)"
