@@ -24,6 +24,8 @@ export const TextContent: React.FC<TextContentProps> = ({
   messageId = '',
   partIndex = 0,
 }) => {
+  // Ensure content is always a string to prevent undefined errors
+  const safeContent = content ?? '';
   // Use expandable hook for content management
   const {
     isExpanded,
@@ -31,7 +33,7 @@ export const TextContent: React.FC<TextContentProps> = ({
     displayContent,
     toggleExpanded,
   } = useExpandable({
-    content,
+    content: safeContent,
     maxLines: 3,
     autoExpand: isLast,
     contentType: 'text',
