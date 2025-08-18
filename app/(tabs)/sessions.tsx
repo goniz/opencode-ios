@@ -17,8 +17,7 @@ export default function SessionsScreen() {
     sessions, 
     client, 
     refreshSessions, 
-    lastError,
-    setCurrentSession
+    lastError
   } = useConnection();
   const [listItems, setListItems] = useState<ListItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
