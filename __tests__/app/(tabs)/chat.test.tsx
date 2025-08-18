@@ -6,6 +6,7 @@ import type { Session, AssistantMessage, UserMessage, Part } from '../../../src/
 
 // Mock the dependencies
 jest.mock('expo-router', () => ({
+  useLocalSearchParams: jest.fn(() => ({})),
   router: {
     push: jest.fn(),
   },
@@ -50,12 +51,19 @@ jest.mock('../../../src/api/sdk.gen', () => ({
 }));
 
 describe('ChatScreen', () => {
-  it('renders without crashing when not connected', () => {
-    const { getByText } = render(<ChatScreen />);
-    expect(getByText('No Connection')).toBeTruthy();
+  beforeEach(() => {
+    jest.spyOn(console, 'log').mockImplementation(() => {});
   });
 
-  it('renders without crashing when no session is selected', () => {
+  afterEach(() => {
+    (console.log as jest.Mock).mockRestore();
+  });
+  it('renders without crashing when not connected', async () => {
+    const { findByText } = render(<ChatScreen />);
+    expect(await findByText('No Connection')).toBeTruthy();
+  });
+
+  it('renders without crashing when no session is selected', async () => {
     const mockUseConnection = jest.fn(() => ({
       connectionStatus: 'connected',
       sessions: [],
@@ -73,8 +81,11 @@ describe('ChatScreen', () => {
       useConnection: mockUseConnection,
     }));
 
-    const { getByText } = render(<ChatScreen />);
-    expect(getByText('No Session Selected')).toBeTruthy();
+    let result: ReturnType<typeof render>;
+    await act(async () => {
+      result = render(<ChatScreen />);
+    });
+    expect(await result!.findByText('No Session Selected')).toBeTruthy();
   });
 });
 
@@ -148,7 +159,7 @@ describe('ChatScreen Message Rendering', () => {
     ] as Part[],
   };
 
-  it('generates unique keys for message parts', () => {
+  it('generates unique keys for message parts', async () => {
     const mockUseConnection = jest.fn(() => ({
       connectionStatus: 'connected',
       sessions: [mockSession],
@@ -167,13 +178,12 @@ describe('ChatScreen Message Rendering', () => {
     }));
 
     // This test ensures the component renders without React key warnings
-    const { getByDisplayValue } = render(<ChatScreen />);
+    const { findByDisplayValue } = render(<ChatScreen />);
     
     // Check that the input is rendered (indicating the component loaded successfully)
-    expect(getByDisplayValue('')).toBeTruthy();
-  });
+    expect(await findByDisplayValue('')).toBeTruthy();
 
-  it('handles messages with multiple parts correctly', () => {
+  it('handles messages with multiple parts correctly', async () => {
     const messageWithMultipleParts = {
       info: {
         id: 'multi-part-message',
@@ -256,7 +266,7 @@ describe('ChatScreen Message Rendering', () => {
     }));
 
     // This test ensures messages with multiple parts render without key conflicts
-    const { getByDisplayValue } = render(<ChatScreen />);
-    expect(getByDisplayValue('')).toBeTruthy();
+    const { findByDisplayValue } = render(<ChatScreen />);
+    expect(await findByDisplayValue('')).toBeTruthy();
   });
 });
