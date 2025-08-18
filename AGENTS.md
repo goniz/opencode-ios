@@ -89,6 +89,7 @@ This runs the development server in the background, allowing you to continue usi
 6. Use Expo modules for native functionality
 7. Maintain cross-platform compatibility
 8. **ALWAYS prefer `expo install` over `npm install`** for installing packages - Expo install ensures compatibility with the current Expo SDK version
+9. **NEVER edit files in `src/api/` directory** - These are auto-generated files that will be overwritten when the API schema is updated. Create custom types in `src/types/` instead.
 
 ## TypeScript Guidelines
 - **NEVER use `any` type** - always specify proper types
