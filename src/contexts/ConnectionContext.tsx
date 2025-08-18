@@ -500,7 +500,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       console.error('Failed to send message:', error);
       throw error;
     }
-  }, [state.client, state.connectionStatus]);
+  }, [state.client, state.connectionStatus, state.messages]);
 
   // Event stream management functions
   const stopEventStream = useCallback(async (): Promise<void> => {

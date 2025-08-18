@@ -17,4 +17,10 @@ module.exports = defineConfig([
       '@typescript-eslint/array-type': 'off',
     },
   },
+  {
+    files: ['src/components/chat/**/*.tsx'],
+    rules: {
+      'import/no-unresolved': 'off', // Temporary fix for react-native packages
+    },
+  },
 ]);

@@ -138,7 +138,7 @@ export default function ChatScreen() {
     } else {
       setCurrentProviderModels([]);
     }
-  }, [currentProvider, availableModels]);
+  }, [currentProvider, availableModels, currentModel]);
 
   // Auto-select the most recent session if none is selected but sessions exist
   useEffect(() => {
