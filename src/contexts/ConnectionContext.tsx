@@ -510,7 +510,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
       console.log('Starting event stream...');
       
       // Get the base URL from the client
-      const config = (client as any).getConfig?.() || {};
+      const config = (client as { getConfig?: () => { baseUrl?: string } }).getConfig?.() || {};
       const baseUrl = config.baseUrl || '';
       const eventUrl = `${baseUrl}/event`;
       
@@ -520,32 +520,46 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
       const eventSource = new EventSource(eventUrl);
       eventSourceRef.current = eventSource;
       
-      const handleStreamEvent = (eventData: any) => {
+      interface StreamEventData {
+        type: string;
+        properties?: {
+          info?: Message;
+          part?: Part;
+          [key: string]: unknown;
+        };
+        [key: string]: unknown;
+      }
+
+      const handleStreamEvent = (eventData: StreamEventData) => {
         console.log('Processing stream event:', eventData.type);
         
         switch (eventData.type) {
           case 'message.updated':
-            console.log('Updating message:', eventData.properties.info.id);
-            dispatch({ 
-              type: 'UPDATE_MESSAGE', 
-              payload: { 
-                messageId: eventData.properties.info.id, 
-                info: eventData.properties.info 
-              } 
-            });
+            if (eventData.properties?.info) {
+              console.log('Updating message:', eventData.properties.info.id);
+              dispatch({ 
+                type: 'UPDATE_MESSAGE', 
+                payload: { 
+                  messageId: eventData.properties.info.id, 
+                  info: eventData.properties.info 
+                } 
+              });
+            }
             break;
             
           case 'message.part.updated':
-            const part = eventData.properties.part;
-            console.log('Updating message part:', part.messageID, part.id);
-            dispatch({ 
-              type: 'UPDATE_MESSAGE_PART', 
-              payload: { 
-                messageId: part.messageID, 
-                partId: part.id, 
-                part: part 
-              } 
-            });
+            if (eventData.properties?.part) {
+              const part = eventData.properties.part;
+              console.log('Updating message part:', part.messageID, part.id);
+              dispatch({ 
+                type: 'UPDATE_MESSAGE_PART', 
+                payload: { 
+                  messageId: part.messageID, 
+                  partId: part.id, 
+                  part: part 
+                } 
+              });
+            }
             break;
             
           default:
@@ -558,17 +572,19 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
         dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: true } });
       });
 
-      eventSource.addEventListener('message', (event: any) => {
+      eventSource.addEventListener('message', (event: unknown) => {
         try {
-          const eventData = JSON.parse(event.data);
-          console.log('Received event:', eventData);
-          handleStreamEvent(eventData);
+          if (event && typeof event === 'object' && 'data' in event && typeof (event as { data: unknown }).data === 'string') {
+            const eventData = JSON.parse((event as { data: string }).data);
+            console.log('Received event:', eventData);
+            handleStreamEvent(eventData);
+          }
         } catch (parseError) {
           console.error('Failed to parse event data:', parseError);
         }
       });
 
-      eventSource.addEventListener('error', (error: any) => {
+      eventSource.addEventListener('error', (error: unknown) => {
         console.error('Event stream error:', error);
         dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
         
@@ -604,7 +620,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
         console.log('Max retry attempts reached for event stream');
       }
     }
-}, [stopEventStream]); // eslint-disable-line react-hooks/exhaustive-deps
+}, [stopEventStream]);
 
   const contextValue: ConnectionContextType = useMemo(() => ({
     ...state,
