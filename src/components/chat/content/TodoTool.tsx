@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { Todo } from '../../../api/types.gen';
+import { Todo } from '../../../types/todo';
 
 interface TodoToolProps {
   todos: Todo[];
@@ -22,15 +22,6 @@ const getTitle = (todos: Todo[]) => {
 export const TodoTool: React.FC<TodoToolProps> = ({ todos }) => {
   const title = getTitle(todos);
 
-  const sortedTodos = [...todos].sort((a, b) => {
-    const priority = {
-      in_progress: 0,
-      pending: 1,
-      completed: 2,
-    };
-    return priority[a.status] - priority[b.status];
-  });
-
   const renderTodoItem = ({ item }: { item: Todo }) => (
     <View style={styles.todoItem} key={item.id}>
       <View style={[styles.statusIndicator, styles[item.status]]} />
@@ -42,7 +33,7 @@ export const TodoTool: React.FC<TodoToolProps> = ({ todos }) => {
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
       <FlatList
-        data={sortedTodos}
+        data={todos}
         renderItem={renderTodoItem}
         keyExtractor={item => item.id}
       />

@@ -1928,26 +1928,6 @@ export type AuthSetResponses = {
 
 export type AuthSetResponse = AuthSetResponses[keyof AuthSetResponses];
 
-export interface Todo {
-  id: string;
-  content: string;
-  status: "pending" | "in_progress" | "completed";
-  priority: "low" | "medium" | "high";
-}
-
-export type TodoWriteToolInput = {
-  todos: Todo[];
-};
-
-export type TodoWriteStateCompleted = Omit<ToolStateCompleted, 'input'> & {
-  input: TodoWriteToolInput;
-};
-
-export type TodoWriteToolPart = Omit<ToolPart, 'state'> & {
-  tool: 'todowrite';
-  state: ToolState | TodoWriteStateCompleted;
-};
-
 export type ClientOptions = {
     baseUrl: `${string}://src` | (string & {});
 };
