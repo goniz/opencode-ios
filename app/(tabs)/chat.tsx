@@ -150,9 +150,17 @@ export default function ChatScreen() {
   // Auto-select the most recent session if none is selected but sessions exist
   useEffect(() => {
     if (!currentSession && sessions.length > 0 && connectionStatus === 'connected') {
-      // Sort sessions by updated time and select the most recent
-      const mostRecentSession = [...sessions].sort((a, b) => b.time.updated - a.time.updated)[0];
-      setCurrentSession(mostRecentSession);
+      // Small delay to allow for proper session setting from navigation
+      const timer = setTimeout(() => {
+        // Check again if currentSession is still not set
+        if (!currentSession) {
+          // Sort sessions by updated time and select the most recent
+          const mostRecentSession = [...sessions].sort((a, b) => b.time.updated - a.time.updated)[0];
+          setCurrentSession(mostRecentSession);
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
   }, [currentSession, sessions, connectionStatus, setCurrentSession]);
 

@@ -108,8 +108,10 @@ export default function SessionsScreen() {
         // Refresh sessions list to show the new session
         await loadSessions();
         
-        // Navigate to chat tab
-        router.push('/(tabs)/chat');
+        // Small delay to ensure state is updated before navigation
+        setTimeout(() => {
+          router.push('/(tabs)/chat');
+        }, 50);
       }
     } catch (error) {
       console.error('Error creating session:', error);
