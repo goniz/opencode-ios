@@ -12,7 +12,7 @@ import {
   Alert,
   SafeAreaView
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 import { toast } from '../../src/utils/toast';
@@ -30,6 +30,7 @@ interface MessageWithParts {
 }
 
 export default function ChatScreen() {
+  const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
   const { 
     connectionStatus, 
     sessions,
@@ -52,12 +53,29 @@ export default function ChatScreen() {
   const [currentProviderModels, setCurrentProviderModels] = useState<{modelID: string, name: string}[]>([]);
   const flatListRef = useRef<FlatList>(null);
 
+  // Handle session ID from navigation parameters
+  useEffect(() => {
+    if (sessionId && sessions.length > 0) {
+      console.log('Chat screen - sessionId from params:', sessionId);
+      const targetSession = sessions.find(s => s.id === sessionId);
+      if (targetSession && (!currentSession || currentSession.id !== sessionId)) {
+        console.log('Chat screen - Setting session from params:', targetSession.id, targetSession.title);
+        setCurrentSession(targetSession);
+      } else if (!targetSession) {
+        console.warn('Chat screen - Session not found for ID:', sessionId);
+      }
+    }
+  }, [sessionId, sessions, currentSession, setCurrentSession]);
+
   // Debug logging
   useEffect(() => {
     console.log('Chat screen - currentSession:', currentSession);
     console.log('Chat screen - sessions count:', sessions.length);
     console.log('Chat screen - connectionStatus:', connectionStatus);
-  }, [currentSession, sessions, connectionStatus]);
+    console.log('Chat screen - messages count:', messages.length);
+    console.log('Chat screen - isStreamConnected:', isStreamConnected);
+    console.log('Chat screen - sessionId param:', sessionId);
+  }, [currentSession, sessions, connectionStatus, messages.length, isStreamConnected, sessionId]);
 
   // Load available providers and models when connected
   useEffect(() => {
@@ -147,14 +165,7 @@ export default function ChatScreen() {
     }
   }, [currentProvider, availableModels, currentModel]);
 
-  // Auto-select the most recent session if none is selected but sessions exist
-  useEffect(() => {
-    if (!currentSession && sessions.length > 0 && connectionStatus === 'connected') {
-      // Sort sessions by updated time and select the most recent
-      const mostRecentSession = [...sessions].sort((a, b) => b.time.updated - a.time.updated)[0];
-      setCurrentSession(mostRecentSession);
-    }
-  }, [currentSession, sessions, connectionStatus, setCurrentSession]);
+
 
   useEffect(() => {
     if (currentSession) {
@@ -171,9 +182,10 @@ export default function ChatScreen() {
   // Auto-scroll to bottom when messages change and on initial load
   useEffect(() => {
     if (messages.length > 0) {
+      // Use a slightly longer timeout to ensure UI has updated
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      }, 150);
     }
   }, [messages]);
 
@@ -217,14 +229,9 @@ export default function ChatScreen() {
         currentModel.modelID
       );
       // Scroll to bottom after sending
-      const scrollTimeout = setTimeout(() => {
+      setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
-
-      // Clean up timeout if component unmounts
-      return () => {
-        clearTimeout(scrollTimeout);
-      };
     } catch (error) {
       console.error('Failed to send message:', error);
       const errorMsg = error instanceof Error ? error.message : 'Failed to send message';
@@ -304,7 +311,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
           const isLastPart = partIndex === filteredParts.length - 1;
           
           return (
-            <View key={`${item.info.id}-part-${partIndex}-${part.id || part.type || 'unknown'}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
+            <View key={`${item.info.id}-part-${partIndex}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
               <MessageDecoration 
                 role={item.info.role}
                 part={part}
@@ -322,6 +329,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                       isLast={index === messages.length - 1}
                       partIndex={partIndex}
                       totalParts={filteredParts.length}
+                      messageId={item.info.id}
                     />
                   </View>
                 ) : (
@@ -331,6 +339,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                     isLast={index === messages.length - 1}
                     partIndex={partIndex}
                     totalParts={filteredParts.length}
+                    messageId={item.info.id}
                   />
                 )}
               </View>
@@ -339,9 +348,11 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
         })}
         {/* Show timestamp for last assistant message */}
         {index === messages.length - 1 && item.info.role === 'assistant' && 'time' in item.info && item.info.time.completed && (
-          <MessageTimestamp 
-            timestamp={item.info.time.completed}
-          />
+          <View key={`${item.info.id}-timestamp`}>
+            <MessageTimestamp 
+              timestamp={item.info.time.completed}
+            />
+          </View>
         )}
       </View>
     );
@@ -375,9 +386,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             }
           </Text>
           <TouchableOpacity style={styles.connectButton} onPress={() => router.push('/(tabs)/sessions')}>
-            <Text style={styles.connectButtonText}>
-              {sessions.length === 0 ? "Create New Chat" : "Go to Sessions"}
-            </Text>
+            <Text style={styles.connectButtonText}>Go to Sessions</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -385,11 +394,12 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>{currentSession.title}</Text>
           <View style={styles.headerBottom}>
@@ -496,8 +506,8 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             )}
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 

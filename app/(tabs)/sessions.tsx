@@ -17,8 +17,7 @@ export default function SessionsScreen() {
     sessions, 
     client, 
     refreshSessions, 
-    lastError,
-    setCurrentSession
+    lastError
   } = useConnection();
   const [listItems, setListItems] = useState<ListItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,14 +101,13 @@ export default function SessionsScreen() {
 
       if (response.data) {
         console.log('New session created:', response.data.id, response.data.title);
-        // Set the newly created session as current
-        setCurrentSession(response.data);
         
         // Refresh sessions list to show the new session
         await loadSessions();
         
-        // Navigate to chat tab
-        router.push('/(tabs)/chat');
+        // Navigate directly to chat with the new session ID - no need to set current session manually
+        console.log('Navigating to chat with session:', response.data.id);
+        router.push(`/(tabs)/chat?sessionId=${response.data.id}`);
       }
     } catch (error) {
       console.error('Error creating session:', error);
@@ -120,9 +118,8 @@ export default function SessionsScreen() {
 
   const handleSessionPress = (session: Session) => {
     console.log('Session selected:', session.id, session.title);
-    // Set the selected session as current and navigate to chat
-    setCurrentSession(session);
-    router.push('/(tabs)/chat');
+    // Navigate directly to chat with session ID - the chat screen will handle setting currentSession
+    router.push(`/(tabs)/chat?sessionId=${session.id}`);
   };
 
   useEffect(() => {

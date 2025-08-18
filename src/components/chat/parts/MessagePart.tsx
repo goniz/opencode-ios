@@ -18,6 +18,8 @@ export interface MessagePartProps {
   };
   isLast?: boolean;
   messageRole?: 'user' | 'assistant';
+  messageId?: string;
+  partIndex?: number;
 }
 
 export interface ExpandableProps {
