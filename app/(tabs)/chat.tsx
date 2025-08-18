@@ -45,8 +45,11 @@ export default function ChatScreen() {
   
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [currentProvider, setCurrentProvider] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<{providerID: string, modelID: string} | null>(null);
+  const [availableProviders, setAvailableProviders] = useState<{id: string, name: string}[]>([]);
   const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string}[]>([]);
+  const [currentProviderModels, setCurrentProviderModels] = useState<{modelID: string, name: string}[]>([]);
   const flatListRef = useRef<FlatList>(null);
 
   // Debug logging
@@ -56,17 +59,23 @@ export default function ChatScreen() {
     console.log('Chat screen - connectionStatus:', connectionStatus);
   }, [currentSession, sessions, connectionStatus]);
 
-  // Load available models when connected
+  // Load available providers and models when connected
   useEffect(() => {
-    const loadModels = async () => {
+    const loadProvidersAndModels = async () => {
       if (connectionStatus === 'connected' && client) {
         try {
           const response = await configProviders({ client });
           if (response.data) {
+            const providers: {id: string, name: string}[] = [];
             const models: {providerID: string, modelID: string, displayName: string}[] = [];
             
-            // Extract models from providers
+            // Extract providers and models
             response.data.providers.forEach(provider => {
+              providers.push({
+                id: provider.id,
+                name: provider.name
+              });
+              
               Object.keys(provider.models).forEach(modelKey => {
                 const model = provider.models[modelKey];
                 models.push({
@@ -77,34 +86,59 @@ export default function ChatScreen() {
               });
             });
             
+            setAvailableProviders(providers);
             setAvailableModels(models);
-            
-            // Set default model if none selected
-            if (!currentModel && models.length > 0) {
-              // Try to find a default model from the config
-              let defaultModel = null;
-              if (response.data.default && Object.keys(response.data.default).length > 0) {
-                const [providerID, modelID] = Object.entries(response.data.default)[0];
-                defaultModel = { providerID, modelID };
-              } else {
-                // Use first available model as fallback
-                defaultModel = {
-                  providerID: models[0].providerID,
-                  modelID: models[0].modelID
-                };
-              }
-              setCurrentModel(defaultModel);
-            }
           }
         } catch (error) {
-          console.error('Failed to load models:', error);
-          toast.showError('Failed to load models', error instanceof Error ? error.message : 'Unknown error');
+          console.error('Failed to load providers and models:', error);
+          toast.showError('Failed to load providers and models', error instanceof Error ? error.message : 'Unknown error');
         }
       }
     };
 
-    loadModels();
-  }, [connectionStatus, client, currentModel]);
+    loadProvidersAndModels();
+  }, [connectionStatus, client]);
+
+  // Set default provider and model from last assistant message
+  useEffect(() => {
+    if (messages.length > 0 && availableProviders.length > 0 && !currentProvider && !currentModel) {
+      // Find the last assistant message
+      const lastAssistantMessage = [...messages]
+        .reverse()
+        .find(msg => msg.info.role === 'assistant') as { info: AssistantMessage } | undefined;
+      
+      if (lastAssistantMessage?.info.providerID && lastAssistantMessage?.info.modelID) {
+        const providerExists = availableProviders.find(p => p.id === lastAssistantMessage.info.providerID);
+        if (providerExists) {
+          setCurrentProvider(lastAssistantMessage.info.providerID);
+          setCurrentModel({
+            providerID: lastAssistantMessage.info.providerID,
+            modelID: lastAssistantMessage.info.modelID
+          });
+        }
+      }
+    }
+  }, [messages, availableProviders, currentProvider, currentModel]);
+
+  // Update available models for current provider
+  useEffect(() => {
+    if (currentProvider && availableModels.length > 0) {
+      const providerModels = availableModels
+        .filter(model => model.providerID === currentProvider)
+        .map(model => ({
+          modelID: model.modelID,
+          name: model.displayName.split(' / ')[1] // Extract just the model name
+        }));
+      setCurrentProviderModels(providerModels);
+      
+      // Only reset current model when provider changes if no model is set
+      if (!currentModel || currentModel.providerID !== currentProvider) {
+        setCurrentModel(null);
+      }
+    } else {
+      setCurrentProviderModels([]);
+    }
+  }, [currentProvider, availableModels]);
 
   // Auto-select the most recent session if none is selected but sessions exist
   useEffect(() => {
@@ -155,6 +189,11 @@ export default function ChatScreen() {
   const handleSendMessage = async () => {
     if (!inputText.trim() || !currentSession || isSending) return;
 
+    if (!currentModel?.providerID || !currentModel?.modelID) {
+      toast.showError('Select Model', 'Please select a provider and model before sending a message');
+      return;
+    }
+
     const messageText = inputText.trim();
     setInputText('');
     setIsSending(true);
@@ -163,8 +202,8 @@ export default function ChatScreen() {
       await sendMessage(
         currentSession.id, 
         messageText,
-        currentModel?.providerID,
-        currentModel?.modelID
+        currentModel.providerID,
+        currentModel.modelID
       );
       // Scroll to bottom after sending
       setTimeout(() => {
@@ -249,14 +288,14 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
           const isLastPart = partIndex === filteredParts.length - 1;
           
           return (
-            <View key={`${item.info.id}-${partIndex}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
+            <View key={`${item.info.id}-part-${partIndex}-${part.id || part.type || 'unknown'}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
               <MessageDecoration 
                 role={item.info.role}
                 part={part}
                 isFirstPart={isFirstPart}
                 isLastPart={isLastPart}
- providerID={item.info.role === 'assistant' ? (item.info as AssistantMessage).providerID : undefined}
- modelID={item.info.role === 'assistant' ? (item.info as AssistantMessage).modelID : undefined}
+                providerID={item.info.role === 'assistant' ? (item.info as AssistantMessage).providerID : undefined}
+                modelID={item.info.role === 'assistant' ? (item.info as AssistantMessage).modelID : undefined}
               />
               <View style={[styles.contentColumn, isUser && styles.userContentColumn]}>
                 {isUser ? (
@@ -348,32 +387,57 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
               </View>
             )}
             <TouchableOpacity onPress={() => {
-              if (availableModels.length > 0) {
+              if (availableProviders.length > 0) {
                 Alert.alert(
-                  'Select Model',
-                  'Choose a model for this conversation',
+                  'Select Provider',
+                  'Choose a provider for this conversation',
                   [
-                    ...availableModels.map(model => ({
-                      text: model.displayName,
-                      onPress: () => setCurrentModel({
-                        providerID: model.providerID,
-                        modelID: model.modelID
-                      })
+                    ...availableProviders.map(provider => ({
+                      text: provider.name,
+                      onPress: () => setCurrentProvider(provider.id)
                     })),
                     { text: 'Cancel', style: 'cancel' }
                   ]
                 );
               }
             }}>
-              <View style={styles.modelSelector}>
-                <Text style={styles.modelSelectorText} numberOfLines={1}>
-                  {currentModel ? 
-                    availableModels.find(m => m.providerID === currentModel.providerID && m.modelID === currentModel.modelID)?.displayName || 
-                    `${currentModel.providerID}/${currentModel.modelID}` : 
-                    'Select Model'}
+              <View style={styles.providerSelector}>
+                <Text style={styles.providerSelectorText} numberOfLines={1}>
+                  {currentProvider ? 
+                    availableProviders.find(p => p.id === currentProvider)?.name || currentProvider : 
+                    'Select Provider'}
                 </Text>
               </View>
             </TouchableOpacity>
+            
+            {currentProvider && (
+              <TouchableOpacity onPress={() => {
+                if (currentProviderModels.length > 0) {
+                  Alert.alert(
+                    'Select Model',
+                    'Choose a model for this conversation',
+                    [
+                      ...currentProviderModels.map(model => ({
+                        text: model.name,
+                        onPress: () => setCurrentModel({
+                          providerID: currentProvider,
+                          modelID: model.modelID
+                        })
+                      })),
+                      { text: 'Cancel', style: 'cancel' }
+                    ]
+                  );
+                }
+              }}>
+                <View style={styles.modelSelector}>
+                  <Text style={styles.modelSelectorText} numberOfLines={1}>
+                    {currentModel ? 
+                      currentProviderModels.find(m => m.modelID === currentModel.modelID)?.name || currentModel.modelID : 
+                      'Select Model'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -483,7 +547,7 @@ const styles = StyleSheet.create({
     color: '#10b981',
     fontWeight: '500',
   },
-  modelSelector: {
+  providerSelector: {
     backgroundColor: '#1a1a1a',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -491,6 +555,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2a2a2a',
     marginLeft: 12,
+    maxWidth: 100,
+  },
+  providerSelectorText: {
+    fontSize: 11,
+    color: '#ffffff',
+    fontWeight: '500',
+  },
+  modelSelector: {
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    marginLeft: 8,
     maxWidth: 120,
   },
   modelSelectorText: {

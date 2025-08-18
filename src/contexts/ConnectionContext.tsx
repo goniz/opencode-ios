@@ -438,34 +438,48 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       throw new Error('Not connected to server');
     }
 
-    try {
-      // Add user message immediately for instant feedback
-      const userMessage: MessageWithParts = {
-        info: {
-          role: 'user',
-          id: `user-${Date.now()}`,
-          sessionID: sessionId,
-          time: {
-            created: Date.now()
-          }
-        },
-        parts: [{
-          id: `part-${Date.now()}`,
-          sessionID: sessionId,
-          messageID: `user-${Date.now()}`,
-          type: 'text',
-          text: message
-        }]
-      };
-      dispatch({ type: 'ADD_MESSAGE', payload: { message: userMessage } });
+    if (!providerID || !modelID) {
+      throw new Error('Provider and model must be selected');
+    }
 
+    console.log('Sending message to session:', sessionId, 'message:', message);
+
+    // Optimistically add user message to the UI immediately
+    const tempId = `temp-${Date.now()}`;
+    dispatch({
+      type: 'SET_MESSAGES',
+      payload: {
+        messages: [
+          ...state.messages,
+          {
+            info: {
+              id: tempId,
+              role: 'user' as const,
+              sessionID: sessionId,
+              time: {
+                created: Date.now()
+              }
+            },
+            parts: [{
+              type: 'text' as const,
+              id: `${tempId}-part-0`,
+              sessionID: sessionId,
+              messageID: tempId,
+              text: message
+            }]
+          }
+        ]
+      }
+    });
+
+    try {
       // Send the message - the response will come through the event stream
       const response = await sessionChat({
         client: state.client,
         path: { id: sessionId },
         body: {
-          providerID: providerID || 'anthropic',
-          modelID: modelID || 'claude-3-5-sonnet-20241022',
+          providerID,
+          modelID,
           parts: [{
             type: 'text',
             text: message
@@ -507,8 +521,8 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     await stopEventStream();
 
     // Note: The event stream implementation appears to be incomplete in the original code
-    // For now, we'll just set the stream as connected to avoid runtime errors
-    dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: true } });
+    // For now, we'll keep the stream disconnected to avoid showing "Thinking..." indefinitely
+    dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
 }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const contextValue: ConnectionContextType = useMemo(() => ({

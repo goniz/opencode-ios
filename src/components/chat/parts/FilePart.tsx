@@ -5,8 +5,17 @@ import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 
 export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
-  const filePath = part.file?.path || 'Unknown file';
-  const fileContent = part.file?.content || '';
+  // Handle both the MessagePartProps interface and actual API FilePart type
+  const filePart = part as any;
+  
+  // Try to get file info from different possible sources
+  const filePath = filePart.file?.path || filePart.source?.path || filePart.filename || 'Unknown file';
+  const fileContent = filePart.file?.content || filePart.source?.text?.value || '';
+  
+  // Fallback if no content is available
+  if (!filePath && !fileContent) {
+    return null;
+  }
   
   // Use expandable hook for file content
   const {
@@ -23,7 +32,7 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
   });
 
   // Extract file name from path
-  const fileName = filePath.split('/').pop() || filePath;
+  const fileName = filePath ? filePath.split('/').pop() || filePath : 'Unknown file';
   
   // Simple file extension detection for styling
   const fileExtension = fileName.split('.').pop()?.toLowerCase() || '';
