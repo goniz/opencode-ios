@@ -395,11 +395,12 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>{currentSession.title}</Text>
           <View style={styles.headerBottom}>
@@ -506,8 +507,8 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             )}
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
