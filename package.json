@@ -70,7 +70,7 @@
   "jest": {
     "preset": "jest-expo",
     "setupFilesAfterEnv": [
-      "<rootDir>/__tests__/setup.ts"
+      "<rootDir>/__tests__/setup/jest.setup.ts"
     ],
     "collectCoverage": true,
     "collectCoverageFrom": [
