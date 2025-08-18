@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import { TodoTool } from '../../../../src/components/chat/content/TodoTool';
-import { Todo } from '../../../../src/api/types.gen';
+import { Todo } from '../../../../src/types/todo';
 
 const mockTodos: Todo[] = [
   { id: '1', content: 'First todo', status: 'completed', priority: 'high' },

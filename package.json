@@ -75,6 +75,7 @@
       "<rootDir>/__tests__/setup/jest.setup.ts"
     ],
     "collectCoverage": true,
+    "coverageReporters": ["text-summary"],
     "collectCoverageFrom": [
       "**/*.{ts,tsx,js,jsx}",
       "!**/coverage/**",

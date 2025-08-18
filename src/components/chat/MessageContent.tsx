@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import type { Part, ToolPart, Todo } from '../../api/types.gen';
+import type { Part, ToolPart } from '../../api/types.gen';
+import type { Todo } from '../../types/todo';
 import { PartComponentSelector } from './parts';
 import { TodoTool } from './content/TodoTool';
 
