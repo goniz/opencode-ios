@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import type { Part } from '../../api/types.gen';
+import type { Part, ToolPart, Todo } from '../../api/types.gen';
 import { PartComponentSelector } from './parts';
+import { TodoTool } from './content/TodoTool';
 
 interface MessageContentProps {
   role: string;
@@ -81,6 +82,18 @@ export function MessageContent({
   };
 
   const componentPart = getComponentPart();
+
+  if (part.type === 'tool' && part.tool === 'todowrite') {
+    const toolPart = part as ToolPart;
+    if (toolPart.state.status === 'completed') {
+      const todos = (toolPart.state.input as { todos: Todo[] }).todos;
+      return (
+        <View style={styles.contentColumn}>
+          <TodoTool todos={todos} />
+        </View>
+      );
+    }
+  }
 
   return (
     <View style={styles.contentColumn}>

@@ -116,7 +116,7 @@ function getToolIcon(toolName: string): IconInfo {
     case 'todowrite':
     case 'todoread':
       return {
-        name: 'checkmark-circle',
+        name: 'list-circle',
         color: '#166534',
       };
 
