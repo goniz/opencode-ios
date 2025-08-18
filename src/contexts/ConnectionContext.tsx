@@ -58,6 +58,7 @@ type ConnectionAction =
   | { type: 'ADD_MESSAGE'; payload: { message: MessageWithParts } }
   | { type: 'UPDATE_MESSAGE'; payload: { messageId: string; info: Message } }
   | { type: 'UPDATE_MESSAGE_PART'; payload: { messageId: string; partId: string; part: Part } }
+  | { type: 'UPDATE_SESSION'; payload: { session: Session } }
   | { type: 'SET_STREAM_CONNECTED'; payload: { connected: boolean } }
   | { type: 'DISCONNECT' }
   | { type: 'CLEAR_ERROR' };
@@ -169,6 +170,19 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
         console.warn('Received part for non-existent message:', action.payload.messageId);
         return state; // Could also create a placeholder message here
       }
+    case 'UPDATE_SESSION':
+      const updatedSessions = state.sessions.map(s =>
+        s.id === action.payload.session.id ? action.payload.session : s
+      );
+      const updatedCurrentSession = state.currentSession?.id === action.payload.session.id
+        ? action.payload.session
+        : state.currentSession;
+
+      return {
+        ...state,
+        sessions: updatedSessions,
+        currentSession: updatedCurrentSession,
+      };
     case 'SET_STREAM_CONNECTED':
       return {
         ...state,
@@ -524,7 +538,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
       interface StreamEventData {
         type: string;
         properties?: {
-          info?: Message;
+          info?: Message | Session;
           part?: Part;
           [key: string]: unknown;
         };
@@ -537,12 +551,26 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
         switch (eventData.type) {
           case 'message.updated':
             if (eventData.properties?.info) {
-              console.log('Updating message:', eventData.properties.info.id);
+              const messageInfo = eventData.properties.info as Message;
+              console.log('Updating message:', messageInfo.id);
               dispatch({ 
                 type: 'UPDATE_MESSAGE', 
                 payload: { 
-                  messageId: eventData.properties.info.id, 
-                  info: eventData.properties.info 
+                  messageId: messageInfo.id,
+                  info: messageInfo
+                }
+              });
+            }
+            break;
+
+          case 'session.updated':
+            if (eventData.properties?.info) {
+              const sessionInfo = eventData.properties.info as Session;
+              console.log('Updating session:', sessionInfo.id);
+              dispatch({
+                type: 'UPDATE_SESSION',
+                payload: {
+                  session: sessionInfo
                 } 
               });
             }
