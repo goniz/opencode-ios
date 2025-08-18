@@ -36,6 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# testing
+coverage/
+
 # iOS native files
 ios/
 
