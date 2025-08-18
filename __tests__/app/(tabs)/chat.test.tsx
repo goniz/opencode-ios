@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, act } from '@testing-library/react-native';
 import { jest } from '@jest/globals';
 import ChatScreen from '../../../app/(tabs)/chat';
 import type { Session, AssistantMessage, UserMessage, Part } from '../../../src/api/types.gen';
@@ -81,11 +81,8 @@ describe('ChatScreen', () => {
       useConnection: mockUseConnection,
     }));
 
-    let result: ReturnType<typeof render>;
-    await act(async () => {
-      result = render(<ChatScreen />);
-    });
-    expect(await result!.findByText('No Session Selected')).toBeTruthy();
+    const { findByText } = render(<ChatScreen />);
+    expect(await findByText('No Session Selected')).toBeTruthy();
   });
 });
 
@@ -182,6 +179,7 @@ describe('ChatScreen Message Rendering', () => {
     
     // Check that the input is rendered (indicating the component loaded successfully)
     expect(await findByDisplayValue('')).toBeTruthy();
+  });
 
   it('handles messages with multiple parts correctly', async () => {
     const messageWithMultipleParts = {
