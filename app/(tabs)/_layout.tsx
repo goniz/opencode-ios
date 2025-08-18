@@ -1,9 +1,10 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
+import { ConnectionStatus } from '../../src/components/chat/ConnectionStatus';
 
 export default function TabLayout() {
-  const { connectionStatus, sessions } = useConnection();
+  const { connectionStatus, sessions, lastError } = useConnection();
 
   const getTabIcon = (name: string, focused: boolean, color: string, size: number) => {
     const iconColor = connectionStatus === 'connected' ? color : '#4b5563';
@@ -32,10 +33,34 @@ export default function TabLayout() {
     }
   };
 
+  const getConnectionStatusMessage = () => {
+    switch (connectionStatus) {
+      case 'connected':
+        return 'Connected';
+      case 'connecting':
+        return 'Connecting...';
+      case 'error':
+        return lastError || 'Connection error';
+      case 'idle':
+      default:
+        return 'Not connected';
+    }
+  };
+
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
+        headerShown: true,
+        headerTitle: () => (
+          <ConnectionStatus 
+            status={connectionStatus}
+            message={getConnectionStatusMessage()}
+          />
+        ),
+        headerStyle: {
+          backgroundColor: '#0a0a0a',
+        },
+        headerTintColor: '#ffffff',
         tabBarActiveTintColor: '#ffffff',
         tabBarInactiveTintColor: '#6b7280',
         tabBarStyle: {

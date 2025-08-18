@@ -6,7 +6,6 @@ import { getSavedServers, removeServer, SavedServer } from '../../src/utils/serv
 import { appGet } from '../../src/api/sdk.gen';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 
-
 export default function Index() {
   const { 
     connectionStatus, 
@@ -75,7 +74,6 @@ export default function Index() {
       }, 500);
     } catch (error) {
       console.error('Connection error:', error);
-
     }
   }, [connect, client, loadSavedServers]);
 
