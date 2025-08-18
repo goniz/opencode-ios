@@ -9,6 +9,7 @@ interface MessageContentProps {
   isLast?: boolean;
   partIndex?: number;
   totalParts?: number;
+  messageId?: string;
 }
 
 export function MessageContent({ 
@@ -16,7 +17,8 @@ export function MessageContent({
   part, 
   isLast = false, 
   partIndex = 0, 
-  totalParts = 1 
+  totalParts = 1,
+  messageId = ''
 }: MessageContentProps) {
   // Determine if this is the last part of the last message
   const isLastPart = isLast && partIndex === totalParts - 1;
@@ -86,6 +88,8 @@ export function MessageContent({
         part={componentPart}
         isLast={isLastPart}
         messageRole={role as 'user' | 'assistant'}
+        messageId={messageId}
+        partIndex={partIndex}
       />
     </View>
   );

@@ -179,9 +179,10 @@ export default function ChatScreen() {
   // Auto-scroll to bottom when messages change and on initial load
   useEffect(() => {
     if (messages.length > 0) {
+      // Use a slightly longer timeout to ensure UI has updated
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      }, 150);
     }
   }, [messages]);
 
@@ -225,14 +226,9 @@ export default function ChatScreen() {
         currentModel.modelID
       );
       // Scroll to bottom after sending
-      const scrollTimeout = setTimeout(() => {
+      setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
-
-      // Clean up timeout if component unmounts
-      return () => {
-        clearTimeout(scrollTimeout);
-      };
     } catch (error) {
       console.error('Failed to send message:', error);
       const errorMsg = error instanceof Error ? error.message : 'Failed to send message';
@@ -312,7 +308,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
           const isLastPart = partIndex === filteredParts.length - 1;
           
           return (
-            <View key={`${item.info.id}-part-${partIndex}-${part.id || part.type || 'unknown'}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
+            <View key={`${item.info.id}-part-${partIndex}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
               <MessageDecoration 
                 role={item.info.role}
                 part={part}
@@ -330,6 +326,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                       isLast={index === messages.length - 1}
                       partIndex={partIndex}
                       totalParts={filteredParts.length}
+                      messageId={item.info.id}
                     />
                   </View>
                 ) : (
@@ -339,6 +336,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                     isLast={index === messages.length - 1}
                     partIndex={partIndex}
                     totalParts={filteredParts.length}
+                    messageId={item.info.id}
                   />
                 )}
               </View>
@@ -347,9 +345,11 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
         })}
         {/* Show timestamp for last assistant message */}
         {index === messages.length - 1 && item.info.role === 'assistant' && 'time' in item.info && item.info.time.completed && (
-          <MessageTimestamp 
-            timestamp={item.info.time.completed}
-          />
+          <View key={`${item.info.id}-timestamp`}>
+            <MessageTimestamp 
+              timestamp={item.info.time.completed}
+            />
+          </View>
         )}
       </View>
     );

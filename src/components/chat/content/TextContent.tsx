@@ -12,6 +12,8 @@ export interface TextContentProps {
   isMarkdown?: boolean;
   isLast?: boolean;
   variant?: 'default' | 'user' | 'assistant';
+  messageId?: string;
+  partIndex?: number;
 }
 
 export const TextContent: React.FC<TextContentProps> = ({
@@ -19,6 +21,8 @@ export const TextContent: React.FC<TextContentProps> = ({
   isMarkdown = false,
   isLast = false,
   variant = 'default',
+  messageId = '',
+  partIndex = 0,
 }) => {
   // Use expandable hook for content management
   const {
@@ -185,7 +189,7 @@ export const TextContent: React.FC<TextContentProps> = ({
       }
       
       return (
-        <View key={node.key} style={markdownStyles.code_block}>
+        <View key={`${messageId}-${partIndex}-code-${node.key}`} style={markdownStyles.code_block}>
           <SyntaxHighlighter
             style={atomOneDark}
             language={language}
@@ -226,7 +230,7 @@ export const TextContent: React.FC<TextContentProps> = ({
       }
       
       return (
-        <View key={node.key} style={markdownStyles.fence}>
+        <View key={`${messageId}-${partIndex}-fence-${node.key}`} style={markdownStyles.fence}>
           <SyntaxHighlighter
             style={atomOneDark}
             language={language}

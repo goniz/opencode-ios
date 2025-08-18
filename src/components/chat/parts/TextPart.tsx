@@ -6,7 +6,9 @@ import { TextContent } from '../content/TextContent';
 export const TextPart: React.FC<MessagePartProps> = ({ 
   part, 
   isLast = false, 
-  messageRole = 'assistant' 
+  messageRole = 'assistant',
+  messageId = '',
+  partIndex = 0
 }) => {
   const content = part.content || '';
 
@@ -18,6 +20,8 @@ export const TextPart: React.FC<MessagePartProps> = ({
           isMarkdown={messageRole === 'assistant'}
           isLast={isLast}
           variant={messageRole}
+          messageId={messageId}
+          partIndex={partIndex}
         />
       </View>
     </MessagePartContainer>

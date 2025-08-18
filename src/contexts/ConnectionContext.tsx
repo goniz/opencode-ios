@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '../api/client';
 import type { Client } from '../api/client/types.gen';
 import type { Session, Message, Part } from '../api/types.gen';
-import { sessionList, sessionMessages, sessionChat } from '../api/sdk.gen';
+import { sessionList, sessionMessages, sessionChat, eventSubscribe } from '../api/sdk.gen';
 import { saveServer, type SavedServer } from '../utils/serverStorage';
 
 const CURRENT_CONNECTION_KEY = 'current_connection';
@@ -447,28 +447,25 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     // Optimistically add user message to the UI immediately
     const tempId = `temp-${Date.now()}`;
     dispatch({
-      type: 'SET_MESSAGES',
+      type: 'ADD_MESSAGE',
       payload: {
-        messages: [
-          ...state.messages,
-          {
-            info: {
-              id: tempId,
-              role: 'user' as const,
-              sessionID: sessionId,
-              time: {
-                created: Date.now()
-              }
-            },
-            parts: [{
-              type: 'text' as const,
-              id: `${tempId}-part-0`,
-              sessionID: sessionId,
-              messageID: tempId,
-              text: message
-            }]
-          }
-        ]
+        message: {
+          info: {
+            id: tempId,
+            role: 'user' as const,
+            sessionID: sessionId,
+            time: {
+              created: Date.now()
+            }
+          },
+          parts: [{
+            type: 'text' as const,
+            id: `${tempId}-part-0`,
+            sessionID: sessionId,
+            messageID: tempId,
+            text: message
+          }]
+        }
       }
     });
 
@@ -500,7 +497,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       console.error('Failed to send message:', error);
       throw error;
     }
-  }, [state.client, state.connectionStatus, state.messages]);
+  }, [state.client, state.connectionStatus]);
 
   // Event stream management functions
   const stopEventStream = useCallback(async (): Promise<void> => {
@@ -516,14 +513,92 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
   }, []);
 
-  const startEventStream = useCallback(async (_client: Client): Promise<void> => {
+const startEventStream = useCallback(async (client: Client): Promise<void> => {
     // First stop any existing stream
     await stopEventStream();
 
-    // Note: The event stream implementation appears to be incomplete in the original code
-    // For now, we'll keep the stream disconnected to avoid showing "Thinking..." indefinitely
-    dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
-}, []); // eslint-disable-line react-hooks/exhaustive-deps
+    try {
+      // Start the event stream for real-time updates
+      const response = await eventSubscribe({ 
+        client,
+        // Set parseAs to 'stream' to get the raw response
+        parseAs: 'stream'
+      });
+      
+      // Access the response through the response property
+      if (response.response?.body) {
+        // Handle SSE stream
+        const reader = response.response.body.getReader();
+        if (reader) {
+          eventStreamRef.current = reader;
+          dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: true } });
+          
+          const decoder = new TextDecoder();
+          
+          const processStream = async () => {
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                
+                if (done) {
+                  dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
+                  break;
+                }
+                
+                const text = decoder.decode(value);
+                const lines = text.split('\n');
+                
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    try {
+                      const eventData = JSON.parse(line.slice(6));
+                      
+                      switch (eventData.type) {
+                        case 'message.updated':
+                          dispatch({ 
+                            type: 'UPDATE_MESSAGE', 
+                            payload: { 
+                              messageId: eventData.properties.info.id, 
+                              info: eventData.properties.info 
+                            } 
+                          });
+                          break;
+                          
+                        case 'message.part.updated':
+                          const part = eventData.properties.part;
+                          dispatch({ 
+                            type: 'UPDATE_MESSAGE_PART', 
+                            payload: { 
+                              messageId: part.messageID, 
+                              partId: part.id, 
+                              part: part 
+                            } 
+                          });
+                          break;
+                      }
+                    } catch (parseError) {
+                      console.error('Failed to parse event data:', parseError);
+                    }
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Error processing event stream:', error);
+              dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
+            }
+          };
+          
+          processStream().catch(error => {
+            console.error('Error in stream processing:', error);
+            dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to start event stream:', error);
+      dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
+    }
+}, [stopEventStream]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const contextValue: ConnectionContextType = useMemo(() => ({
     ...state,
