@@ -19,7 +19,7 @@ import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
 import { MessageContent } from '../../src/components/chat/MessageContent';
 import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
 import { ConnectionStatus } from '../../src/components/chat/ConnectionStatus';
-import type { Message, Part } from '../../src/api/types.gen';
+import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
 
 interface MessageWithParts {
   info: Message;
@@ -175,8 +175,8 @@ export default function ChatScreen() {
                 part={part}
                 isFirstPart={isFirstPart}
                 isLastPart={isLastPart}
-                providerID={item.info.role === 'assistant' ? (item.info as any).providerID : undefined}
-                modelID={item.info.role === 'assistant' ? (item.info as any).modelID : undefined}
+providerID={item.info.role === 'assistant' ? (item.info as AssistantMessage).providerID : undefined}
+modelID={item.info.role === 'assistant' ? (item.info as AssistantMessage).modelID : undefined}
               />
               <MessageContent 
                 role={item.info.role}

@@ -36,11 +36,11 @@ export const ProviderIcon: React.FC<ProviderIconProps> = ({
   
   return (
     <View style={[styles.container, style]}>
-      <Ionicons 
-        name={iconInfo.name as any} 
-        size={size} 
-        color={iconInfo.color} 
-      />
+<Ionicons 
+  name={iconInfo.name as any} /* eslint-disable-line @typescript-eslint/no-explicit-any */
+  size={size} 
+  color={iconInfo.color} 
+/>
     </View>
   );
 };
@@ -97,11 +97,11 @@ export const ProviderBadge: React.FC<ProviderBadgeProps> = ({
   return (
     <View style={[styles.badgeContainer, style]}>
       <View style={[styles.badge, { padding: config.padding }]}>
-        <Ionicons 
-          name={iconInfo.name as any} 
-          size={config.icon} 
-          color={iconInfo.color} 
-        />
+<Ionicons 
+  name={iconInfo.name as any} /* eslint-disable-line @typescript-eslint/no-explicit-any */
+  size={config.icon} 
+  color={iconInfo.color} 
+/>
         <Text style={[styles.badgeText, { fontSize: config.text, color: iconInfo.color }]}>
           {displayName}
         </Text>

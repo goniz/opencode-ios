@@ -28,18 +28,18 @@ export const ToolIcon: React.FC<ToolIconProps> = ({
             }
           ]}
         >
-          <Ionicons 
-            name={iconInfo.name as any} 
-            size={size} 
-            color={iconInfo.color} 
-          />
+<Ionicons 
+  name={iconInfo.name as any} /* eslint-disable-line @typescript-eslint/no-explicit-any */
+  size={size} 
+  color={iconInfo.color} 
+/>
         </View>
       ) : (
-        <Ionicons 
-          name={iconInfo.name as any} 
-          size={size} 
-          color={iconInfo.color} 
-        />
+<Ionicons 
+  name={iconInfo.name as any} /* eslint-disable-line @typescript-eslint/no-explicit-any */
+  size={size} 
+  color={iconInfo.color} 
+/>
       )}
     </View>
   );

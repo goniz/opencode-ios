@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import SyntaxHighlighter from 'react-native-syntax-highlighter';
+// @ts-ignore
+import atomOneDark from 'react-syntax-highlighter/styles/prism/atom-dark';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 
@@ -10,73 +13,6 @@ export interface TextContentProps {
   isLast?: boolean;
   variant?: 'default' | 'user' | 'assistant';
 }
-
-const rules = {
-  body: {
-    color: '#e5e7eb',
-  },
-  paragraph: {
-    marginVertical: 4,
-  },
-  heading1: {
-    color: '#e5e7eb',
-    fontSize: 24,
-    fontWeight: '600',
-    marginVertical: 12,
-  },
-  heading2: {
-    color: '#e5e7eb',
-    fontSize: 20,
-    fontWeight: '600',
-    marginVertical: 10,
-  },
-  heading3: {
-    color: '#e5e7eb',
-    fontSize: 18,
-    fontWeight: '600',
-    marginVertical: 8,
-  },
-  link: {
-    color: '#60a5fa',
-  },
-  list_item: {
-    marginVertical: 2,
-  },
-  bullet_list: {
-    marginVertical: 4,
-  },
-  ordered_list: {
-    marginVertical: 4,
-  },
-  code_inline: {
-    color: '#d1d5db',
-    backgroundColor: '#374151',
-    padding: 2,
-    borderRadius: 4,
-    fontFamily: 'monospace',
-  },
-  code_block: {
-    backgroundColor: '#1f2937',
-    padding: 12,
-    borderRadius: 6,
-    marginVertical: 8,
-    fontFamily: 'monospace',
-  },
-  fence: {
-    backgroundColor: '#1f2937',
-    padding: 12,
-    borderRadius: 6,
-    marginVertical: 8,
-    fontFamily: 'monospace',
-  },
-  blockquote: {
-    backgroundColor: '#374151',
-    borderLeftColor: '#4b5563',
-    borderLeftWidth: 4,
-    padding: 8,
-    marginVertical: 8,
-  },
-};
 
 export const TextContent: React.FC<TextContentProps> = ({
   content,
@@ -117,12 +53,193 @@ export const TextContent: React.FC<TextContentProps> = ({
 
   const variantStyles = getVariantStyles();
 
-  // Combine default rules with variant-specific styles
-  const markdownRules = {
-    ...rules,
+  // Markdown styles
+  const markdownStyles = {
     body: {
-      ...rules.body,
       ...variantStyles,
+    },
+    paragraph: {
+      marginVertical: 4,
+    },
+    heading1: {
+      color: '#e5e7eb',
+      fontSize: 24,
+      fontWeight: '600' as '600',
+      marginVertical: 12,
+    },
+    heading2: {
+      color: '#e5e7eb',
+      fontSize: 20,
+      fontWeight: '600' as '600',
+      marginVertical: 10,
+    },
+    heading3: {
+      color: '#e5e7eb',
+      fontSize: 18,
+      fontWeight: '600' as '600',
+      marginVertical: 8,
+    },
+    link: {
+      color: '#60a5fa',
+      textDecorationLine: 'underline' as 'underline',
+    },
+    list_item: {
+      marginVertical: 2,
+    },
+    bullet_list: {
+      marginVertical: 4,
+    },
+    ordered_list: {
+      marginVertical: 4,
+    },
+    code_inline: {
+      color: '#d1d5db',
+      backgroundColor: '#374151',
+      padding: 2,
+      borderRadius: 4,
+      fontFamily: 'monospace',
+    },
+    code_block: {
+      backgroundColor: '#1f2937',
+      padding: 12,
+      borderRadius: 6,
+      marginVertical: 8,
+      fontFamily: 'monospace',
+    },
+    fence: {
+      backgroundColor: '#1f2937',
+      padding: 12,
+      borderRadius: 6,
+      marginVertical: 8,
+      fontFamily: 'monospace',
+    },
+    blockquote: {
+      backgroundColor: '#374151',
+      borderLeftColor: '#4b5563',
+      borderLeftWidth: 4,
+      padding: 8,
+      marginVertical: 8,
+      color: '#d1d5db',
+    },
+    table: {
+      borderWidth: 1,
+      borderColor: '#4b5563',
+      borderRadius: 4,
+      marginVertical: 8,
+    },
+    th: {
+      backgroundColor: '#374151',
+      padding: 8,
+      fontWeight: '600' as '600',
+      color: '#e5e7eb',
+    },
+    td: {
+      padding: 8,
+      color: '#d1d5db',
+    },
+    tr: {
+      borderBottomWidth: 1,
+      borderBottomColor: '#4b5563',
+    },
+    s: {
+      textDecorationLine: 'line-through' as 'line-through',
+      color: '#9ca3af',
+    },
+    strong: {
+      fontWeight: '600' as '600',
+    },
+    em: {
+      fontStyle: 'italic' as 'italic',
+    },
+  };
+
+  // Enhanced custom render rules for syntax highlighting
+  const renderRules = {
+    // Enhanced code block rendering with better language detection
+    code_block: (node: { 
+      key: string; 
+      attributes?: { 
+        class?: string; 
+        language?: string; 
+      }; 
+      content: string; 
+    }) => {
+      // Extract language from the first line if it's a comment (like ```python)
+      let language = 'text';
+      if (node.attributes?.class) {
+        const classMatch = node.attributes.class.match(/language-(\w+)/);
+        if (classMatch) {
+          language = classMatch[1];
+        }
+      } else if (node.attributes?.language) {
+        language = node.attributes.language;
+      }
+      
+      // Trim newlines from the end as per the original implementation
+      let content = node.content;
+      if (
+        typeof node.content === 'string' &&
+        node.content.charAt(node.content.length - 1) === '\n'
+      ) {
+        content = node.content.substring(0, node.content.length - 1);
+      }
+      
+      return (
+        <View key={node.key} style={markdownStyles.code_block}>
+          <SyntaxHighlighter
+            style={atomOneDark}
+            language={language}
+            customStyle={{
+              padding: 0,
+              margin: 0,
+            }}
+            lineNumbers={false}
+          >
+            {content.trim()}
+          </SyntaxHighlighter>
+        </View>
+      );
+    },
+    fence: (node: { 
+      key: string; 
+      attributes?: { 
+        info?: string; 
+        language?: string; 
+      }; 
+      content: string; 
+    }) => {
+      // Extract language from the fence info string (like ```python)
+      let language = 'text';
+      if (node.attributes?.info) {
+        language = node.attributes.info.split(' ')[0]; // Take first word as language
+      } else if (node.attributes?.language) {
+        language = node.attributes.language;
+      }
+      
+      // Trim newlines from the end as per the original implementation
+      let content = node.content;
+      if (
+        typeof node.content === 'string' &&
+        node.content.charAt(node.content.length - 1) === '\n'
+      ) {
+        content = node.content.substring(0, node.content.length - 1);
+      }
+      
+      return (
+        <View key={node.key} style={markdownStyles.fence}>
+          <SyntaxHighlighter
+            style={atomOneDark}
+            language={language}
+            customStyle={{
+              padding: 0,
+              margin: 0,
+            }}
+            lineNumbers={false}
+          >
+            {content.trim()}
+          </SyntaxHighlighter>
+        </View>
+      );
     },
   };
 
@@ -130,7 +247,8 @@ export const TextContent: React.FC<TextContentProps> = ({
     <View style={styles.container}>
       {isMarkdown ? (
         <Markdown
-          style={markdownRules}
+          style={markdownStyles}
+          rules={renderRules}
           mergeStyle={true}
         >
           {displayContent}

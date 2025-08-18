@@ -6,11 +6,7 @@ import { FilePart } from './FilePart';
 import { ReasoningPart } from './ReasoningPart';
 import { StepPart } from './StepPart';
 
-export interface PartComponentSelectorProps extends MessagePartProps {
-  // Additional props for the part selector can be added here if needed
-}
-
-export const PartComponentSelector: React.FC<PartComponentSelectorProps> = (props) => {
+export const PartComponentSelector: React.FC<MessagePartProps> = (props) => {
   const { part } = props;
   
   // Determine which component to render based on part type
