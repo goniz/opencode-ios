@@ -2,15 +2,10 @@ module.exports = function (api) {
   api.cache(true);
   return {
     presets: [
-      [
-        'babel-preset-expo', 
-        { 
-          reanimated: false // Disable automatic reanimated plugin inclusion
-        }
-      ]
+      'babel-preset-expo'
     ],
     plugins: [
-      'react-native-worklets/plugin' // Use the new worklets plugin instead
+      'react-native-reanimated/plugin'
     ],
   };
 };
