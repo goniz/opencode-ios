@@ -2,8 +2,8 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import { TextContent } from '../../../../src/components/chat/content/TextContent';
 
-// Mock react-native-syntax-highlighter
-jest.mock('react-native-syntax-highlighter', () => ({
+// Mock react-native-code-highlighter
+jest.mock('react-native-code-highlighter', () => ({
   __esModule: true,
   default: ({ children }: { children: string }) => children,
 }));
