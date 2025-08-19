@@ -8,6 +8,7 @@ import * as https from 'https';
 import * as http from 'http';
 import plist from 'plist';
 import AdmZip from 'adm-zip';
+import bplistParser from 'bplist-parser';
 import { 
   IPAInfo, 
   TailscaleStatus, 
@@ -131,7 +132,18 @@ class OTAHost {
       }
 
       const plistData = infoPlistEntry.getData();
-      const parsedPlist = plist.parse(plistData.toString('utf8')) as any;
+      let parsedPlist: any;
+      
+      // Check if it's a binary plist (starts with 'bplist')
+      if (plistData[0] === 0x62 && plistData[1] === 0x70 && plistData[2] === 0x6c) {
+        // Parse binary plist
+        const results = bplistParser.parseBuffer(plistData);
+        parsedPlist = results[0];
+      } else {
+        // Parse XML plist
+        const plistString = plistData.toString('utf8');
+        parsedPlist = plist.parse(plistString) as any;
+      }
 
       const bundleId = parsedPlist.CFBundleIdentifier;
       const version = parsedPlist.CFBundleShortVersionString || parsedPlist.CFBundleVersion;
