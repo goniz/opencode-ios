@@ -41,7 +41,6 @@ export const EditTool: React.FC<ToolComponentProps> = ({
       <View style={styles.container}>
         <ToolHeader
           toolName={toolName}
-          filePath={relativePath}
           hasError={hasError}
         >
           {!hasError && (
@@ -50,6 +49,12 @@ export const EditTool: React.FC<ToolComponentProps> = ({
             </View>
           )}
         </ToolHeader>
+        
+        {relativePath && (
+          <View style={styles.filePathContainer}>
+            <Text style={styles.filePathText}>{relativePath}</Text>
+          </View>
+        )}
 
         {(oldString || newString) && !hasError && (
           <View style={styles.editDetails}>
@@ -139,5 +144,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#1b2d1b',
     padding: 4,
     borderRadius: 3,
+  },
+  filePathContainer: {
+    marginBottom: 8,
+  },
+  filePathText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
   },
 });
