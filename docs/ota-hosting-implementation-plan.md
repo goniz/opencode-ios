@@ -30,9 +30,9 @@ Create a production-ready OTA hosting solution that:
       └── install.html.template
   ```
 
-- [ ] Add npm scripts to package.json
-  - [ ] `"ota-host": "tsx scripts/ota-host.ts"`
-  - [ ] `"ota-host:dev": "tsx scripts/ota-host.ts --dev --port 8443"`
+- [x] Add npm scripts to package.json
+  - [x] `"ota-host": "tsx scripts/ota-host.ts"`
+  - [x] `"ota-host:dev": "tsx scripts/ota-host.ts --dev --port 8443"`
 
 ### Phase 2: Core Script Architecture
 
