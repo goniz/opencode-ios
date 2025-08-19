@@ -1,0 +1,112 @@
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { detectFileMentions } from '../../../utils/fileMentions';
+
+interface FileMentionContentProps {
+  content: string;
+  onFileMentionPress?: (filePath: string) => void;
+}
+
+export function FileMentionContent({ content, onFileMentionPress }: FileMentionContentProps) {
+  const mentions = detectFileMentions(content);
+  
+  if (mentions.length === 0) {
+    return (
+      <Text style={styles.content}>
+        {content}
+      </Text>
+    );
+  }
+
+  // Split content into parts and render mentions specially
+  const renderContentWithMentions = () => {
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+
+    mentions.forEach((mention, index) => {
+      // Add text before mention
+      if (mention.start > lastIndex) {
+        parts.push(
+          <Text key={`text-${index}`} style={styles.content}>
+            {content.slice(lastIndex, mention.start)}
+          </Text>
+        );
+      }
+
+      // Add mention as styled component
+      const filePath = mention.path;
+      const fileName = filePath.split('/').pop() || filePath;
+      
+      parts.push(
+        <TouchableOpacity
+          key={`mention-${index}`}
+          style={styles.mentionContainer}
+          onPress={() => onFileMentionPress?.(filePath)}
+          activeOpacity={0.7}
+        >
+          <Ionicons 
+            name="document-text" 
+            size={14} 
+            color="#3b82f6" 
+            style={styles.mentionIcon}
+          />
+          <Text style={styles.mentionText}>
+            {fileName}
+          </Text>
+        </TouchableOpacity>
+      );
+
+      lastIndex = mention.end;
+    });
+
+    // Add remaining text after last mention
+    if (lastIndex < content.length) {
+      parts.push(
+        <Text key="text-end" style={styles.content}>
+          {content.slice(lastIndex)}
+        </Text>
+      );
+    }
+
+    return parts;
+  };
+
+  return (
+    <View style={styles.container}>
+      {renderContentWithMentions()}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  content: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: '#ffffff',
+  },
+  mentionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginHorizontal: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+  },
+  mentionIcon: {
+    marginRight: 4,
+  },
+  mentionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#3b82f6',
+  },
+});
