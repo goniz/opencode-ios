@@ -65,6 +65,8 @@ npm run typecheck      # TypeScript type checking
 npm run test           # Run tests in watch mode
 npm run test:ci        # Run tests for CI with coverage
 npm run generate-api   # Generate TypeScript API client from OpenAPI schema
+npm run ota-host       # Start OTA hosting server for IPA distribution
+npm run ota-host:dev   # Start OTA hosting server in development mode
 ```
 
 ## Technology Stack
@@ -203,6 +205,61 @@ npx eas build --profile development
 # Install on device
 npx eas build --profile development --platform ios --local
 ```
+
+## OTA (Over-The-Air) Distribution
+
+The project includes a TypeScript-based OTA hosting solution for distributing IPA files securely over HTTPS with Tailscale integration.
+
+### Quick Start
+```bash
+# Production mode with Tailscale (requires Tailscale setup)
+npm run ota-host
+
+# Development mode with self-signed certificates
+npm run ota-host:dev
+```
+
+### Features
+- 🔍 **Automatic IPA Discovery** - Finds and serves the latest IPA file in the current directory
+- 📱 **Apple Manifest Generation** - Creates valid `manifest.plist` files for iOS installation
+- 🔐 **Tailscale Integration** - Secure hostname resolution and automatic TLS certificate management
+- 🛡️ **Development Mode** - Self-signed certificates for local testing
+- 🌐 **Mobile-Friendly Interface** - Responsive install page with clear instructions
+- ⚙️ **CLI Options** - Flexible configuration via command-line arguments
+
+### Usage Examples
+```bash
+# Production mode with Tailscale
+npm run ota-host
+
+# Development mode with self-signed certs
+npm run ota-host:dev
+
+# Custom port and IPA file
+npm run ota-host -- --port 8443 --ipa custom-build.ipa
+
+# Show help
+npm run ota-host -- --help
+```
+
+### Command Line Options
+- `--dev` - Development mode (self-signed certificates, localhost)
+- `--port <number>` - Server port (default: 443 prod, 8443 dev)
+- `--ipa <path>` - Use specific IPA file instead of auto-detection
+- `--help, -h` - Show help message
+
+### Installation Process
+1. Place your `.ipa` file in the project root directory
+2. Run the OTA hosting server
+3. Open the provided URL on an iOS device using Safari
+4. Tap "Install App" and follow the iOS prompts
+5. Trust the developer certificate in Settings > General > Profiles
+
+### Requirements
+- **Production Mode**: Tailscale installed and running
+- **Development Mode**: OpenSSL for self-signed certificates
+- **iOS Device**: Must be configured to install developer apps
+- **HTTPS**: Required for iOS app installation (automatically handled)
 
 ## Deployment
 
