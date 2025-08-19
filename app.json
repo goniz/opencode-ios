@@ -26,6 +26,7 @@
       }
     },
     "android": {
+      "package": "com.goniz.opencodemobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"

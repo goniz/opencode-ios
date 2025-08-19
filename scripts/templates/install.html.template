@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Install {{APP_NAME}}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { 
+            max-width: 400px; 
+            width: 100%;
+            background: white; 
+            border-radius: 20px; 
+            padding: 40px 30px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .app-icon {
+            width: 80px;
+            height: 80px;
+            background: #007AFF;
+            border-radius: 18px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: white;
+            font-weight: bold;
+        }
+        .app-name { 
+            font-size: 24px; 
+            font-weight: 600; 
+            color: #1d1d1f; 
+            margin: 0 0 8px 0; 
+        }
+        .version { 
+            font-size: 16px; 
+            color: #8e8e93; 
+            margin: 0 0 30px 0; 
+        }
+        .install-btn { 
+            display: block; 
+            background: #007AFF; 
+            color: white; 
+            text-decoration: none; 
+            padding: 16px 32px; 
+            border-radius: 12px; 
+            text-align: center; 
+            font-size: 18px; 
+            font-weight: 600; 
+            margin: 30px 0;
+            transition: background 0.2s ease;
+        }
+        .install-btn:hover { 
+            background: #0056b3; 
+        }
+        .install-btn:active {
+            transform: translateY(1px);
+        }
+        .info { 
+            background: #f8f9fa; 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin: 30px 0 0 0; 
+            text-align: left;
+        }
+        .info-item { 
+            margin: 12px 0; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .label { 
+            font-weight: 500; 
+            color: #1d1d1f; 
+            font-size: 14px;
+        }
+        .value { 
+            color: #8e8e93; 
+            font-size: 14px;
+            text-align: right;
+        }
+        .instructions {
+            color: #8e8e93;
+            font-size: 14px;
+            line-height: 1.4;
+            margin-top: 20px;
+        }
+        .step {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="app-icon">📱</div>
+        <h1 class="app-name">{{APP_NAME}}</h1>
+        <div class="version">Version {{VERSION}}</div>
+        
+        <a href="{{INSTALL_URL}}" class="install-btn">Install App</a>
+        
+        <div class="info">
+            <div class="info-item">
+                <span class="label">Bundle ID</span>
+                <span class="value">{{BUNDLE_ID}}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">File Size</span>
+                <span class="value">{{FILE_SIZE}}</span>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <div class="step"><strong>1.</strong> Tap "Install App" above</div>
+            <div class="step"><strong>2.</strong> Allow app installation when prompted</div>
+            <div class="step"><strong>3.</strong> Trust the developer in Settings > General > Profiles</div>
+        </div>
+    </div>
+</body>
+</html>

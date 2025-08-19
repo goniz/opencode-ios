@@ -42,5 +42,8 @@ coverage/
 # iOS native files
 ios/
 
+# Build artifacts
+*.ipa
+
 app-example
 openapi-ts-error-*.log

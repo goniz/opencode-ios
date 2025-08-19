@@ -409,10 +409,12 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             <ConnectionStatus 
               status={connectionStatus}
             />
-            {isStreamConnected && (
-              <View style={styles.streamStatus}>
-                <View style={styles.streamIndicator} />
-                <Text style={styles.streamText}>Live</Text>
+            {connectionStatus === 'connected' && (
+              <View style={[styles.streamStatus, !isStreamConnected && styles.streamStatusOffline]}>
+                <View style={[styles.streamIndicator, !isStreamConnected && styles.streamIndicatorOffline]} />
+                <Text style={[styles.streamText, !isStreamConnected && styles.streamTextOffline]}>
+                  {isStreamConnected ? 'Live' : 'Offline'}
+                </Text>
               </View>
             )}
             <TouchableOpacity onPress={() => {
@@ -564,6 +566,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a2e1a',
     borderRadius: 8,
   },
+  streamStatusOffline: {
+    backgroundColor: '#2a1a1a',
+  },
   streamIndicator: {
     width: 6,
     height: 6,
@@ -571,10 +576,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#10b981',
     marginRight: 4,
   },
+  streamIndicatorOffline: {
+    backgroundColor: '#ef4444',
+  },
   streamText: {
     fontSize: 10,
     color: '#10b981',
     fontWeight: '500',
+  },
+  streamTextOffline: {
+    color: '#ef4444',
   },
   providerSelector: {
     backgroundColor: '#1a1a1a',
