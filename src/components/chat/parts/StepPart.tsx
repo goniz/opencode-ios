@@ -3,7 +3,9 @@ import { View, Text, StyleSheet } from 'react-native';
 import { MessagePartProps, MessagePartContainer } from './MessagePart';
 
 export const StepPart: React.FC<MessagePartProps> = ({ part }) => {
-  const stepInfo = part.step || part.content || '';
+  // Type guard for step parts
+  const stepInfo = ('step' in part ? part.step : undefined) || 
+                  ('content' in part ? part.content : undefined) || '';
   
   // Extract model information if available
   const isModelTransition = stepInfo.includes('model:') || stepInfo.includes('provider:');

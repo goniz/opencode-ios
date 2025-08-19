@@ -10,7 +10,8 @@ export const TextPart: React.FC<MessagePartProps> = ({
   messageId = '',
   partIndex = 0
 }) => {
-  const content = part.content || '';
+  // Type guard for text parts
+  const content = 'content' in part ? part.content || '' : '';
 
   return (
     <MessagePartContainer>

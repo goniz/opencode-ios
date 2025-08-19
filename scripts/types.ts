@@ -25,6 +25,7 @@ export interface ServerConfig {
   useHttps: boolean;
   certPath?: string;
   keyPath?: string;
+  once?: boolean;
 }
 
 export interface ManifestData {
@@ -57,6 +58,7 @@ export interface CLIArguments {
   port?: number;
   ipa?: string;
   help?: boolean;
+  once?: boolean;
 }
 
 export interface CertificateFiles {

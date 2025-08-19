@@ -21,10 +21,8 @@ export const PartComponentSelector: React.FC<MessagePartProps> = (props) => {
       return <FilePart {...props} />;
       
     case 'reasoning':
-    case 'thinking':
       return <ReasoningPart {...props} />;
       
-    case 'step':
     case 'step-start':
       return <StepPart {...props} />;
       
