@@ -20,7 +20,7 @@ Create a production-ready OTA hosting solution that:
   - [x] Add `tsx` for TypeScript execution
   - [x] Add `plist` for Apple plist XML generation
 
-- [ ] Create script directory structure
+- [x] Create script directory structure
   ```
   scripts/
   ├── ota-host.ts
