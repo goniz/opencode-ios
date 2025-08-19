@@ -4,7 +4,19 @@ import { MessagePartProps, MessagePartContainer } from './MessagePart';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 import type { ToolPart as ToolPartType, ToolStateCompleted, ToolStateError } from '../../../api/types.gen';
-import { getRelativePath } from '../../../utils/pathUtils';
+
+import {
+  BashTool,
+  ReadTool,
+  WriteTool,
+  EditTool,
+  TodoWriteTool,
+  TaskTool,
+  GlobTool,
+  GrepTool,
+  ListTool,
+  WebFetchTool,
+} from './tools';
 
 // Extract file path from tool input for read/write tools
 function extractFilePath(input: unknown): string | undefined {
@@ -22,10 +34,15 @@ function countLines(text: string): number {
   return text.split('\n').length;
 }
 
-export const ToolPart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
+export const ToolPart: React.FC<MessagePartProps> = ({ part }) => {
   // Type guard to check if part is a ToolPart
   const isToolPart = part.type === 'tool';
   
+  // Return null for non-tool parts
+  if (!isToolPart) {
+    return null;
+  }
+
   // Check if we're dealing with the converted format from MessageContent or original API format
   const isConvertedFormat = 'result' in part || 'error' in part;
   const toolPart = isToolPart && !isConvertedFormat ? part as ToolPartType : null;
@@ -66,12 +83,54 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
   } else if (toolPart?.state?.status === 'running') {
     filePath = extractFilePath(toolPart.state.input);
   }
-  
-  // Special handling for read tool display
-  const isReadTool = toolName === 'read';
-  const relativePath = isReadTool && filePath ? getRelativePath(filePath) : filePath;
-  
-  // Use expandable hook for results - called unconditionally (only for non-read tools)
+
+  // Common props for all tool components
+  const toolProps = {
+    part,
+    toolName,
+    hasError,
+    result,
+    filePath,
+    lineCount,
+  };
+
+  // Render specific tool component based on tool name
+  switch (toolName) {
+    case 'bash':
+      return <BashTool {...toolProps} />;
+    case 'read':
+      return <ReadTool {...toolProps} />;
+    case 'write':
+      return <WriteTool {...toolProps} />;
+    case 'edit':
+      return <EditTool {...toolProps} />;
+    case 'todowrite':
+      return <TodoWriteTool {...toolProps} />;
+    case 'task':
+      return <TaskTool {...toolProps} />;
+    case 'glob':
+      return <GlobTool {...toolProps} />;
+    case 'grep':
+      return <GrepTool {...toolProps} />;
+    case 'list':
+      return <ListTool {...toolProps} />;
+    case 'webfetch':
+      return <WebFetchTool {...toolProps} />;
+    default:
+      // Fallback to generic tool rendering for unknown tools
+      return <GenericTool {...toolProps} />;
+  }
+};
+
+// Fallback generic tool component for unknown tool types
+const GenericTool: React.FC<{
+  part: any;
+  toolName: string;
+  hasError: boolean;
+  result: string;
+  filePath?: string;
+  lineCount?: number;
+}> = ({ part, toolName, hasError, result, filePath, lineCount }) => {
   const {
     isExpanded,
     shouldShowExpandButton,
@@ -79,32 +138,10 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
     toggleExpanded,
   } = useExpandable({
     content: result,
-    autoExpand: (hasError || isLast) && isToolPart && !isReadTool,
+    autoExpand: false,
     contentType: 'tool',
   });
 
-  // Return null for non-tool parts
-  if (!isToolPart) {
-    return null;
-  }
-
-  // Special rendering for read tool
-  if (isReadTool && !hasError) {
-    return (
-      <MessagePartContainer>
-        <View style={styles.container}>
-          {/* Read tool header */}
-          <View style={styles.readHeader}>
-            <Text style={styles.readTitle}>
-              Read <Text style={styles.readPath}>{relativePath || 'file'}</Text>
-            </Text>
-          </View>
-        </View>
-      </MessagePartContainer>
-    );
-  }
-
-  // Regular tool rendering
   return (
     <MessagePartContainer>
       <View style={styles.container}>
@@ -134,7 +171,7 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
         </View>
 
         {/* Tool result content */}
-        {(result || (hasError && (isConvertedFormat ? part.error : (toolPart?.state && (toolPart.state as ToolStateError).error)))) && (
+        {(result || hasError) && (
           <View style={[
             styles.resultContainer,
             hasError && styles.errorContainer
@@ -143,7 +180,7 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
               styles.resultText,
               hasError && styles.errorText
             ]}>
-              {hasError ? (isConvertedFormat ? part.error : (toolPart?.state ? (toolPart.state as ToolStateError).error : '')) : displayResult}
+              {hasError ? (part as any).error || 'An error occurred' : displayResult}
             </Text>
             
             {shouldShowExpandButton && !hasError && (
@@ -225,22 +262,4 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#f87171',
   },
-  
-  // Read tool specific styles
-  readHeader: {
-    marginBottom: 4,
-  },
-  readTitle: {
-    fontSize: 13,
-    color: '#e5e7eb',
-    fontWeight: '500',
-    lineHeight: 18,
-  },
-  readPath: {
-    fontWeight: '600',
-    color: '#60a5fa',
-    fontFamily: 'monospace',
-  },
-
-
 });
