@@ -27,14 +27,14 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
   const toolPart = isToolPart ? part as ToolPartType : null;
   
   const toolName = toolPart?.tool || 'unknown';
-  const hasError = toolPart?.state.status === 'error';
+  const hasError = toolPart?.state?.status === 'error';
   
   // Extract tool state details
   let result = '';
   let filePath: string | undefined = undefined;
   let lineCount: number | undefined = undefined;
   
-  if (toolPart?.state.status === 'completed') {
+  if (toolPart?.state?.status === 'completed') {
     const completedState = toolPart.state as ToolStateCompleted;
     result = completedState.output || '';
     filePath = extractFilePath(completedState.input);
@@ -43,10 +43,10 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
     if (toolName === 'write' && result) {
       lineCount = countLines(result);
     }
-  } else if (toolPart?.state.status === 'error') {
+  } else if (toolPart?.state?.status === 'error') {
     const errorState = toolPart.state as ToolStateError;
     filePath = extractFilePath(errorState.input);
-  } else if (toolPart?.state.status === 'running') {
+  } else if (toolPart?.state?.status === 'running') {
     filePath = extractFilePath(toolPart.state.input);
   }
   
@@ -96,7 +96,7 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
         </View>
 
         {/* Tool result content */}
-        {(result || (hasError && (toolPart.state as ToolStateError).error)) && (
+        {(result || (hasError && toolPart.state && (toolPart.state as ToolStateError).error)) && (
           <View style={[
             styles.resultContainer,
             hasError && styles.errorContainer
@@ -105,7 +105,7 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
               styles.resultText,
               hasError && styles.errorText
             ]}>
-              {hasError ? (toolPart.state as ToolStateError).error : displayResult}
+              {hasError && toolPart.state ? (toolPart.state as ToolStateError).error : displayResult}
             </Text>
             
             {shouldShowExpandButton && !hasError && (
