@@ -253,7 +253,23 @@ npm run ota-host -- --help
 2. Run the OTA hosting server
 3. Open the provided URL on an iOS device using Safari
 4. Tap "Install App" and follow the iOS prompts
-5. Trust the developer certificate in Settings > General > Profiles
+5. **Trust the developer certificate**:
+   - Go to **Settings > General > VPN & Device Management**
+   - Under **Developer App**, tap your developer profile
+   - Tap **"Trust [Developer Name]"** and confirm
+6. Launch the app from your home screen
+
+### Troubleshooting Installation Issues
+
+**"App could not be installed since its integrity could not be verified"**
+- This is normal for development/enterprise apps
+- Follow step 5 above to trust the developer certificate
+- The app will then launch normally
+
+**"Unable to install [App Name]"**
+- Ensure you're using Safari (not Chrome or other browsers)
+- Check that your device allows installation from unknown developers
+- Verify the device has enough storage space
 
 ### Requirements
 - **Production Mode**: Tailscale installed and running
