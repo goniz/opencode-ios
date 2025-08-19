@@ -5,7 +5,6 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   FlatList, 
-  TextInput, 
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -21,6 +20,7 @@ import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
 import { MessageContent } from '../../src/components/chat/MessageContent';
 import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
 import { ConnectionStatus } from '../../src/components/chat/ConnectionStatus';
+import { FileAwareTextInput } from '../../src/components/chat/FileAwareTextInput';
 import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
 import { configProviders } from '../../src/api/sdk.gen';
 
@@ -490,7 +490,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
         )}
 
         <View style={styles.inputContainer}>
-          <TextInput
+          <FileAwareTextInput
             style={styles.textInput}
             value={inputText}
             onChangeText={setInputText}
