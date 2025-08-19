@@ -84,6 +84,18 @@ class OTAHost {
           });
         } catch (error) {
           this.logger.warn(`Failed to extract metadata from ${file}: ${error}`);
+          // Still include the IPA with fallback metadata
+          const fallbackName = file.replace('.ipa', '');
+          ipaFiles.push({
+            path: filePath,
+            bundleId: `com.unknown.${fallbackName}`,
+            version: '1.0.0',
+            displayName: fallbackName,
+            buildNumber: '1',
+            size: stats.size,
+            modifiedTime: stats.mtime
+          });
+          this.logger.info(`Using fallback metadata for ${file}`);
         }
       }
     }
