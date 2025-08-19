@@ -36,11 +36,11 @@ Create a production-ready OTA hosting solution that:
 
 ### Phase 2: Core Script Architecture
 
-- [ ] Create TypeScript type definitions (`scripts/types.ts`)
-  - [ ] `IPAInfo` interface (bundle ID, version, name, path)
-  - [ ] `TailscaleStatus` interface (hostname, certificates)
-  - [ ] `ServerConfig` interface (port, dev mode, custom IPA)
-  - [ ] `ManifestData` interface (for plist generation)
+- [x] Create TypeScript type definitions (`scripts/types.ts`)
+  - [x] `IPAInfo` interface (bundle ID, version, name, path)
+  - [x] `TailscaleStatus` interface (hostname, certificates)
+  - [x] `ServerConfig` interface (port, dev mode, custom IPA)
+  - [x] `ManifestData` interface (for plist generation)
 
 - [ ] Implement main script (`scripts/ota-host.ts`)
   - [ ] Command line argument parsing (--dev, --port, --ipa)
