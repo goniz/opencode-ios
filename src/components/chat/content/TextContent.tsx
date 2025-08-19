@@ -5,6 +5,7 @@ import SyntaxHighlighter from 'react-native-code-highlighter';
 import { atomOneDarkReasonable } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
+import { FileMentionContent } from './FileMentionContent';
 
 export interface TextContentProps {
   content: string;
@@ -255,21 +256,13 @@ export const TextContent: React.FC<TextContentProps> = ({
           {displayContent}
         </Markdown>
       ) : (
-        <Markdown
-          style={{
-            body: {
-              color: variantStyles.color,
-              fontSize: 14,
-              lineHeight: 20,
-            },
-            paragraph: {
-              marginVertical: 0,
-            },
+        <FileMentionContent 
+          content={displayContent}
+          onFileMentionPress={(filePath) => {
+            console.log('File mention pressed:', filePath);
+            // TODO: Handle file mention press (e.g., open file details)
           }}
-          mergeStyle={true}
-        >
-          {displayContent}
-        </Markdown>
+        />
       )}
       
       {shouldShowExpandButton && (
