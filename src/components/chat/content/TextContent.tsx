@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
-import SyntaxHighlighter from 'react-native-syntax-highlighter';
-// @ts-ignore
-import atomOneDark from 'react-syntax-highlighter/dist/cjs/styles/prism/atom-dark';
+import SyntaxHighlighter from 'react-native-code-highlighter';
+import { atomOneDarkReasonable } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 
@@ -24,6 +23,8 @@ export const TextContent: React.FC<TextContentProps> = ({
   messageId = '',
   partIndex = 0,
 }) => {
+  // Ensure content is always a string to prevent undefined errors
+  const safeContent = content ?? '';
   // Use expandable hook for content management
   const {
     isExpanded,
@@ -31,7 +32,7 @@ export const TextContent: React.FC<TextContentProps> = ({
     displayContent,
     toggleExpanded,
   } = useExpandable({
-    content,
+    content: safeContent,
     maxLines: 3,
     autoExpand: isLast,
     contentType: 'text',
@@ -191,13 +192,11 @@ export const TextContent: React.FC<TextContentProps> = ({
       return (
         <View key={`${messageId}-${partIndex}-code-${node.key}`} style={markdownStyles.code_block}>
           <SyntaxHighlighter
-            style={atomOneDark}
+            hljsStyle={atomOneDarkReasonable}
             language={language}
-            customStyle={{
-              padding: 0,
-              margin: 0,
+            textStyle={{
+              fontSize: 12,
             }}
-            lineNumbers={false}
           >
             {content.trim()}
           </SyntaxHighlighter>
@@ -232,13 +231,11 @@ export const TextContent: React.FC<TextContentProps> = ({
       return (
         <View key={`${messageId}-${partIndex}-fence-${node.key}`} style={markdownStyles.fence}>
           <SyntaxHighlighter
-            style={atomOneDark}
+            hljsStyle={atomOneDarkReasonable}
             language={language}
-            customStyle={{
-              padding: 0,
-              margin: 0,
+            textStyle={{
+              fontSize: 12,
             }}
-            lineNumbers={false}
           >
             {content.trim()}
           </SyntaxHighlighter>

@@ -126,6 +126,12 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
         messages: [...state.messages, action.payload.message],
       };
     case 'UPDATE_MESSAGE':
+      // Only process messages for the current session
+      if (!state.currentSession || action.payload.info.sessionID !== state.currentSession.id) {
+        console.log('Ignoring message update for different session:', action.payload.info.sessionID, 'current:', state.currentSession?.id);
+        return state;
+      }
+      
       const existingMessageIndex = state.messages.findIndex(msg => msg.info.id === action.payload.messageId);
       if (existingMessageIndex >= 0) {
         // Update existing message
@@ -145,6 +151,12 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
         };
       }
     case 'UPDATE_MESSAGE_PART':
+      // Only process message parts for the current session
+      if (!state.currentSession || action.payload.part.sessionID !== state.currentSession.id) {
+        console.log('Ignoring message part update for different session:', action.payload.part.sessionID, 'current:', state.currentSession?.id);
+        return state;
+      }
+      
       const messageIndex = state.messages.findIndex(msg => msg.info.id === action.payload.messageId);
       if (messageIndex >= 0) {
         // Update existing message's parts
@@ -552,7 +564,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
           case 'message.updated':
             if (eventData.properties?.info) {
               const messageInfo = eventData.properties.info as Message;
-              console.log('Updating message:', messageInfo.id);
+              console.log('Updating message:', messageInfo.id, 'for session:', messageInfo.sessionID);
               dispatch({ 
                 type: 'UPDATE_MESSAGE', 
                 payload: { 
@@ -579,7 +591,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
           case 'message.part.updated':
             if (eventData.properties?.part) {
               const part = eventData.properties.part;
-              console.log('Updating message part:', part.messageID, part.id);
+              console.log('Updating message part:', part.messageID, part.id, 'for session:', part.sessionID);
               dispatch({ 
                 type: 'UPDATE_MESSAGE_PART', 
                 payload: { 

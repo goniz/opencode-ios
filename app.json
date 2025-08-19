@@ -11,7 +11,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.goniz.opencodemobile",
-      "usesNonExemptEncryption": false,
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
@@ -31,9 +30,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "usesCleartextTraffic": true,
-      "networkSecurityConfig": "@xml/network_security_config"
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "bundler": "metro",

@@ -297,6 +297,10 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                   User message
                 </Text>
               </View>
+              <MessageTimestamp 
+                timestamp={item.info.time.created}
+                compact={true}
+              />
             </View>
           </View>
         </View>
@@ -342,18 +346,17 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                     messageId={item.info.id}
                   />
                 )}
+                {/* Compact timestamp for each message part (only on last part) */}
+                {isLastPart && (
+                  <MessageTimestamp 
+                    timestamp={item.info.time.created}
+                    compact={true}
+                  />
+                )}
               </View>
             </View>
           );
         })}
-        {/* Show timestamp for last assistant message */}
-        {index === messages.length - 1 && item.info.role === 'assistant' && 'time' in item.info && item.info.time.completed && (
-          <View key={`${item.info.id}-timestamp`}>
-            <MessageTimestamp 
-              timestamp={item.info.time.completed}
-            />
-          </View>
-        )}
       </View>
     );
   };

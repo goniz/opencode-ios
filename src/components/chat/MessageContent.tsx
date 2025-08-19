@@ -35,21 +35,21 @@ export function MessageContent({
       case 'text':
         return {
           ...basePart,
-          content: part.text || '',
+          content: part.text ?? '',
         };
         
       case 'reasoning':
         return {
           ...basePart,
-          content: part.text || '',
-          thinking: part.text || '',
+          content: part.text ?? '',
+          thinking: part.text ?? '',
         };
         
       case 'tool':
         return {
           ...basePart,
-          tool: part.tool || '',
-          result: part.state?.status === 'completed' ? part.state.output : '',
+          tool: part.tool ?? '',
+          result: part.state?.status === 'completed' ? (part.state.output ?? '') : '',
           error: part.state?.status === 'error' ? part.state.error : undefined,
         };
         
@@ -57,7 +57,7 @@ export function MessageContent({
         return {
           ...basePart,
           file: {
-            path: part.filename || 'Unknown file',
+            path: part.filename ?? 'Unknown file',
             content: '', // File content would come from another source
           },
         };
@@ -71,7 +71,7 @@ export function MessageContent({
         case 'agent':
         return {
           ...basePart,
-          content: `Agent: ${(part as { name?: string }).name || 'Unknown'}`,
+          content: `Agent: ${(part as { name?: string }).name ?? 'Unknown'}`,
         };
         
       default:

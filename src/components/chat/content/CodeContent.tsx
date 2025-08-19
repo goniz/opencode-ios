@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import SyntaxHighlighter from 'react-native-syntax-highlighter';
-// @ts-ignore
-import atomOneDark from 'react-syntax-highlighter/styles/prism/atom-dark';
+import SyntaxHighlighter from 'react-native-code-highlighter';
+import { atomOneDarkReasonable } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 
@@ -64,10 +63,9 @@ export const CodeContent: React.FC<CodeContentProps> = ({
       {/* Code content */}
       <View style={styles.codeContainer}>
         <SyntaxHighlighter
-          style={atomOneDark}
+          hljsStyle={atomOneDarkReasonable}
+          textStyle={styles.codeText}
           language={detectedLanguage}
-          customStyle={styles.codeBlock}
-          lineNumbers={true}
         >
           {displayContent}
         </SyntaxHighlighter>
@@ -147,5 +145,8 @@ const styles = StyleSheet.create({
   codeBlock: {
     padding: 0,
     margin: 0,
+  },
+  codeText: {
+    fontSize: 12,
   },
 });
