@@ -444,19 +444,30 @@ async startServer(): Promise<void> {
     app.get('/latest.ipa', (_req, res) => {
       res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Content-Length', latestIpa.size.toString());
-      res.sendFile(latestIpa.path);
       
       // If --once flag is set, exit after serving the first IPA
       if (this.config.once) {
-        this.logger.info('IPA served, exiting due to --once flag');
-        // Close the response and then shutdown the server
+        this.logger.info('IPA download started, will exit after completion due to --once flag');
+        
+        // Wait for the download to complete before shutting down
         res.on('finish', () => {
+          this.logger.info('IPA download completed, shutting down server...');
+          // Give a small delay to ensure cleanup
           setTimeout(() => {
-            this.logger.info('Shutting down server...');
             process.exit(0);
           }, 1000);
         });
+        
+        // Handle download errors
+        res.on('error', (err) => {
+          this.logger.error(`IPA download error: ${err.message}`);
+          setTimeout(() => {
+            process.exit(1);
+          }, 1000);
+        });
       }
+      
+      res.sendFile(latestIpa.path);
     });
 
     // Create server
