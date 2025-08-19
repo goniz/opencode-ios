@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState } from 'react-native';
+import type { AppStateStatus } from 'react-native';
 import EventSource from 'react-native-sse';
 import { createClient } from '../api/client';
 import type { Client } from '../api/client/types.gen';
@@ -299,6 +301,8 @@ const clearCurrentSession = async (): Promise<void> => {
 export function ConnectionProvider({ children }: ConnectionProviderProps) {
   const [state, dispatch] = useReducer(connectionReducer, initialState);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const appStateRef = useRef<AppStateStatus>('active');
+  const reconnectAttemptRef = useRef<number>(0);
 
   const connectWithTimeout = async (client: Client, timeoutMs: number): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -633,6 +637,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
         if (retryCount < maxRetries) {
           const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
           console.log(`Retrying event stream in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          reconnectAttemptRef.current = retryCount + 1;
           setTimeout(() => {
             startEventStream(client, retryCount + 1);
           }, delay);
@@ -654,6 +659,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
       if (retryCount < maxRetries) {
         const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
         console.log(`Retrying event stream in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        reconnectAttemptRef.current = retryCount + 1;
         setTimeout(() => {
           startEventStream(client, retryCount + 1);
         }, delay);
@@ -662,6 +668,35 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
       }
     }
 }, [stopEventStream]);
+
+  // Handle app state changes to manage connection gracefully
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      const currentState = appStateRef.current;
+      appStateRef.current = nextAppState;
+
+      if (currentState === 'background' && nextAppState === 'active') {
+        // App came to foreground - reconnect stream if needed
+        if (state.connectionStatus === 'connected' && state.client && !state.isStreamConnected) {
+          console.log('App came to foreground, attempting to reconnect stream...');
+          startEventStream(state.client).catch(error => {
+            console.log('Failed to reconnect stream on foreground:', error);
+          });
+        }
+      } else if (currentState === 'active' && nextAppState === 'background') {
+        // App went to background - set expectations for potential disconnection
+        console.log('App went to background, stream may disconnect');
+        reconnectAttemptRef.current = 0;
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    appStateRef.current = AppState.currentState;
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [state.connectionStatus, state.client, state.isStreamConnected, startEventStream]);
 
   const contextValue: ConnectionContextType = useMemo(() => ({
     ...state,
