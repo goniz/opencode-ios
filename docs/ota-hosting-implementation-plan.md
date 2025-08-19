@@ -42,125 +42,125 @@ Create a production-ready OTA hosting solution that:
   - [x] `ServerConfig` interface (port, dev mode, custom IPA)
   - [x] `ManifestData` interface (for plist generation)
 
-- [ ] Implement main script (`scripts/ota-host.ts`)
-  - [ ] Command line argument parsing (--dev, --port, --ipa)
-  - [ ] Main execution flow orchestration
-  - [ ] Error handling and logging
+- [x] Implement main script (`scripts/ota-host.ts`)
+  - [x] Command line argument parsing (--dev, --port, --ipa)
+  - [x] Main execution flow orchestration
+  - [x] Error handling and logging
 
 ### Phase 3: IPA Detection and Analysis
 
-- [ ] Implement IPA file discovery
-  - [ ] Find all `.ipa` files in current directory
-  - [ ] Sort by modification time (newest first)
-  - [ ] Handle case where no IPA files exist
+- [x] Implement IPA file discovery
+  - [x] Find all `.ipa` files in current directory
+  - [x] Sort by modification time (newest first)
+  - [x] Handle case where no IPA files exist
 
-- [ ] Implement IPA metadata extraction
-  - [ ] Extract Info.plist from IPA file (zip parsing)
-  - [ ] Parse bundle identifier (`CFBundleIdentifier`)
-  - [ ] Parse version (`CFBundleShortVersionString`)
-  - [ ] Parse display name (`CFBundleDisplayName` or `CFBundleName`)
-  - [ ] Extract app icons if available
+- [x] Implement IPA metadata extraction
+  - [x] Extract Info.plist from IPA file (zip parsing)
+  - [x] Parse bundle identifier (`CFBundleIdentifier`)
+  - [x] Parse version (`CFBundleShortVersionString`)
+  - [x] Parse display name (`CFBundleDisplayName` or `CFBundleName`)
+  - [x] Extract app icons if available
 
 ### Phase 4: Tailscale Integration
 
-- [ ] Implement Tailscale status detection
-  - [ ] Execute `tailscale status --json` command
-  - [ ] Parse machine name from status output
-  - [ ] Construct hostname as `{machine-name}.{tailnet-name}.ts.net`
-  - [ ] Handle case where Tailscale is not running
+- [x] Implement Tailscale status detection
+  - [x] Execute `tailscale status --json` command
+  - [x] Parse machine name from status output
+  - [x] Construct hostname as `{machine-name}.{tailnet-name}.ts.net`
+  - [x] Handle case where Tailscale is not running
 
-- [ ] Implement TLS certificate fetching
-  - [ ] Use `tailscale cert {hostname}` command to fetch certificates
-  - [ ] Store certificates in `dist/ota/certs/` directory
-  - [ ] Handle certificate renewal/refresh
-  - [ ] Fallback to self-signed certificates in dev mode
+- [x] Implement TLS certificate fetching
+  - [x] Use `tailscale cert {hostname}` command to fetch certificates
+  - [x] Store certificates in `dist/ota/certs/` directory
+  - [x] Handle certificate renewal/refresh
+  - [x] Fallback to self-signed certificates in dev mode
 
 ### Phase 5: File Generation
 
-- [ ] Create manifest.plist template (`scripts/templates/manifest.plist.template`)
-  - [ ] Proper Apple plist XML structure
-  - [ ] Placeholder variables for dynamic values
-  - [ ] Software package asset definition
-  - [ ] Optional icon assets (display-image, full-size-image)
+- [x] Create manifest.plist template (`scripts/templates/manifest.plist.template`)
+  - [x] Proper Apple plist XML structure
+  - [x] Placeholder variables for dynamic values
+  - [x] Software package asset definition
+  - [x] Optional icon assets (display-image, full-size-image)
 
-- [ ] Implement manifest generation
-  - [ ] Load template file
-  - [ ] Replace placeholders with actual IPA metadata
-  - [ ] Generate proper HTTPS URLs for all assets
-  - [ ] Write manifest.plist to `dist/ota/` directory
+- [x] Implement manifest generation
+  - [x] Load template file
+  - [x] Replace placeholders with actual IPA metadata
+  - [x] Generate proper HTTPS URLs for all assets
+  - [x] Write manifest.plist to `dist/ota/` directory
 
-- [ ] Create install page template (`scripts/templates/install.html.template`)
-  - [ ] Simple HTML page with app information
-  - [ ] `itms-services://` link for installation
-  - [ ] Basic styling for mobile-friendly display
+- [x] Create install page template (`scripts/templates/install.html.template`)
+  - [x] Simple HTML page with app information
+  - [x] `itms-services://` link for installation
+  - [x] Basic styling for mobile-friendly display
 
-- [ ] Implement install page generation
-  - [ ] Load HTML template
-  - [ ] Replace placeholders with app metadata
-  - [ ] Write install.html to `dist/ota/` directory
+- [x] Implement install page generation
+  - [x] Load HTML template
+  - [x] Replace placeholders with app metadata
+  - [x] Write install.html to `dist/ota/` directory
 
 ### Phase 6: HTTPS Server Implementation
 
-- [ ] Implement Express HTTPS server
-  - [ ] Load Tailscale TLS certificates
-  - [ ] Configure proper MIME types
-    - [ ] `.ipa` files as `application/octet-stream`
-    - [ ] `manifest.plist` as `application/xml`
-    - [ ] `.html` files as `text/html`
-    - [ ] `.png` files as `image/png`
-  - [ ] Set proper headers (Content-Length, CORS if needed)
+- [x] Implement Express HTTPS server
+  - [x] Load Tailscale TLS certificates
+  - [x] Configure proper MIME types
+    - [x] `.ipa` files as `application/octet-stream`
+    - [x] `manifest.plist` as `application/xml`
+    - [x] `.html` files as `text/html`
+    - [x] `.png` files as `image/png`
+  - [x] Set proper headers (Content-Length, CORS if needed)
 
-- [ ] Implement route handlers
-  - [ ] `/` - Serve install.html page
-  - [ ] `/manifest.plist` - Serve generated manifest
-  - [ ] `/latest.ipa` - Serve latest IPA file
-  - [ ] `/icon57.png` and `/icon512.png` - Serve app icons (if available)
+- [x] Implement route handlers
+  - [x] `/` - Serve install.html page
+  - [x] `/manifest.plist` - Serve generated manifest
+  - [x] `/latest.ipa` - Serve latest IPA file
+  - [x] `/icon57.png` and `/icon512.png` - Serve app icons (if available)
 
-- [ ] Add server lifecycle management
-  - [ ] Graceful startup with port binding
-  - [ ] Proper error handling for port conflicts
-  - [ ] Graceful shutdown on SIGINT/SIGTERM
+- [x] Add server lifecycle management
+  - [x] Graceful startup with port binding
+  - [x] Proper error handling for port conflicts
+  - [x] Graceful shutdown on SIGINT/SIGTERM
 
 ### Phase 7: Development and Production Modes
 
-- [ ] Implement development mode (`--dev` flag)
-  - [ ] Use self-signed certificates instead of Tailscale
-  - [ ] Default to port 8443 instead of 443
-  - [ ] Enable detailed debug logging
-  - [ ] Skip Tailscale hostname resolution (use localhost)
+- [x] Implement development mode (`--dev` flag)
+  - [x] Use self-signed certificates instead of Tailscale
+  - [x] Default to port 8443 instead of 443
+  - [x] Enable detailed debug logging
+  - [x] Skip Tailscale hostname resolution (use localhost)
 
-- [ ] Implement production mode (default)
-  - [ ] Use Tailscale hostname and certificates
-  - [ ] Default to port 443
-  - [ ] Concise logging output
-  - [ ] Validate all requirements before starting
+- [x] Implement production mode (default)
+  - [x] Use Tailscale hostname and certificates
+  - [x] Default to port 443
+  - [x] Concise logging output
+  - [x] Validate all requirements before starting
 
 ### Phase 8: Error Handling and Validation
 
-- [ ] Add comprehensive error handling
-  - [ ] Validate IPA file integrity (zip format)
-  - [ ] Validate extracted metadata completeness
-  - [ ] Handle Tailscale command failures gracefully
-  - [ ] Provide clear error messages for common issues
+- [x] Add comprehensive error handling
+  - [x] Validate IPA file integrity (zip format)
+  - [x] Validate extracted metadata completeness
+  - [x] Handle Tailscale command failures gracefully
+  - [x] Provide clear error messages for common issues
 
-- [ ] Add input validation
-  - [ ] Validate command line arguments
-  - [ ] Validate port numbers (1-65535)
-  - [ ] Validate custom IPA file paths
-  - [ ] Validate bundle identifiers format
+- [x] Add input validation
+  - [x] Validate command line arguments
+  - [x] Validate port numbers (1-65535)
+  - [x] Validate custom IPA file paths
+  - [x] Validate bundle identifiers format
 
 ### Phase 9: Logging and Output
 
-- [ ] Implement structured logging
-  - [ ] Timestamp all log messages
-  - [ ] Different log levels (info, warn, error)
-  - [ ] Clear status messages for each phase
+- [x] Implement structured logging
+  - [x] Timestamp all log messages
+  - [x] Different log levels (info, warn, error)
+  - [x] Clear status messages for each phase
 
-- [ ] Design console output
-  - [ ] Show discovered IPA information
-  - [ ] Display Tailscale hostname
-  - [ ] Print install URL prominently
-  - [ ] Show server start confirmation
+- [x] Design console output
+  - [x] Show discovered IPA information
+  - [x] Display Tailscale hostname
+  - [x] Print install URL prominently
+  - [x] Show server start confirmation
 
 ### Phase 10: Testing and Documentation
 
@@ -224,10 +224,10 @@ npm run ota-host -- --port 8443 --ipa custom-build.ipa
 
 ## Success Criteria
 
-- [ ] Script successfully detects latest IPA file
-- [ ] Generates valid Apple manifest.plist
-- [ ] Integrates with Tailscale for hostname and certificates
-- [ ] Serves files over HTTPS with proper MIME types
-- [ ] iOS devices can install app via Safari using `itms-services://` URL
-- [ ] Provides clear console output with install URL
-- [ ] Handles errors gracefully with helpful messages
+- [x] Script successfully detects latest IPA file
+- [x] Generates valid Apple manifest.plist
+- [x] Integrates with Tailscale for hostname and certificates
+- [x] Serves files over HTTPS with proper MIME types
+- [x] iOS devices can install app via Safari using `itms-services://` URL
+- [x] Provides clear console output with install URL
+- [x] Handles errors gracefully with helpful messages
