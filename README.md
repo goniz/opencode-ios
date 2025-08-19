@@ -259,17 +259,7 @@ npm run ota-host -- --help
    - Tap **"Trust [Developer Name]"** and confirm
 6. Launch the app from your home screen
 
-### Troubleshooting Installation Issues
 
-**"App could not be installed since its integrity could not be verified"**
-- This is normal for development/enterprise apps
-- Follow step 5 above to trust the developer certificate
-- The app will then launch normally
-
-**"Unable to install [App Name]"**
-- Ensure you're using Safari (not Chrome or other browsers)
-- Check that your device allows installation from unknown developers
-- Verify the device has enough storage space
 
 ### Requirements
 - **Production Mode**: Tailscale installed and running
