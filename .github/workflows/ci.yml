@@ -30,5 +30,8 @@ jobs:
     - name: Run ESLint
       run: npm run lint
       
+    - name: Run Expo doctor
+      run: npm run doctor
+      
     - name: Run tests
       run: npm run test:ci

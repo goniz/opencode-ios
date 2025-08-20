@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Configure git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    
+    - name: Bump minor version
+      run: npm version minor --no-git-tag-version
+    
+    - name: Get new version
+      id: version
+      run: echo "new_version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+    
+    - name: Commit version bump and create PR
+      run: |
+        git add package.json
+        git commit -m "Bump version to ${{ steps.version.outputs.new_version }}"
+        git push origin main
+    
+    - name: Create Pull Request
+      uses: repo-sync/pull-request@v2
+      with:
+        source_branch: main
+        destination_branch: release
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        pr_title: "Release v${{ steps.version.outputs.new_version }}"
+        pr_body: |
+          ## Release v${{ steps.version.outputs.new_version }}
+          
+          This PR contains the version bump for the new release.
+          
+          ### Changes
+          - Bumped version from previous to ${{ steps.version.outputs.new_version }}
+          
+          ### Checklist
+          - [ ] Review version bump
+          - [ ] Verify all features are ready for release
+          - [ ] Run final tests
+        pr_draft: false
