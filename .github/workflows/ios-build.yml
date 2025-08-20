@@ -1,0 +1,62 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: 'Submit to App Store'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build-ios:
+    runs-on: macos-15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Xcode 16.4
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '16.4'
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+    
+    - name: Cache Expo
+      uses: actions/cache@v4
+      with:
+        path: ~/.expo
+        key: ${{ runner.os }}-expo-${{ hashFiles('**/package-lock.json', 'app.json', 'eas.json') }}
+        restore-keys: |
+          ${{ runner.os }}-expo-
+    
+    - name: Install dependencies
+      run: |
+        npm install -g eas-cli
+        npm ci
+    
+    - name: Build iOS production
+      run: npm run build:ios:prod
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    
+    - name: Upload IPA artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-app-${{ github.sha }}
+        path: "**/*.ipa"
+        retention-days: 30
+    
+    - name: Submit iOS to App Store
+      if: ${{ inputs.submit != false }}
+      run: npm run submit:ios
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
