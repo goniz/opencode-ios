@@ -4,6 +4,12 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      submit:
+        description: 'Submit to App Store'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   build-ios:
@@ -50,6 +56,7 @@ jobs:
         retention-days: 30
     
     - name: Submit iOS to App Store
+      if: ${{ inputs.submit != false }}
       run: npm run submit:ios
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
