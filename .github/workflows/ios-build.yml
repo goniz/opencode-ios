@@ -42,6 +42,13 @@ jobs:
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     
+    - name: Upload IPA artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-app-${{ github.sha }}
+        path: "**/*.ipa"
+        retention-days: 30
+    
     - name: Submit iOS to App Store
       run: npm run submit:ios
       env:
