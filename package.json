@@ -12,6 +12,7 @@
     "build:ios:prod": "eas build -p ios --profile production --local --non-interactive",
     "submit:ios": "eas submit -p ios --non-interactive",
     "lint": "expo lint",
+    "doctor": "expo doctor",
     "typecheck": "tsc --noEmit",
     "test": "jest --watchAll",
     "test:ci": "jest --no-watch --coverage --watchAll=false",
