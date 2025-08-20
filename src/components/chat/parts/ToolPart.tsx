@@ -124,7 +124,7 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part }) => {
 
 // Fallback generic tool component for unknown tool types
 const GenericTool: React.FC<{
-  part: any;
+  part: { error?: string; [key: string]: unknown };
   toolName: string;
   hasError: boolean;
   result: string;
@@ -180,7 +180,7 @@ const GenericTool: React.FC<{
               styles.resultText,
               hasError && styles.errorText
             ]}>
-              {hasError ? (part as any).error || 'An error occurred' : displayResult}
+              {hasError ? part.error || 'An error occurred' : displayResult}
             </Text>
             
             {shouldShowExpandButton && !hasError && (

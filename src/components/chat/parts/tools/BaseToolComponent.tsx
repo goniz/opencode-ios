@@ -3,8 +3,18 @@ import { View, Text, StyleSheet } from 'react-native';
 
 import type { ToolPart as ToolPartType } from '../../../../api/types.gen';
 
+// Union type for tool part - either original API format or converted format
+export type ToolPartUnion = ToolPartType | {
+  type: string;
+  tool?: string;
+  input?: unknown;
+  result?: string;
+  error?: string;
+  [key: string]: unknown;
+};
+
 export interface ToolComponentProps {
-  part: any;
+  part: ToolPartUnion;
   toolName: string;
   hasError: boolean;
   result: string;
@@ -15,7 +25,7 @@ export interface ToolComponentProps {
 export interface BaseToolProps {
   toolPart: ToolPartType;
   isConvertedFormat: boolean;
-  part: any;
+  part: ToolPartUnion;
   isLast: boolean;
 }
 

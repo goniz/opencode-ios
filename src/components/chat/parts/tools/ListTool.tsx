@@ -51,7 +51,7 @@ export const ListTool: React.FC<ToolComponentProps> = ({
           <ToolResult
             result={displayResult}
             hasError={hasError}
-            error={hasError ? (part as any).error : undefined}
+            error={hasError ? (part as { error?: string }).error : undefined}
           >
             {shouldShowExpandButton && !hasError && (
               <ExpandButton
