@@ -31,7 +31,12 @@ jobs:
         npm install -g eas-cli
         npm ci
     
-    - name: Build iOS locally
-      run: npm run build:ios:local
+    - name: Build iOS production
+      run: npm run build:ios:prod
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    
+    - name: Submit iOS to App Store
+      run: npm run submit:ios
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
