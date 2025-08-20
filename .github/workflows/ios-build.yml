@@ -3,8 +3,6 @@ name: iOS Build
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -25,6 +23,14 @@ jobs:
       with:
         node-version: '22'
         cache: 'npm'
+    
+    - name: Cache Expo
+      uses: actions/cache@v4
+      with:
+        path: ~/.expo
+        key: ${{ runner.os }}-expo-${{ hashFiles('**/package-lock.json', 'app.json', 'eas.json') }}
+        restore-keys: |
+          ${{ runner.os }}-expo-
     
     - name: Install dependencies
       run: |
