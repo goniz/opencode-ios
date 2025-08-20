@@ -370,7 +370,7 @@ class OTAHost {
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
   }
 
-  async startServer(): Promise<void> {
+async startServer(): Promise<void> {
     const app = express();
     
     // Configure MIME types
@@ -444,6 +444,29 @@ class OTAHost {
     app.get('/latest.ipa', (_req, res) => {
       res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Content-Length', latestIpa.size.toString());
+      
+      // If --once flag is set, exit after serving the first IPA
+      if (this.config.once) {
+        this.logger.info('IPA download started, will exit after completion due to --once flag');
+        
+        // Wait for the download to complete before shutting down
+        res.on('finish', () => {
+          this.logger.info('IPA download completed, shutting down server...');
+          // Give a small delay to ensure cleanup
+          setTimeout(() => {
+            process.exit(0);
+          }, 1000);
+        });
+        
+        // Handle download errors
+        res.on('error', (err) => {
+          this.logger.error(`IPA download error: ${err.message}`);
+          setTimeout(() => {
+            process.exit(1);
+          }, 1000);
+        });
+      }
+      
       res.sendFile(latestIpa.path);
     });
 
@@ -497,6 +520,9 @@ function parseArguments(): CLIArguments {
       case '--ipa':
         args.ipa = argv[++i];
         break;
+      case '--once':
+        args.once = true;
+        break;
       case '--help':
       case '-h':
         args.help = true;
@@ -531,6 +557,7 @@ Options:
   --dev             Development mode (self-signed certs, localhost)
   --port <number>   Server port (default: 443 prod, 8443 dev)
   --ipa <path>      Use specific IPA file
+  --once            Exit after serving the first IPA file
   --help, -h        Show this help message
 
 Examples:
@@ -538,6 +565,7 @@ Examples:
   npm run ota-host:dev               # Development mode  
   npm run ota-host -- --port 9000    # Custom port
   npm run ota-host -- --ipa app.ipa  # Specific IPA file
+  npm run ota-host -- --once         # Exit after first IPA served
 `);
 }
 
@@ -558,7 +586,8 @@ async function main(): Promise<void> {
       devMode: args.dev || false,
       customIpaPath: args.ipa,
       hostname: 'localhost',
-      useHttps: true
+      useHttps: true,
+      once: args.once || false
     };
 
     const otaHost = new OTAHost(config);

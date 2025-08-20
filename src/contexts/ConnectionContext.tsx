@@ -8,6 +8,7 @@ import type { Client } from '../api/client/types.gen';
 import type { Session, Message, Part } from '../api/types.gen';
 import { sessionList, sessionMessages, sessionChat } from '../api/sdk.gen';
 import { saveServer, type SavedServer } from '../utils/serverStorage';
+import { cacheAppPaths } from '../utils/pathUtils';
 
 const CURRENT_CONNECTION_KEY = 'current_connection';
 const CURRENT_SESSION_KEY = 'current_session';
@@ -348,6 +349,9 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         saveCurrentConnection(url) // Keep full URL for connection persistence
       ]);
 
+      // Cache app paths from OpenCode SDK
+      await cacheAppPaths(client);
+      
       // Fetch initial sessions
       await refreshSessionsInternal(client);
       

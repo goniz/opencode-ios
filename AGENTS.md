@@ -47,6 +47,8 @@ src/
 - `npm run lint` - Run ESLint
 - `npm run generate-api` - Generate TypeScript client from OpenAPI schema
 - `npm run reset-project` - Reset project to clean state
+- `npm run ota-host` - Start OTA hosting server for IPA distribution
+- `npm run ota-host:dev` - Start OTA hosting server in development mode
 
 ## Testing on Physical Device
 Use the Expo Go app to test on your phone:
@@ -106,6 +108,51 @@ This runs the development server in the background, allowing you to continue usi
 - ❌ `npm install package-name` - Avoid unless package is not available via Expo
 
 Expo install automatically selects the correct version compatible with your Expo SDK version and prevents version conflicts.
+
+## OTA (Over-The-Air) Distribution
+The project includes a TypeScript-based OTA hosting solution for distributing IPA files securely over HTTPS.
+
+### Quick Start
+```bash
+# Production mode with Tailscale (requires Tailscale setup)
+npm run ota-host
+
+# Development mode with self-signed certificates
+npm run ota-host:dev
+```
+
+### Features
+- 🔍 **Automatic IPA Discovery** - Finds and serves the latest IPA file in the current directory
+- 📱 **Apple Manifest Generation** - Creates valid `manifest.plist` files for iOS installation
+- 🔐 **Tailscale Integration** - Secure hostname resolution and automatic TLS certificate management
+- 🛡️ **Development Mode** - Self-signed certificates for local testing
+- 🌐 **Mobile-Friendly Interface** - Responsive install page with clear instructions
+- ⚙️ **CLI Options** - Flexible configuration via command-line arguments
+
+### Command Line Options
+- `--dev` - Development mode (self-signed certificates, localhost)
+- `--port <number>` - Server port (default: 443 prod, 8443 dev)
+- `--ipa <path>` - Use specific IPA file instead of auto-detection
+- `--once` - Exit after serving the first IPA file
+- `--help, -h` - Show help message
+
+### Usage Examples
+```bash
+# Production mode with Tailscale
+npm run ota-host
+
+# Development mode with self-signed certs
+npm run ota-host:dev
+
+# Custom port and IPA file
+npm run ota-host -- --port 8443 --ipa custom-build.ipa
+
+# Exit after serving first IPA file
+npm run ota-host -- --once
+
+# Show help
+npm run ota-host -- --help
+```
 
 ## Common Tasks
 - Adding new screens: Create files in `app/` directory

@@ -51,6 +51,8 @@ export function MessageContent({
           tool: part.tool ?? '',
           result: part.state?.status === 'completed' ? (part.state.output ?? '') : '',
           error: part.state?.status === 'error' ? part.state.error : undefined,
+          input: part.state?.status === 'completed' || part.state?.status === 'error' || part.state?.status === 'running' 
+            ? part.state.input : undefined,
         };
         
       case 'file':
@@ -86,7 +88,7 @@ export function MessageContent({
 
   if (part.type === 'tool' && part.tool === 'todowrite') {
     const toolPart = part as ToolPart;
-    if (toolPart.state.status === 'completed') {
+    if (toolPart.state?.status === 'completed') {
       const todos = (toolPart.state.input as { todos: Todo[] }).todos;
       return (
         <View style={styles.contentColumn}>

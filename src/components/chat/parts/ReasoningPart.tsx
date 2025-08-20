@@ -5,7 +5,9 @@ import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 
 export const ReasoningPart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
-  const thinkingContent = part.thinking || part.content || '';
+  // Type guard for reasoning parts
+  const thinkingContent = ('thinking' in part ? part.thinking : undefined) || 
+                         ('content' in part ? part.content : undefined) || '';
   
   // Use expandable hook for reasoning content
   const {

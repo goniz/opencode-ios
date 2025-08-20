@@ -1,21 +1,26 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 
-export interface MessagePartProps {
-  part: {
-    type: string;
-    content?: string;
-    tool?: string;
-    result?: string;
-    error?: string;
-    file?: {
-      path: string;
-      content: string;
-    };
-    thinking?: string;
-    step?: string;
-    [key: string]: unknown;
+import type { Part } from '../../../api/types.gen';
+
+// Extended Part type to maintain backward compatibility with existing components
+export type ExtendedPart = Part | {
+  type: string;
+  content?: string;
+  result?: string;
+  error?: string;
+  file?: {
+    path: string;
+    content: string;
   };
+  thinking?: string;
+  step?: string;
+  tool?: string;
+  [key: string]: unknown;
+};
+
+export interface MessagePartProps {
+  part: ExtendedPart;
   isLast?: boolean;
   messageRole?: 'user' | 'assistant';
   messageId?: string;

@@ -238,6 +238,9 @@ npm run ota-host:dev
 # Custom port and IPA file
 npm run ota-host -- --port 8443 --ipa custom-build.ipa
 
+# Exit after serving first IPA file
+npm run ota-host -- --once
+
 # Show help
 npm run ota-host -- --help
 ```
@@ -246,6 +249,7 @@ npm run ota-host -- --help
 - `--dev` - Development mode (self-signed certificates, localhost)
 - `--port <number>` - Server port (default: 443 prod, 8443 dev)
 - `--ipa <path>` - Use specific IPA file instead of auto-detection
+- `--once` - Exit after serving the first IPA file
 - `--help, -h` - Show help message
 
 ### Installation Process

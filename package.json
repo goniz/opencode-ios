@@ -1,7 +1,7 @@
 {
   "name": "opencode-mobile",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "start": "expo start -g",
     "start:tunnel": "expo start -g --tunnel",
@@ -17,9 +17,11 @@
     "test": "jest --watchAll",
     "test:ci": "jest --no-watch --coverage --watchAll=false",
     "generate-api": "opencode generate > src/api/opencode_api.json && openapi-ts -i src/api/opencode_api.json -o src/api -c @hey-api/client-fetch",
+    "events": "tsx scripts/event-listener.ts",
     "ota-host": "tsx scripts/ota-host.ts",
     "ota-host:dev": "tsx scripts/ota-host.ts --dev --port 8443",
-    "build:ota": "npm run build:ios:local && npm run ota-host"
+    "build:ota": "npm run build:ios:local && npm run ota-host -- --once",
+    "build:ota:dev": "npm run build:ios:local && npm run ota-host:dev -- --once"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
