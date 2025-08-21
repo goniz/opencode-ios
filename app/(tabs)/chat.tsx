@@ -39,6 +39,8 @@ export default function ChatScreen() {
     messages, 
     isLoadingMessages,
     isStreamConnected,
+    lastError,
+    clearError,
     loadMessages, 
     sendMessage,
     setCurrentSession,
@@ -53,6 +55,7 @@ export default function ChatScreen() {
   const [availableProviders, setAvailableProviders] = useState<{id: string, name: string}[]>([]);
   const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string}[]>([]);
   const [currentProviderModels, setCurrentProviderModels] = useState<{modelID: string, name: string}[]>([]);
+  const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
   const flatListRef = useRef<FlatList>(null);
 
   // Handle session ID from navigation parameters
@@ -229,6 +232,13 @@ export default function ChatScreen() {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   }, []);
 
+  const handleDismissError = useCallback(() => {
+    if (lastError) {
+      setDismissedErrors(prev => new Set(prev).add(lastError));
+      clearError();
+    }
+  }, [lastError, clearError]);
+
   const handleSendMessage = async () => {
     console.log('handleSendMessage called', {
       inputText: inputText.trim(),
@@ -296,8 +306,51 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
     const isAssistant = item.info.role === 'assistant';
     const isUser = item.info.role === 'user';
     const isStreaming = isAssistant && !hasContent && isStreamConnected;
+    const hasError = isAssistant && 'error' in item.info && item.info.error;
     // const isLastMessage = index === messages.length - 1;
     
+    // Handle error state
+    if (hasError && 'error' in item.info) {
+      const assistantInfo = item.info as AssistantMessage;
+      const error = assistantInfo.error!;
+      
+      return (
+        <View style={styles.messageContainer}>
+          <View style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
+            <MessageDecoration 
+              role={item.info.role} 
+              isFirstPart={true}
+              isLastPart={true}
+            />
+            <View style={styles.contentColumn}>
+              <View style={styles.errorContainer}>
+                <View style={styles.errorHeader}>
+                  <Ionicons name="warning-outline" size={20} color="#ef4444" />
+                  <Text style={styles.errorTitle}>
+                    {error.name === 'ProviderAuthError' ? 'Authentication Error' :
+                     error.name === 'MessageOutputLengthError' ? 'Output Length Error' :
+                     error.name === 'MessageAbortedError' ? 'Message Aborted' :
+                     'Unknown Error'}
+                  </Text>
+                </View>
+                <Text style={styles.errorMessage}>
+                  {error.name === 'ProviderAuthError' && 'data' in error ? error.data.message :
+                   error.name === 'UnknownError' && 'data' in error ? error.data.message :
+                   error.name === 'MessageAbortedError' ? 'The message was aborted before completion.' :
+                   error.name === 'MessageOutputLengthError' ? 'The response exceeded the maximum length limit.' :
+                   'An unexpected error occurred.'}
+                </Text>
+              </View>
+              <MessageTimestamp 
+                timestamp={item.info.time.created}
+                compact={true}
+              />
+            </View>
+          </View>
+        </View>
+      );
+    }
+
     // Handle streaming state
     if (isStreaming) {
       return (
@@ -511,6 +564,19 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             )}
           </View>
         </View>
+
+        {lastError && !dismissedErrors.has(lastError) && (
+          <View style={styles.sessionErrorBanner}>
+            <Ionicons name="warning-outline" size={20} color="#ef4444" />
+            <View style={styles.sessionErrorContent}>
+              <Text style={styles.sessionErrorTitle}>Connection Error</Text>
+              <Text style={styles.sessionErrorText}>{lastError}</Text>
+            </View>
+            <TouchableOpacity style={styles.sessionErrorDismiss} onPress={handleDismissError}>
+              <Ionicons name="close" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {isLoadingMessages ? (
           <View style={styles.loadingContainer}>
@@ -790,7 +856,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 20,
+    paddingBottom: 24,
     borderTopWidth: 1,
     borderTopColor: '#2a2a2a',
     backgroundColor: '#0a0a0a',
@@ -823,5 +890,56 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 8,
     marginRight: 8,
+  },
+  errorContainer: {
+    backgroundColor: '#2a1a1a',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    borderRadius: 8,
+    padding: 12,
+  },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  errorTitle: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  errorMessage: {
+    color: '#fca5a5',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  sessionErrorBanner: {
+    backgroundColor: '#2a1a1a',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    borderRadius: 8,
+    padding: 12,
+    margin: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sessionErrorContent: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  sessionErrorTitle: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  sessionErrorText: {
+    color: '#fca5a5',
+    fontSize: 13,
+  },
+  sessionErrorDismiss: {
+    marginLeft: 12,
+    padding: 4,
   },
 });

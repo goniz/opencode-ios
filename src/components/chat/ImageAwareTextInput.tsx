@@ -205,6 +205,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+    marginRight: 8,
     borderWidth: 1,
     borderColor: '#3a3a3a',
   },
