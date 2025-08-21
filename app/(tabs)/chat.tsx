@@ -19,7 +19,7 @@ import { filterMessageParts } from '../../src/utils/messageFiltering';
 import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
 import { MessageContent } from '../../src/components/chat/MessageContent';
 import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
-import { ConnectionStatus } from '../../src/components/chat/ConnectionStatus';
+
 import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInput';
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
 import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
@@ -28,6 +28,16 @@ import { configProviders } from '../../src/api/sdk.gen';
 interface MessageWithParts {
   info: Message;
   parts: Part[];
+}
+
+// Helper function to format large numbers in human-readable form
+function formatTokenCount(count: number): string {
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1)}M`;
+  } else if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}K`;
+  }
+  return count.toLocaleString();
 }
 
 export default function ChatScreen() {
@@ -53,7 +63,7 @@ export default function ChatScreen() {
   const [currentProvider, setCurrentProvider] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<{providerID: string, modelID: string} | null>(null);
   const [availableProviders, setAvailableProviders] = useState<{id: string, name: string}[]>([]);
-  const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string}[]>([]);
+  const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string, contextLimit: number}[]>([]);
   const [currentProviderModels, setCurrentProviderModels] = useState<{modelID: string, name: string}[]>([]);
   const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
   const flatListRef = useRef<FlatList>(null);
@@ -90,7 +100,7 @@ export default function ChatScreen() {
           const response = await configProviders({ client });
           if (response.data) {
             const providers: {id: string, name: string}[] = [];
-            const models: {providerID: string, modelID: string, displayName: string}[] = [];
+            const models: {providerID: string, modelID: string, displayName: string, contextLimit: number}[] = [];
             
             // Extract providers and models
             response.data.providers.forEach(provider => {
@@ -104,7 +114,8 @@ export default function ChatScreen() {
                 models.push({
                   providerID: provider.id,
                   modelID: model.id,
-                  displayName: `${provider.name} / ${model.name}`
+                  displayName: `${provider.name} / ${model.name}`,
+                  contextLimit: model.limit.context
                 });
               });
             });
@@ -489,6 +500,33 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
     );
   }
 
+  // Calculate total input tokens across all messages for context window usage
+  const totalInputTokens = messages.reduce((total, msg) => {
+    if (msg.info.role === 'assistant' && 'tokens' in msg.info && msg.info.tokens) {
+      return total + ((msg.info as AssistantMessage).tokens?.input || 0);
+    }
+    return total;
+  }, 0);
+
+  // Get the current model's context limit and calculate context window usage
+  const currentModelInfo = currentModel && availableModels.length > 0 
+    ? availableModels.find(m => m.providerID === currentModel.providerID && m.modelID === currentModel.modelID)
+    : null;
+
+  // Find the latest assistant message for cumulative session cost
+  const latestAssistantMessage = [...messages]
+    .reverse()
+    .find(msg => msg.info.role === 'assistant' && 'cost' in msg.info);
+  
+  const contextInfo = currentModelInfo && totalInputTokens > 0 
+    ? {
+        currentTokens: totalInputTokens,
+        maxTokens: currentModelInfo.contextLimit,
+        percentage: Math.round((totalInputTokens / currentModelInfo.contextLimit) * 100),
+        sessionCost: latestAssistantMessage ? (latestAssistantMessage.info as AssistantMessage).cost || 0 : 0,
+      }
+    : null;
+
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
@@ -499,9 +537,6 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
         <View style={styles.header}>
           <Text style={styles.title}>{currentSession.title}</Text>
           <View style={styles.headerBottom}>
-            <ConnectionStatus 
-              status={connectionStatus}
-            />
             {connectionStatus === 'connected' && (
               <View style={[styles.streamStatus, !isStreamConnected && styles.streamStatusOffline]}>
                 <View style={[styles.streamIndicator, !isStreamConnected && styles.streamIndicatorOffline]} />
@@ -563,6 +598,24 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
               </TouchableOpacity>
             )}
           </View>
+          
+          {/* Context window usage and cost information */}
+          {contextInfo && (
+            <View style={styles.tokenInfoContainer}>
+              <View style={styles.tokenInfoRow}>
+                <Text style={styles.tokenInfoLabel}>Context:</Text>
+                <Text style={styles.tokenInfoValue}>
+                  {formatTokenCount(contextInfo.currentTokens)}/{formatTokenCount(contextInfo.maxTokens)} ({contextInfo.percentage}%)
+                </Text>
+              </View>
+              {contextInfo.sessionCost > 0 && (
+                <View style={styles.tokenInfoRow}>
+                  <Text style={styles.tokenInfoLabel}>Session Cost:</Text>
+                  <Text style={styles.tokenInfoValue}>${contextInfo.sessionCost.toFixed(6)}</Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {lastError && !dismissedErrors.has(lastError) && (
@@ -941,5 +994,28 @@ const styles = StyleSheet.create({
   sessionErrorDismiss: {
     marginLeft: 12,
     padding: 4,
+  },
+  tokenInfoContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#2a2a2a',
+  },
+  tokenInfoRow: {
+    flexDirection: 'row',
+    marginRight: 16,
+    marginBottom: 4,
+  },
+  tokenInfoLabel: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginRight: 4,
+  },
+  tokenInfoValue: {
+    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: '500',
   },
 });
