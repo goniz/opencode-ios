@@ -19,7 +19,7 @@ import { filterMessageParts } from '../../src/utils/messageFiltering';
 import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
 import { MessageContent } from '../../src/components/chat/MessageContent';
 import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
-import { ConnectionStatus } from '../../src/components/chat/ConnectionStatus';
+
 import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInput';
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
 import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
@@ -28,6 +28,18 @@ import { configProviders } from '../../src/api/sdk.gen';
 interface MessageWithParts {
   info: Message;
   parts: Part[];
+}
+
+// Helper function to format large numbers in human-readable form (matches official OpenCode TUI)
+function formatTokenCount(count: number): string {
+  if (count >= 1000000) {
+    const formatted = `${(count / 1000000).toFixed(1)}M`;
+    return formatted.replace('.0M', 'M');
+  } else if (count >= 1000) {
+    const formatted = `${(count / 1000).toFixed(1)}K`;
+    return formatted.replace('.0K', 'K');
+  }
+  return Math.floor(count).toString();
 }
 
 export default function ChatScreen() {
@@ -53,7 +65,7 @@ export default function ChatScreen() {
   const [currentProvider, setCurrentProvider] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<{providerID: string, modelID: string} | null>(null);
   const [availableProviders, setAvailableProviders] = useState<{id: string, name: string}[]>([]);
-  const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string}[]>([]);
+  const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string, contextLimit: number}[]>([]);
   const [currentProviderModels, setCurrentProviderModels] = useState<{modelID: string, name: string}[]>([]);
   const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
   const flatListRef = useRef<FlatList>(null);
@@ -90,7 +102,7 @@ export default function ChatScreen() {
           const response = await configProviders({ client });
           if (response.data) {
             const providers: {id: string, name: string}[] = [];
-            const models: {providerID: string, modelID: string, displayName: string}[] = [];
+            const models: {providerID: string, modelID: string, displayName: string, contextLimit: number}[] = [];
             
             // Extract providers and models
             response.data.providers.forEach(provider => {
@@ -104,7 +116,8 @@ export default function ChatScreen() {
                 models.push({
                   providerID: provider.id,
                   modelID: model.id,
-                  displayName: `${provider.name} / ${model.name}`
+                  displayName: `${provider.name} / ${model.name}`,
+                  contextLimit: model.limit.context
                 });
               });
             });
@@ -489,19 +502,77 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
     );
   }
 
+  // Calculate tokens and cost following official OpenCode TUI implementation
+  let totalTokens = 0;
+  let totalCost = 0;
+  
+  // Iterate forward through messages (like official implementation)
+  for (const msg of messages) {
+    if (msg.info.role === 'assistant' && 'tokens' in msg.info && msg.info.tokens) {
+      const assistant = msg.info as AssistantMessage;
+      const usage = assistant.tokens;
+      
+      // Sum cost from all assistant messages
+      totalCost += assistant.cost || 0;
+      
+      // Overwrite tokens with each message that has output > 0 (like official implementation)
+      if (usage && usage.output > 0) {
+        if (assistant.summary) {
+          totalTokens = usage.output || 0;
+          continue; // Skip to next message for summary
+        }
+        totalTokens = (usage.input || 0) + 
+                     (usage.cache?.write || 0) + 
+                     (usage.cache?.read || 0) + 
+                     (usage.output || 0) + 
+                     (usage.reasoning || 0);
+      }
+    }
+  }
+
+  // Get the current model's context limit
+  const currentModelInfo = currentModel && availableModels.length > 0 
+    ? availableModels.find(m => m.providerID === currentModel.providerID && m.modelID === currentModel.modelID)
+    : null;
+
+  // Check if current model is a subscription model (cost is 0 for both input and output)
+  const isSubscriptionModel = currentModelInfo && 
+    availableModels.length > 0 &&
+    // We'd need to check the model's cost structure, but for now assume non-subscription
+    false;
+  
+  const contextInfo = currentModelInfo && totalTokens > 0 
+    ? {
+        currentTokens: totalTokens,
+        maxTokens: currentModelInfo.contextLimit,
+        percentage: Math.floor((totalTokens / currentModelInfo.contextLimit) * 100),
+        sessionCost: totalCost,
+        isSubscriptionModel,
+      }
+    : null;
+
+  // Debug logging to help identify the discrepancy
+  if (contextInfo && totalTokens > 99000 && totalTokens < 100000) {
+    console.log('🔍 Token Debug:', {
+      totalTokens,
+      contextLimit: currentModelInfo?.contextLimit,
+      percentage: contextInfo.percentage,
+      modelID: currentModel?.modelID,
+      providerID: currentModel?.providerID,
+      formattedTokens: formatTokenCount(totalTokens)
+    });
+  }
+
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
     >
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+         <View style={styles.header}>
           <Text style={styles.title}>{currentSession.title}</Text>
           <View style={styles.headerBottom}>
-            <ConnectionStatus 
-              status={connectionStatus}
-            />
             {connectionStatus === 'connected' && (
               <View style={[styles.streamStatus, !isStreamConnected && styles.streamStatusOffline]}>
                 <View style={[styles.streamIndicator, !isStreamConnected && styles.streamIndicatorOffline]} />
@@ -561,6 +632,18 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                   </Text>
                 </View>
               </TouchableOpacity>
+            )}
+            
+            {/* Context window usage and cost information on same line */}
+            {contextInfo && (
+              <View style={styles.tokenInfoInline}>
+                <Text style={styles.tokenInfoValue}>
+                  {contextInfo.isSubscriptionModel 
+                    ? `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}%`
+                    : `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}% ($${contextInfo.sessionCost.toFixed(2)})`
+                  }
+                </Text>
+              </View>
             )}
           </View>
         </View>
@@ -648,16 +731,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#2a2a2a',
   },
   headerBottom: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   headerRight: {
     flexDirection: 'row',
@@ -680,7 +763,6 @@ const styles = StyleSheet.create({
   streamStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 12,
     paddingHorizontal: 6,
     paddingVertical: 2,
     backgroundColor: '#1a2e1a',
@@ -737,11 +819,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '500',
   },
-  title: {
-    fontSize: 18,
+title: {
+    fontSize: 17,
     fontWeight: '600',
     color: '#ffffff',
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   subtitle: {
     fontSize: 16,
@@ -778,7 +864,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   messageContainer: {
     marginBottom: 16,
@@ -855,9 +943,9 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    paddingBottom: 24,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
     borderTopWidth: 1,
     borderTopColor: '#2a2a2a',
     backgroundColor: '#0a0a0a',
@@ -866,18 +954,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a1a',
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginRight: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 10,
     color: '#ffffff',
     fontSize: 16,
     maxHeight: 100,
   },
   sendButton: {
     backgroundColor: '#ffffff',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -941,5 +1029,30 @@ const styles = StyleSheet.create({
   sessionErrorDismiss: {
     marginLeft: 12,
     padding: 4,
+  },
+  tokenInfoContainer: {
+    marginTop: 4,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#2a2a2a',
+  },
+  tokenInfoRow: {
+    flexDirection: 'row',
+    marginRight: 16,
+    marginBottom: 4,
+  },
+  tokenInfoLabel: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginRight: 4,
+  },
+  tokenInfoValue: {
+    fontSize: 12,
+    color: '#9ca3af',
+    fontWeight: '400',
+  },
+  tokenInfoInline: {
+    marginLeft: 'auto',
+    paddingLeft: 8,
   },
 });

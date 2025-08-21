@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
-import { ConnectionStatus } from '../../src/components/chat/ConnectionStatus';
 
 export default function TabLayout() {
   const { connectionStatus, sessions, lastError } = useConnection();
@@ -33,30 +32,12 @@ export default function TabLayout() {
     }
   };
 
-  const getConnectionStatusMessage = () => {
-    switch (connectionStatus) {
-      case 'connected':
-        return 'Connected';
-      case 'connecting':
-        return 'Connecting...';
-      case 'error':
-        return lastError || 'Connection error';
-      case 'idle':
-      default:
-        return 'Not connected';
-    }
-  };
+
 
   return (
     <Tabs
       screenOptions={{
-        headerShown: true,
-        headerTitle: () => (
-          <ConnectionStatus 
-            status={connectionStatus}
-            message={getConnectionStatusMessage()}
-          />
-        ),
+        headerShown: false,
         headerStyle: {
           backgroundColor: '#0a0a0a',
         },
