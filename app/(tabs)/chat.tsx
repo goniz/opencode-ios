@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Text, 
   View, 
@@ -20,7 +20,8 @@ import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
 import { MessageContent } from '../../src/components/chat/MessageContent';
 import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
 import { ConnectionStatus } from '../../src/components/chat/ConnectionStatus';
-import { FileAwareTextInput } from '../../src/components/chat/FileAwareTextInput';
+import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInput';
+import { ImagePreview } from '../../src/components/chat/ImagePreview';
 import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
 import { configProviders } from '../../src/api/sdk.gen';
 
@@ -45,6 +46,7 @@ export default function ChatScreen() {
   } = useConnection();
   
   const [inputText, setInputText] = useState('');
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [currentProvider, setCurrentProvider] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<{providerID: string, modelID: string} | null>(null);
@@ -209,16 +211,51 @@ export default function ChatScreen() {
     };
   }, [currentSession, isLoadingMessages, messages.length]);
 
+  // Debug logging for selected images
+  useEffect(() => {
+    console.log('Selected images changed:', selectedImages);
+  }, [selectedImages]);
+
+  const handleImageSelected = useCallback((imageUri: string) => {
+    console.log('Image selected:', imageUri);
+    setSelectedImages(prev => {
+      const newImages = [...prev, imageUri];
+      console.log('Updated selected images:', newImages);
+      return newImages;
+    });
+  }, []);
+
+  const handleRemoveImage = useCallback((index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
   const handleSendMessage = async () => {
-    if (!inputText.trim() || !currentSession || isSending) return;
+    console.log('handleSendMessage called', {
+      inputText: inputText.trim(),
+      selectedImagesCount: selectedImages.length,
+      currentSession: currentSession?.id,
+      isSending,
+      currentModel
+    });
+
+    if ((!inputText.trim() && selectedImages.length === 0) || !currentSession || isSending) {
+      console.log('Early return due to validation');
+      return;
+    }
 
     if (!currentModel?.providerID || !currentModel?.modelID) {
+      console.log('No model selected');
       toast.showError('Select Model', 'Please select a provider and model before sending a message');
       return;
     }
 
     const messageText = inputText.trim();
+    const imagesToSend = [...selectedImages];
+    
+    console.log('Sending message:', { messageText, imagesToSend });
+    
     setInputText('');
+    setSelectedImages([]);
     setIsSending(true);
 
     try {
@@ -226,8 +263,10 @@ export default function ChatScreen() {
         currentSession.id, 
         messageText,
         currentModel.providerID,
-        currentModel.modelID
+        currentModel.modelID,
+        imagesToSend
       );
+      console.log('Message sent successfully');
       // Scroll to bottom after sending
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
@@ -236,8 +275,9 @@ export default function ChatScreen() {
       console.error('Failed to send message:', error);
       const errorMsg = error instanceof Error ? error.message : 'Failed to send message';
       toast.showError('Failed to send message', errorMsg);
-      // Restore the input text if sending failed
+      // Restore the input text and images if sending failed
       setInputText(messageText);
+      setSelectedImages(imagesToSend);
     } finally {
       setIsSending(false);
     }
@@ -489,20 +529,34 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
           />
         )}
 
+        <ImagePreview 
+          images={selectedImages}
+          onRemoveImage={handleRemoveImage}
+        />
+
         <View style={styles.inputContainer}>
-          <FileAwareTextInput
+          <ImageAwareTextInput
             style={styles.textInput}
             value={inputText}
             onChangeText={setInputText}
+            onImageSelected={handleImageSelected}
             placeholder="Type a message..."
             placeholderTextColor="#6b7280"
             multiline
             maxLength={4000}
           />
           <TouchableOpacity
-            style={[styles.sendButton, (!inputText.trim() || isSending) && styles.sendButtonDisabled]}
-            onPress={handleSendMessage}
-            disabled={!inputText.trim() || isSending}
+            style={[styles.sendButton, ((!inputText.trim() && selectedImages.length === 0) || isSending) && styles.sendButtonDisabled]}
+            onPress={() => {
+              console.log('Send button pressed!', {
+                hasText: !!inputText.trim(),
+                imageCount: selectedImages.length,
+                isSending,
+                disabled: (!inputText.trim() && selectedImages.length === 0) || isSending
+              });
+              handleSendMessage();
+            }}
+            disabled={(!inputText.trim() && selectedImages.length === 0) || isSending}
           >
             {isSending ? (
               <ActivityIndicator size="small" color="#0a0a0a" />
