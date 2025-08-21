@@ -30,14 +30,16 @@ interface MessageWithParts {
   parts: Part[];
 }
 
-// Helper function to format large numbers in human-readable form
+// Helper function to format large numbers in human-readable form (matches official OpenCode TUI)
 function formatTokenCount(count: number): string {
   if (count >= 1000000) {
-    return `${(count / 1000000).toFixed(1)}M`;
+    const formatted = `${(count / 1000000).toFixed(1)}M`;
+    return formatted.replace('.0M', 'M');
   } else if (count >= 1000) {
-    return `${(count / 1000).toFixed(1)}K`;
+    const formatted = `${(count / 1000).toFixed(1)}K`;
+    return formatted.replace('.0K', 'K');
   }
-  return count.toLocaleString();
+  return Math.floor(count).toString();
 }
 
 export default function ChatScreen() {
@@ -500,32 +502,66 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
     );
   }
 
-  // Calculate total input tokens across all messages for context window usage
-  const totalInputTokens = messages.reduce((total, msg) => {
+  // Calculate tokens and cost following official OpenCode TUI implementation
+  let totalTokens = 0;
+  let totalCost = 0;
+  
+  // Iterate forward through messages (like official implementation)
+  for (const msg of messages) {
     if (msg.info.role === 'assistant' && 'tokens' in msg.info && msg.info.tokens) {
-      return total + ((msg.info as AssistantMessage).tokens?.input || 0);
+      const assistant = msg.info as AssistantMessage;
+      const usage = assistant.tokens;
+      
+      // Sum cost from all assistant messages
+      totalCost += assistant.cost || 0;
+      
+      // Overwrite tokens with each message that has output > 0 (like official implementation)
+      if (usage && usage.output > 0) {
+        if (assistant.summary) {
+          totalTokens = usage.output || 0;
+          continue; // Skip to next message for summary
+        }
+        totalTokens = (usage.input || 0) + 
+                     (usage.cache?.write || 0) + 
+                     (usage.cache?.read || 0) + 
+                     (usage.output || 0) + 
+                     (usage.reasoning || 0);
+      }
     }
-    return total;
-  }, 0);
+  }
 
-  // Get the current model's context limit and calculate context window usage
+  // Get the current model's context limit
   const currentModelInfo = currentModel && availableModels.length > 0 
     ? availableModels.find(m => m.providerID === currentModel.providerID && m.modelID === currentModel.modelID)
     : null;
 
-  // Find the latest assistant message for cumulative session cost
-  const latestAssistantMessage = [...messages]
-    .reverse()
-    .find(msg => msg.info.role === 'assistant' && 'cost' in msg.info);
+  // Check if current model is a subscription model (cost is 0 for both input and output)
+  const isSubscriptionModel = currentModelInfo && 
+    availableModels.length > 0 &&
+    // We'd need to check the model's cost structure, but for now assume non-subscription
+    false;
   
-  const contextInfo = currentModelInfo && totalInputTokens > 0 
+  const contextInfo = currentModelInfo && totalTokens > 0 
     ? {
-        currentTokens: totalInputTokens,
+        currentTokens: totalTokens,
         maxTokens: currentModelInfo.contextLimit,
-        percentage: Math.round((totalInputTokens / currentModelInfo.contextLimit) * 100),
-        sessionCost: latestAssistantMessage ? (latestAssistantMessage.info as AssistantMessage).cost || 0 : 0,
+        percentage: Math.floor((totalTokens / currentModelInfo.contextLimit) * 100),
+        sessionCost: totalCost,
+        isSubscriptionModel,
       }
     : null;
+
+  // Debug logging to help identify the discrepancy
+  if (contextInfo && totalTokens > 99000 && totalTokens < 100000) {
+    console.log('🔍 Token Debug:', {
+      totalTokens,
+      contextLimit: currentModelInfo?.contextLimit,
+      percentage: contextInfo.percentage,
+      modelID: currentModel?.modelID,
+      providerID: currentModel?.providerID,
+      formattedTokens: formatTokenCount(totalTokens)
+    });
+  }
 
   return (
     <KeyboardAvoidingView 
@@ -534,7 +570,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+         <View style={styles.header}>
           <Text style={styles.title}>{currentSession.title}</Text>
           <View style={styles.headerBottom}>
             {connectionStatus === 'connected' && (
@@ -597,25 +633,19 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                 </View>
               </TouchableOpacity>
             )}
-          </View>
-          
-          {/* Context window usage and cost information */}
-          {contextInfo && (
-            <View style={styles.tokenInfoContainer}>
-              <View style={styles.tokenInfoRow}>
-                <Text style={styles.tokenInfoLabel}>Context:</Text>
+            
+            {/* Context window usage and cost information on same line */}
+            {contextInfo && (
+              <View style={styles.tokenInfoInline}>
                 <Text style={styles.tokenInfoValue}>
-                  {formatTokenCount(contextInfo.currentTokens)}/{formatTokenCount(contextInfo.maxTokens)} ({contextInfo.percentage}%)
+                  {contextInfo.isSubscriptionModel 
+                    ? `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}%`
+                    : `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}% ($${contextInfo.sessionCost.toFixed(2)})`
+                  }
                 </Text>
               </View>
-              {contextInfo.sessionCost > 0 && (
-                <View style={styles.tokenInfoRow}>
-                  <Text style={styles.tokenInfoLabel}>Session Cost:</Text>
-                  <Text style={styles.tokenInfoValue}>${contextInfo.sessionCost.toFixed(6)}</Text>
-                </View>
-              )}
-            </View>
-          )}
+            )}
+          </View>
         </View>
 
         {lastError && !dismissedErrors.has(lastError) && (
@@ -701,16 +731,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#2a2a2a',
   },
   headerBottom: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   headerRight: {
     flexDirection: 'row',
@@ -730,15 +760,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '500',
   },
-  streamStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    backgroundColor: '#1a2e1a',
-    borderRadius: 8,
-  },
+
   streamStatusOffline: {
     backgroundColor: '#2a1a1a',
   },
@@ -790,11 +812,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '500',
   },
-  title: {
-    fontSize: 18,
+title: {
+    fontSize: 17,
     fontWeight: '600',
     color: '#ffffff',
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   subtitle: {
     fontSize: 16,
@@ -996,10 +1022,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   tokenInfoContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: 4,
+    paddingTop: 4,
     borderTopWidth: 1,
     borderTopColor: '#2a2a2a',
   },
@@ -1015,7 +1039,40 @@ const styles = StyleSheet.create({
   },
   tokenInfoValue: {
     fontSize: 12,
-    color: '#ffffff',
+    color: '#9ca3af',
+    fontWeight: '400',
+  },
+  tokenInfoInline: {
+    marginLeft: 'auto',
+    paddingLeft: 8,
+  },
+  streamStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: '#1a2e1a',
+    borderRadius: 8,
+  },
+  streamStatusOffline: {
+    backgroundColor: '#2a1a1a',
+  },
+  streamIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10b981',
+    marginRight: 4,
+  },
+  streamIndicatorOffline: {
+    backgroundColor: '#ef4444',
+  },
+  streamText: {
+    fontSize: 10,
+    color: '#10b981',
     fontWeight: '500',
+  },
+  streamTextOffline: {
+    color: '#ef4444',
   },
 });
