@@ -25,6 +25,7 @@ export interface MessagePartProps {
   messageRole?: 'user' | 'assistant';
   messageId?: string;
   partIndex?: number;
+  originalPart?: Part; // Original API part for access to full state information
 }
 
 export interface ExpandableProps {

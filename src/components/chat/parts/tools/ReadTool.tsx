@@ -3,10 +3,12 @@ import { View, Text, StyleSheet } from 'react-native';
 import { MessagePartContainer } from '../MessagePart';
 import { ToolComponentProps } from './BaseToolComponent';
 import { getRelativePath } from '../../../../utils/pathUtils';
+import { ToolStateIndicator } from './ToolStateIndicator';
 
 export const ReadTool: React.FC<ToolComponentProps> = ({ 
   filePath, 
-  hasError 
+  hasError,
+  toolPart
 }) => {
   const relativePath = filePath ? getRelativePath(filePath) : 'file';
 
@@ -18,6 +20,9 @@ export const ReadTool: React.FC<ToolComponentProps> = ({
             <Text style={styles.errorTitle}>
               Failed to read <Text style={styles.errorPath}>{relativePath}</Text>
             </Text>
+            {toolPart?.state && (
+              <ToolStateIndicator state={toolPart.state} />
+            )}
           </View>
         </View>
       </MessagePartContainer>
@@ -31,6 +36,9 @@ export const ReadTool: React.FC<ToolComponentProps> = ({
           <Text style={styles.readTitle}>
             Read <Text style={styles.readPath}>{relativePath}</Text>
           </Text>
+          {toolPart?.state && (
+            <ToolStateIndicator state={toolPart.state} />
+          )}
         </View>
       </View>
     </MessagePartContainer>
@@ -43,6 +51,9 @@ const styles = StyleSheet.create({
   },
   readHeader: {
     marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   readTitle: {
     fontSize: 13,
@@ -57,6 +68,9 @@ const styles = StyleSheet.create({
   },
   errorHeader: {
     marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   errorTitle: {
     fontSize: 13,

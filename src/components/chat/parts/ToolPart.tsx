@@ -17,6 +17,7 @@ import {
   ListTool,
   WebFetchTool,
 } from './tools';
+import { ToolStateIndicator } from './tools/ToolStateIndicator';
 
 // Extract file path from tool input for read/write tools
 function extractFilePath(input: unknown): string | undefined {
@@ -34,7 +35,7 @@ function countLines(text: string): number {
   return text.split('\n').length;
 }
 
-export const ToolPart: React.FC<MessagePartProps> = ({ part }) => {
+export const ToolPart: React.FC<MessagePartProps> = ({ part, originalPart }) => {
   // Type guard to check if part is a ToolPart
   const isToolPart = part.type === 'tool';
   
@@ -46,6 +47,9 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part }) => {
   // Check if we're dealing with the converted format from MessageContent or original API format
   const isConvertedFormat = 'result' in part || 'error' in part;
   const toolPart = isToolPart && !isConvertedFormat ? part as ToolPartType : null;
+  
+  // Use original part if available and it's a tool part for better state access
+  const apiToolPart = originalPart?.type === 'tool' ? originalPart as ToolPartType : toolPart;
   
   const toolName = ('tool' in part ? part.tool : 'unknown') || 'unknown';
   const hasError = isConvertedFormat ? !!part.error : toolPart?.state?.status === 'error';
@@ -92,6 +96,7 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part }) => {
     result,
     filePath,
     lineCount,
+    toolPart: apiToolPart || undefined,
   };
 
   // Render specific tool component based on tool name
@@ -130,7 +135,10 @@ const GenericTool: React.FC<{
   result: string;
   filePath?: string;
   lineCount?: number;
-}> = ({ part, toolName, hasError, result, filePath, lineCount }) => {
+  toolPart?: ToolPartType;
+}> = ({ part, toolName, hasError, result, filePath, lineCount, toolPart }) => {
+  // Use the provided toolPart which is already the best available (original or converted)
+  const apiToolPart = toolPart;
   const {
     isExpanded,
     shouldShowExpandButton,
@@ -149,6 +157,11 @@ const GenericTool: React.FC<{
         <View style={styles.header}>
           <Text style={styles.toolName}>{toolName}</Text>
           
+          {/* Dynamic state indicator for API format tool parts */}
+          {apiToolPart?.state && (
+            <ToolStateIndicator state={apiToolPart.state} />
+          )}
+          
           {/* File path for read/write tools */}
           {filePath && (
             <Text style={styles.filePath} numberOfLines={1}>
@@ -163,7 +176,7 @@ const GenericTool: React.FC<{
             </Text>
           )}
           
-          {hasError && (
+          {hasError && !apiToolPart?.state && (
             <View style={styles.errorBadge}>
               <Text style={styles.errorBadgeText}>Error</Text>
             </View>

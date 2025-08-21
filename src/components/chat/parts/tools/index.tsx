@@ -8,5 +8,6 @@ export { GlobTool } from './GlobTool';
 export { GrepTool } from './GrepTool';
 export { ListTool } from './ListTool';
 export { WebFetchTool } from './WebFetchTool';
+export { ToolStateIndicator } from './ToolStateIndicator';
 
 export type { ToolComponentProps, BaseToolProps } from './BaseToolComponent';

@@ -10,7 +10,8 @@ export const BashTool: React.FC<ToolComponentProps> = ({
   toolName, 
   hasError, 
   result, 
-  filePath 
+  filePath,
+  toolPart
 }) => {
   const {
     isExpanded,
@@ -40,6 +41,7 @@ export const BashTool: React.FC<ToolComponentProps> = ({
           toolName={toolName}
           filePath={filePath}
           hasError={hasError}
+          toolPart={toolPart}
         />
 
         {description && (

@@ -12,7 +12,8 @@ export const WriteTool: React.FC<ToolComponentProps> = ({
   hasError, 
   result, 
   filePath,
-  lineCount 
+  lineCount,
+  toolPart
 }) => {
   const {
     isExpanded,
@@ -35,6 +36,7 @@ export const WriteTool: React.FC<ToolComponentProps> = ({
           filePath={relativePath}
           lineCount={lineCount}
           hasError={hasError}
+          toolPart={toolPart}
         >
           {!hasError && (
             <View style={styles.successBadge}>
