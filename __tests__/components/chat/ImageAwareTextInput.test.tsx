@@ -36,7 +36,7 @@ describe('ImageAwareTextInput', () => {
   });
 
   it('renders text input and image button', () => {
-    const { getByDisplayValue, getByRole } = render(
+    const { getByDisplayValue, getByTestId } = render(
       <ImageAwareTextInput
         value="test message"
         onChangeText={mockOnChangeText}
@@ -46,7 +46,8 @@ describe('ImageAwareTextInput', () => {
     );
 
     expect(getByDisplayValue('test message')).toBeTruthy();
-    expect(getByRole('button')).toBeTruthy();
+    // Find the image button by testID
+    expect(getByTestId('image-button')).toBeTruthy();
   });
 
   it('calls onChangeText when text changes', () => {
@@ -66,7 +67,7 @@ describe('ImageAwareTextInput', () => {
   });
 
   it('shows image options when image button is pressed', () => {
-    const { getByRole } = render(
+    const { getByTestId } = render(
       <ImageAwareTextInput
         value=""
         onChangeText={mockOnChangeText}
@@ -75,7 +76,8 @@ describe('ImageAwareTextInput', () => {
       />
     );
 
-    const imageButton = getByRole('button');
+    // Find the image button by testID
+    const imageButton = getByTestId('image-button');
     fireEvent.press(imageButton);
 
     // Note: Testing Alert.alert is complex in unit tests

@@ -180,6 +180,7 @@ export function ImageAwareTextInput({
           showImageOptions();
         }}
         disabled={isImagePickerOpen}
+        testID="image-button"
       >
         <Ionicons 
           name="image-outline" 
