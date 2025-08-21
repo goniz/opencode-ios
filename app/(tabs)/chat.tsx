@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Text, 
   View, 
@@ -20,7 +20,8 @@ import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
 import { MessageContent } from '../../src/components/chat/MessageContent';
 import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
 import { ConnectionStatus } from '../../src/components/chat/ConnectionStatus';
-import { FileAwareTextInput } from '../../src/components/chat/FileAwareTextInput';
+import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInput';
+import { ImagePreview } from '../../src/components/chat/ImagePreview';
 import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
 import { configProviders } from '../../src/api/sdk.gen';
 
@@ -38,6 +39,8 @@ export default function ChatScreen() {
     messages, 
     isLoadingMessages,
     isStreamConnected,
+    lastError,
+    clearError,
     loadMessages, 
     sendMessage,
     setCurrentSession,
@@ -45,12 +48,14 @@ export default function ChatScreen() {
   } = useConnection();
   
   const [inputText, setInputText] = useState('');
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [currentProvider, setCurrentProvider] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<{providerID: string, modelID: string} | null>(null);
   const [availableProviders, setAvailableProviders] = useState<{id: string, name: string}[]>([]);
   const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string}[]>([]);
   const [currentProviderModels, setCurrentProviderModels] = useState<{modelID: string, name: string}[]>([]);
+  const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
   const flatListRef = useRef<FlatList>(null);
 
   // Handle session ID from navigation parameters
@@ -209,16 +214,58 @@ export default function ChatScreen() {
     };
   }, [currentSession, isLoadingMessages, messages.length]);
 
+  // Debug logging for selected images
+  useEffect(() => {
+    console.log('Selected images changed:', selectedImages);
+  }, [selectedImages]);
+
+  const handleImageSelected = useCallback((imageUri: string) => {
+    console.log('Image selected:', imageUri);
+    setSelectedImages(prev => {
+      const newImages = [...prev, imageUri];
+      console.log('Updated selected images:', newImages);
+      return newImages;
+    });
+  }, []);
+
+  const handleRemoveImage = useCallback((index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleDismissError = useCallback(() => {
+    if (lastError) {
+      setDismissedErrors(prev => new Set(prev).add(lastError));
+      clearError();
+    }
+  }, [lastError, clearError]);
+
   const handleSendMessage = async () => {
-    if (!inputText.trim() || !currentSession || isSending) return;
+    console.log('handleSendMessage called', {
+      inputText: inputText.trim(),
+      selectedImagesCount: selectedImages.length,
+      currentSession: currentSession?.id,
+      isSending,
+      currentModel
+    });
+
+    if ((!inputText.trim() && selectedImages.length === 0) || !currentSession || isSending) {
+      console.log('Early return due to validation');
+      return;
+    }
 
     if (!currentModel?.providerID || !currentModel?.modelID) {
+      console.log('No model selected');
       toast.showError('Select Model', 'Please select a provider and model before sending a message');
       return;
     }
 
     const messageText = inputText.trim();
+    const imagesToSend = [...selectedImages];
+    
+    console.log('Sending message:', { messageText, imagesToSend });
+    
     setInputText('');
+    setSelectedImages([]);
     setIsSending(true);
 
     try {
@@ -226,8 +273,10 @@ export default function ChatScreen() {
         currentSession.id, 
         messageText,
         currentModel.providerID,
-        currentModel.modelID
+        currentModel.modelID,
+        imagesToSend
       );
+      console.log('Message sent successfully');
       // Scroll to bottom after sending
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
@@ -236,8 +285,9 @@ export default function ChatScreen() {
       console.error('Failed to send message:', error);
       const errorMsg = error instanceof Error ? error.message : 'Failed to send message';
       toast.showError('Failed to send message', errorMsg);
-      // Restore the input text if sending failed
+      // Restore the input text and images if sending failed
       setInputText(messageText);
+      setSelectedImages(imagesToSend);
     } finally {
       setIsSending(false);
     }
@@ -256,8 +306,51 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
     const isAssistant = item.info.role === 'assistant';
     const isUser = item.info.role === 'user';
     const isStreaming = isAssistant && !hasContent && isStreamConnected;
+    const hasError = isAssistant && 'error' in item.info && item.info.error;
     // const isLastMessage = index === messages.length - 1;
     
+    // Handle error state
+    if (hasError && 'error' in item.info) {
+      const assistantInfo = item.info as AssistantMessage;
+      const error = assistantInfo.error!;
+      
+      return (
+        <View style={styles.messageContainer}>
+          <View style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
+            <MessageDecoration 
+              role={item.info.role} 
+              isFirstPart={true}
+              isLastPart={true}
+            />
+            <View style={styles.contentColumn}>
+              <View style={styles.errorContainer}>
+                <View style={styles.errorHeader}>
+                  <Ionicons name="warning-outline" size={20} color="#ef4444" />
+                  <Text style={styles.errorTitle}>
+                    {error.name === 'ProviderAuthError' ? 'Authentication Error' :
+                     error.name === 'MessageOutputLengthError' ? 'Output Length Error' :
+                     error.name === 'MessageAbortedError' ? 'Message Aborted' :
+                     'Unknown Error'}
+                  </Text>
+                </View>
+                <Text style={styles.errorMessage}>
+                  {error.name === 'ProviderAuthError' && 'data' in error ? error.data.message :
+                   error.name === 'UnknownError' && 'data' in error ? error.data.message :
+                   error.name === 'MessageAbortedError' ? 'The message was aborted before completion.' :
+                   error.name === 'MessageOutputLengthError' ? 'The response exceeded the maximum length limit.' :
+                   'An unexpected error occurred.'}
+                </Text>
+              </View>
+              <MessageTimestamp 
+                timestamp={item.info.time.created}
+                compact={true}
+              />
+            </View>
+          </View>
+        </View>
+      );
+    }
+
     // Handle streaming state
     if (isStreaming) {
       return (
@@ -472,6 +565,19 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
           </View>
         </View>
 
+        {lastError && !dismissedErrors.has(lastError) && (
+          <View style={styles.sessionErrorBanner}>
+            <Ionicons name="warning-outline" size={20} color="#ef4444" />
+            <View style={styles.sessionErrorContent}>
+              <Text style={styles.sessionErrorTitle}>Connection Error</Text>
+              <Text style={styles.sessionErrorText}>{lastError}</Text>
+            </View>
+            <TouchableOpacity style={styles.sessionErrorDismiss} onPress={handleDismissError}>
+              <Ionicons name="close" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {isLoadingMessages ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#ffffff" />
@@ -489,20 +595,34 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
           />
         )}
 
+        <ImagePreview 
+          images={selectedImages}
+          onRemoveImage={handleRemoveImage}
+        />
+
         <View style={styles.inputContainer}>
-          <FileAwareTextInput
+          <ImageAwareTextInput
             style={styles.textInput}
             value={inputText}
             onChangeText={setInputText}
+            onImageSelected={handleImageSelected}
             placeholder="Type a message..."
             placeholderTextColor="#6b7280"
             multiline
             maxLength={4000}
           />
           <TouchableOpacity
-            style={[styles.sendButton, (!inputText.trim() || isSending) && styles.sendButtonDisabled]}
-            onPress={handleSendMessage}
-            disabled={!inputText.trim() || isSending}
+            style={[styles.sendButton, ((!inputText.trim() && selectedImages.length === 0) || isSending) && styles.sendButtonDisabled]}
+            onPress={() => {
+              console.log('Send button pressed!', {
+                hasText: !!inputText.trim(),
+                imageCount: selectedImages.length,
+                isSending,
+                disabled: (!inputText.trim() && selectedImages.length === 0) || isSending
+              });
+              handleSendMessage();
+            }}
+            disabled={(!inputText.trim() && selectedImages.length === 0) || isSending}
           >
             {isSending ? (
               <ActivityIndicator size="small" color="#0a0a0a" />
@@ -736,7 +856,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 20,
+    paddingBottom: 24,
     borderTopWidth: 1,
     borderTopColor: '#2a2a2a',
     backgroundColor: '#0a0a0a',
@@ -769,5 +890,56 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 8,
     marginRight: 8,
+  },
+  errorContainer: {
+    backgroundColor: '#2a1a1a',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    borderRadius: 8,
+    padding: 12,
+  },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  errorTitle: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  errorMessage: {
+    color: '#fca5a5',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  sessionErrorBanner: {
+    backgroundColor: '#2a1a1a',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    borderRadius: 8,
+    padding: 12,
+    margin: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sessionErrorContent: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  sessionErrorTitle: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  sessionErrorText: {
+    color: '#fca5a5',
+    fontSize: 13,
+  },
+  sessionErrorDismiss: {
+    marginLeft: 12,
+    padding: 4,
   },
 });

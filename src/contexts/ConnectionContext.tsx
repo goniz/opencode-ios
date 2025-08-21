@@ -10,6 +10,101 @@ import { sessionList, sessionMessages, sessionChat } from '../api/sdk.gen';
 import { saveServer, type SavedServer } from '../utils/serverStorage';
 import { cacheAppPaths } from '../utils/pathUtils';
 
+// Utility functions for image processing
+const detectMimeTypeFromUri = (uri: string): string => {
+  const extension = uri.toLowerCase().split('.').pop();
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    case 'bmp':
+      return 'image/bmp';
+    case 'svg':
+      return 'image/svg+xml';
+    case 'tiff':
+    case 'tif':
+      return 'image/tiff';
+    default:
+      return 'image/png'; // Default fallback
+  }
+};
+
+const detectMimeTypeFromDataUri = (dataUri: string): string => {
+  const mimeMatch = dataUri.match(/^data:([^;]+);base64,/);
+  return mimeMatch ? mimeMatch[1] : 'image/png';
+};
+
+const validateImageMimeType = (mimeType: string): string => {
+  const validImageTypes = [
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 
+    'image/webp', 'image/bmp', 'image/svg+xml', 'image/tiff'
+  ];
+  
+  // Normalize jpeg variants
+  if (mimeType === 'image/jpg') {
+    return 'image/jpeg';
+  }
+  
+  return validImageTypes.includes(mimeType) ? mimeType : 'image/png';
+};
+
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove the data URL prefix to get just the base64 string
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
+const extractFilenameFromUri = (uri: string, mimeType: string): string => {
+  if (uri.startsWith('file://')) {
+    // Extract filename from file URI
+    const parts = uri.split('/');
+    const filename = parts[parts.length - 1];
+    if (filename && filename.includes('.')) {
+      return filename;
+    }
+  }
+  
+  // Generate a filename based on MIME type and timestamp
+  const getExtensionFromMimeType = (mime: string): string => {
+    switch (mime) {
+      case 'image/jpeg':
+        return 'jpg';
+      case 'image/png':
+        return 'png';
+      case 'image/gif':
+        return 'gif';
+      case 'image/webp':
+        return 'webp';
+      case 'image/bmp':
+        return 'bmp';
+      case 'image/svg+xml':
+        return 'svg';
+      case 'image/tiff':
+        return 'tiff';
+      default:
+        return 'png';
+    }
+  };
+  
+  const extension = getExtensionFromMimeType(mimeType);
+  const timestamp = new Date().getTime();
+  return `image_${timestamp}.${extension}`;
+};
+
 const CURRENT_CONNECTION_KEY = 'current_connection';
 const CURRENT_SESSION_KEY = 'current_session';
 const CONNECTION_TIMEOUT = 10000; // 10 seconds default timeout
@@ -47,7 +142,7 @@ export interface ConnectionContextType extends ConnectionState {
   retryConnection: () => Promise<void>;
   setCurrentSession: (session: Session | null) => void;
   loadMessages: (sessionId: string) => Promise<void>;
-  sendMessage: (sessionId: string, message: string, providerID?: string, modelID?: string) => Promise<void>;
+  sendMessage: (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]) => Promise<void>;
 }
 
 type ConnectionAction =
@@ -487,7 +582,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
   }, [state.client, state.connectionStatus]);
 
-  const sendMessage = useCallback(async (sessionId: string, message: string, providerID?: string, modelID?: string): Promise<void> => {
+  const sendMessage = useCallback(async (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]): Promise<void> => {
     if (!state.client || state.connectionStatus !== 'connected') {
       throw new Error('Not connected to server');
     }
@@ -496,9 +591,87 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       throw new Error('Provider and model must be selected');
     }
 
-    console.log('Sending message to session:', sessionId, 'message:', message);
+    console.log('Sending message to session:', sessionId, 'message:', message, 'images:', images?.length || 0);
 
     try {
+    // Build the parts array
+    const parts: ({type: 'text', text: string} | {type: 'file', mime: string, url: string, filename?: string})[] = [];
+      
+      // Add text part if there's a message
+      if (message.trim()) {
+        parts.push({
+          type: 'text',
+          text: message
+        });
+      }
+      
+    // Add image parts if there are images
+    if (images && images.length > 0) {
+      for (const imageUri of images) {
+        // Convert file URI to base64 data URI if needed
+        let dataUri = imageUri;
+        let detectedMimeType = 'image/png';
+        
+        if (imageUri.startsWith('file://')) {
+          // Read the file and convert to base64
+          try {
+            const response = await fetch(imageUri);
+            const blob = await response.blob();
+            
+            // Priority order for MIME type detection:
+            // 1. Blob type (most reliable)
+            // 2. File extension from URI
+            // 3. Default fallback
+            detectedMimeType = blob.type || detectMimeTypeFromUri(imageUri);
+            
+            // Validate and normalize the MIME type
+            detectedMimeType = validateImageMimeType(detectedMimeType);
+            
+            // Convert blob to base64
+            const base64 = await blobToBase64(blob);
+            dataUri = `data:${detectedMimeType};base64,${base64}`;
+            
+            console.log(`Converted file URI to base64: ${imageUri} -> ${detectedMimeType} (blob: ${blob.type}, uri: ${detectMimeTypeFromUri(imageUri)})`);
+          } catch (error) {
+            console.error('Failed to convert file URI to base64:', error);
+            throw new Error(`Failed to process image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+        } else if (imageUri.startsWith('data:')) {
+          // Already a data URI, extract and validate MIME type
+          detectedMimeType = detectMimeTypeFromDataUri(imageUri);
+          detectedMimeType = validateImageMimeType(detectedMimeType);
+          
+          // Ensure the data URI has the correct normalized MIME type
+          if (imageUri.includes('data:image/jpg;')) {
+            // Fix common jpeg variant
+            dataUri = imageUri.replace('data:image/jpg;', 'data:image/jpeg;');
+            detectedMimeType = 'image/jpeg';
+          } else {
+            dataUri = imageUri;
+          }
+          
+          console.log(`Data URI detected MIME type: ${detectedMimeType}`);
+        } else {
+          console.warn(`Unknown image URI format: ${imageUri}`);
+          throw new Error('Unsupported image URI format');
+        }
+        
+        // Extract or generate filename
+        const filename = extractFilenameFromUri(imageUri, detectedMimeType);
+        
+        console.log(`Processed image: ${filename} (${detectedMimeType})`);
+        
+        parts.push({
+          type: 'file',
+          mime: detectedMimeType,
+          url: dataUri,
+          filename: filename
+        });
+      }
+    }
+
+      console.log('Built parts array:', parts);
+
       // Send the message - the response will come through the event stream
       await sessionChat({
         client: state.client,
@@ -506,10 +679,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         body: {
           providerID,
           modelID,
-          parts: [{
-            type: 'text',
-            text: message
-          }]
+          parts
         }
       });
 

@@ -55,8 +55,22 @@ jobs:
         path: "**/*.ipa"
         retention-days: 30
     
+    - name: Download IPA artifact
+      if: ${{ inputs.submit != false }}
+      uses: actions/download-artifact@v4
+      with:
+        name: ios-app-${{ github.sha }}
+        path: ./artifacts
+    
+    - name: Find IPA file
+      if: ${{ inputs.submit != false }}
+      id: find_ipa
+      run: |
+        IPA_FILE=$(find ./artifacts -name "*.ipa" -type f | head -n 1)
+        echo "ipa_file=$IPA_FILE" >> $GITHUB_OUTPUT
+    
     - name: Submit iOS to App Store
       if: ${{ inputs.submit != false }}
-      run: npm run submit:ios
+      run: npx eas submit -p ios --path ${{ steps.find_ipa.outputs.ipa_file }} --non-interactive
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

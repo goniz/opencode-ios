@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { MessagePartProps, MessagePartContainer } from './MessagePart';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
@@ -16,6 +17,8 @@ interface FilePartData {
     };
   };
   filename?: string;
+  mime?: string;
+  url?: string;
 }
 
 export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
@@ -25,6 +28,14 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
   // Try to get file info from different possible sources
   const filePath = filePart.file?.path || filePart.source?.path || filePart.filename || 'Unknown file';
   const fileContent = filePart.file?.content || filePart.source?.text?.value || '';
+  const mimeType = filePart.mime || '';
+  const fileUrl = filePart.url || '';
+  
+  // Check if this is an image file
+  const isImage = mimeType.startsWith('image/') || 
+    ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tiff', 'tif'].some(ext => 
+      filePath.toLowerCase().endsWith(`.${ext}`)
+    );
   
   // Always call useExpandable hook to maintain hook order
   const expandableResult = useExpandable({
@@ -43,7 +54,7 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
   } = expandableResult;
 
   // Fallback if no content is available
-  if (!filePath && !fileContent) {
+  if (!filePath && !fileContent && !fileUrl) {
     return null;
   }
 
@@ -60,7 +71,7 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
         {/* File header */}
         <View style={styles.header}>
           <View style={styles.fileIcon}>
-            <Text style={styles.fileIconText}>📄</Text>
+            <Text style={styles.fileIconText}>{isImage ? '🖼️' : '📄'}</Text>
           </View>
           <View style={styles.fileInfo}>
             <Text style={styles.fileName}>{fileName}</Text>
@@ -68,8 +79,20 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
           </View>
         </View>
 
+        {/* Image content */}
+        {isImage && fileUrl && (
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: fileUrl }}
+              style={styles.image}
+              contentFit="contain"
+              placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
+            />
+          </View>
+        )}
+
         {/* File content */}
-        {fileContent && (
+        {!isImage && fileContent && (
           <View style={styles.contentContainer}>
             <Text style={[
               styles.contentText,
@@ -141,6 +164,18 @@ const styles = StyleSheet.create({
   },
   codeText: {
     fontFamily: 'monospace',
+  },
+  imageContainer: {
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#1f2937',
+  },
+  image: {
+    width: '100%',
+    maxWidth: 300,
+    height: 200,
+    borderRadius: 8,
   },
 
 });

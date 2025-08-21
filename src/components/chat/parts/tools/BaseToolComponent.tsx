@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import type { ToolPart as ToolPartType } from '../../../../api/types.gen';
+import { ToolStateIndicator } from './ToolStateIndicator';
 
 // Union type for tool part - either original API format or converted format
 export type ToolPartUnion = ToolPartType | {
@@ -20,6 +21,7 @@ export interface ToolComponentProps {
   result: string;
   filePath?: string;
   lineCount?: number;
+  toolPart?: ToolPartType;
 }
 
 export interface BaseToolProps {
@@ -29,15 +31,25 @@ export interface BaseToolProps {
   isLast: boolean;
 }
 
+export interface EnhancedToolComponentProps extends ToolComponentProps {
+  toolPart?: ToolPartType;
+}
+
 export const ToolHeader: React.FC<{
   toolName: string;
   filePath?: string;
   lineCount?: number;
   hasError: boolean;
+  toolPart?: ToolPartType;
   children?: React.ReactNode;
-}> = ({ toolName, filePath, lineCount, hasError, children }) => (
+}> = ({ toolName, filePath, lineCount, hasError, toolPart, children }) => (
   <View style={styles.header}>
     <Text style={styles.toolName}>{toolName}</Text>
+    
+    {/* Dynamic state indicator for API format tool parts */}
+    {toolPart?.state && (
+      <ToolStateIndicator state={toolPart.state} />
+    )}
     
     {filePath && (
       <Text style={styles.filePath} numberOfLines={1}>
@@ -51,7 +63,7 @@ export const ToolHeader: React.FC<{
       </Text>
     )}
     
-    {hasError && (
+    {hasError && !toolPart?.state && (
       <View style={styles.errorBadge}>
         <Text style={styles.errorBadgeText}>Error</Text>
       </View>

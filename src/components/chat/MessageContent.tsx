@@ -106,6 +106,7 @@ export function MessageContent({
         messageRole={role as 'user' | 'assistant'}
         messageId={messageId}
         partIndex={partIndex}
+        originalPart={part}
       />
     </View>
   );
