@@ -567,7 +567,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
     >
       <SafeAreaView style={styles.container}>
          <View style={styles.header}>
@@ -760,7 +760,14 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '500',
   },
-
+  streamStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: '#1a2e1a',
+    borderRadius: 8,
+  },
   streamStatusOffline: {
     backgroundColor: '#2a1a1a',
   },
@@ -857,7 +864,9 @@ title: {
     flex: 1,
   },
   messagesContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   messageContainer: {
     marginBottom: 16,
@@ -934,9 +943,9 @@ title: {
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    paddingBottom: 24,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
     borderTopWidth: 1,
     borderTopColor: '#2a2a2a',
     backgroundColor: '#0a0a0a',
@@ -945,18 +954,18 @@ title: {
     flex: 1,
     backgroundColor: '#1a1a1a',
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginRight: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 10,
     color: '#ffffff',
     fontSize: 16,
     maxHeight: 100,
   },
   sendButton: {
     backgroundColor: '#ffffff',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1045,34 +1054,5 @@ title: {
   tokenInfoInline: {
     marginLeft: 'auto',
     paddingLeft: 8,
-  },
-  streamStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    backgroundColor: '#1a2e1a',
-    borderRadius: 8,
-  },
-  streamStatusOffline: {
-    backgroundColor: '#2a1a1a',
-  },
-  streamIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10b981',
-    marginRight: 4,
-  },
-  streamIndicatorOffline: {
-    backgroundColor: '#ef4444',
-  },
-  streamText: {
-    fontSize: 10,
-    color: '#10b981',
-    fontWeight: '500',
-  },
-  streamTextOffline: {
-    color: '#ef4444',
   },
 });
