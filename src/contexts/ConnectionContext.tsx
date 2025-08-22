@@ -64,6 +64,8 @@ type ConnectionAction =
   | { type: 'ADD_MESSAGE'; payload: { message: MessageWithParts } }
   | { type: 'UPDATE_MESSAGE'; payload: { messageId: string; info: Message } }
   | { type: 'UPDATE_MESSAGE_PART'; payload: { messageId: string; partId: string; part: Part } }
+  | { type: 'REMOVE_MESSAGE'; payload: { sessionId: string; messageId: string } }
+  | { type: 'REMOVE_MESSAGE_PART'; payload: { sessionId: string; messageId: string; partId: string } }
   | { type: 'UPDATE_SESSION'; payload: { session: Session } }
   | { type: 'SET_STREAM_CONNECTED'; payload: { connected: boolean } }
   | { type: 'SET_GENERATING'; payload: { generating: boolean } }
@@ -190,6 +192,41 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
         console.warn('Received part for non-existent message:', action.payload.messageId);
         return state; // Could also create a placeholder message here
       }
+    case 'REMOVE_MESSAGE':
+      // Only process message removal for the current session
+      if (!state.currentSession || action.payload.sessionId !== state.currentSession.id) {
+        console.log('Ignoring message removal for different session:', action.payload.sessionId, 'current:', state.currentSession?.id);
+        return state;
+      }
+      
+      return {
+        ...state,
+        messages: state.messages.filter(msg => msg.info.id !== action.payload.messageId),
+      };
+
+    case 'REMOVE_MESSAGE_PART':
+      // Only process message part removal for the current session
+      if (!state.currentSession || action.payload.sessionId !== state.currentSession.id) {
+        console.log('Ignoring message part removal for different session:', action.payload.sessionId, 'current:', state.currentSession?.id);
+        return state;
+      }
+      
+      const messageIndexForRemoval = state.messages.findIndex(msg => msg.info.id === action.payload.messageId);
+      if (messageIndexForRemoval >= 0) {
+        return {
+          ...state,
+          messages: state.messages.map(msg => 
+            msg.info.id === action.payload.messageId 
+              ? {
+                  ...msg,
+                  parts: msg.parts.filter(part => part.id !== action.payload.partId)
+                }
+              : msg
+          ),
+        };
+      }
+      return state;
+
     case 'UPDATE_SESSION':
       const updatedSessions = state.sessions.map(s =>
         s.id === action.payload.session.id ? action.payload.session : s
@@ -641,6 +678,21 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
             }
             break;
 
+          case 'message.removed':
+            if (eventData.properties?.sessionID && eventData.properties?.messageID) {
+              const sessionID = eventData.properties.sessionID as string;
+              const messageID = eventData.properties.messageID as string;
+              console.log('Removing message:', messageID, 'from session:', sessionID);
+              dispatch({ 
+                type: 'REMOVE_MESSAGE', 
+                payload: { 
+                  sessionId: sessionID,
+                  messageId: messageID
+                }
+              });
+            }
+            break;
+
           case 'session.updated':
             if (eventData.properties?.info) {
               const sessionInfo = eventData.properties.info as Session;
@@ -676,6 +728,23 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
                   partId: part.id, 
                   part: part 
                 } 
+              });
+            }
+            break;
+
+          case 'message.part.removed':
+            if (eventData.properties?.sessionID && eventData.properties?.messageID && eventData.properties?.partID) {
+              const sessionID = eventData.properties.sessionID as string;
+              const messageID = eventData.properties.messageID as string;
+              const partID = eventData.properties.partID as string;
+              console.log('Removing message part:', partID, 'from message:', messageID, 'in session:', sessionID);
+              dispatch({ 
+                type: 'REMOVE_MESSAGE_PART', 
+                payload: { 
+                  sessionId: sessionID,
+                  messageId: messageID,
+                  partId: partID
+                }
               });
             }
             break;
