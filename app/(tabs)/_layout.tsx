@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 
 export default function TabLayout() {
-  const { connectionStatus, sessions, lastError } = useConnection();
+  const { connectionStatus, sessions } = useConnection();
 
   const getTabIcon = (name: string, focused: boolean, color: string, size: number) => {
     const iconColor = connectionStatus === 'connected' ? color : '#4b5563';

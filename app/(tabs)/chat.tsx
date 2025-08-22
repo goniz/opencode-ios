@@ -51,10 +51,12 @@ export default function ChatScreen() {
     messages, 
     isLoadingMessages,
     isStreamConnected,
+    isGenerating,
     lastError,
     clearError,
     loadMessages, 
     sendMessage,
+    abortSession,
     setCurrentSession,
     client
   } = useConnection();
@@ -207,6 +209,8 @@ export default function ChatScreen() {
     }
   }, [messages]);
 
+  // Generation state is now tracked by step-start/step-end SSE events in ConnectionContext
+
   // Scroll to newest message on session load - ensure complete scroll
   useEffect(() => {
     const timeouts: ReturnType<typeof setTimeout>[] = [];
@@ -252,6 +256,23 @@ export default function ChatScreen() {
     }
   }, [lastError, clearError]);
 
+  const handleInterrupt = useCallback(async () => {
+    if (currentSession && isGenerating) {
+      console.log('Interrupting session:', currentSession.id);
+      try {
+        const success = await abortSession(currentSession.id);
+        if (success) {
+          toast.showSuccess('Generation interrupted');
+        } else {
+          toast.showError('Failed to interrupt generation');
+        }
+      } catch (error) {
+        console.error('Failed to interrupt session:', error);
+        toast.showError('Failed to interrupt generation', error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
+  }, [currentSession, isGenerating, abortSession]);
+
   const handleSendMessage = async () => {
     console.log('handleSendMessage called', {
       inputText: inputText.trim(),
@@ -282,14 +303,14 @@ export default function ChatScreen() {
     setIsSending(true);
 
     try {
-      await sendMessage(
+      sendMessage(
         currentSession.id, 
         messageText,
         currentModel.providerID,
         currentModel.modelID,
         imagesToSend
       );
-      console.log('Message sent successfully');
+      console.log('Message queued successfully');
       // Scroll to bottom after sending
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
@@ -378,7 +399,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
               <View style={styles.streamingContainer}>
                 <ActivityIndicator size="small" color="#9ca3af" />
                 <Text style={[styles.messageText, styles.assistantText, styles.streamingText]}>
-                  Thinking...
+                  Generating...
                 </Text>
               </View>
             </View>
@@ -634,8 +655,16 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
               </TouchableOpacity>
             )}
             
+            {/* Compact generating indicator */}
+            {isGenerating && (
+              <View style={styles.generatingContainer}>
+                <ActivityIndicator size="small" color="#f59e0b" style={styles.generatingSpinner} />
+                <Text style={styles.generatingText}>Generating...</Text>
+              </View>
+            )}
+
             {/* Context window usage and cost information on same line */}
-            {contextInfo && (
+            {contextInfo && !isGenerating && (
               <View style={styles.tokenInfoInline}>
                 <Text style={styles.tokenInfoValue}>
                   {contextInfo.isSubscriptionModel 
@@ -694,6 +723,14 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             multiline
             maxLength={4000}
           />
+          {isGenerating && (
+            <TouchableOpacity
+              style={styles.interruptButton}
+              onPress={handleInterrupt}
+            >
+              <Ionicons name="stop" size={18} color="#ffffff" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[styles.sendButton, ((!inputText.trim() && selectedImages.length === 0) || isSending) && styles.sendButtonDisabled]}
             onPress={() => {
@@ -956,7 +993,7 @@ title: {
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    marginRight: 10,
+    marginRight: 8,
     color: '#ffffff',
     fontSize: 16,
     maxHeight: 100,
@@ -1054,5 +1091,36 @@ title: {
   tokenInfoInline: {
     marginLeft: 'auto',
     paddingLeft: 8,
+  },
+  generatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  generatingSpinner: {
+    marginRight: 4,
+  },
+  generatingText: {
+    fontSize: 11,
+    color: '#f59e0b',
+    fontWeight: '500',
+  },
+  interruptButton: {
+    backgroundColor: '#dc2626',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  interruptButtonText: {
+    fontSize: 11,
+    color: '#ffffff',
+    fontWeight: '600',
   },
 });

@@ -42,10 +42,7 @@ export function filterMessageParts(parts: Part[]): Part[] {
       continue;
     }
 
-    // Hide pending/running tool calls
-    if (part.type === 'tool' && (part.state.status === 'pending' || part.state.status === 'running')) {
-      continue;
-    }
+    // Note: Show all tool calls including pending/running states so users can see what AI is doing
 
     // Part passed all filters, include it
     filtered.push(part);
@@ -72,9 +69,9 @@ export function isPartVisible(part: Part): boolean {
       return true;
     
     case 'tool':
-      // Hide todoread tool calls and pending/running states
+      // Hide todoread tool calls but show all other tool calls including pending/running states
       if (part.tool === 'todoread') return false;
-      return part.state.status === 'completed' || part.state.status === 'error';
+      return true;
     
     case 'step-start':
       // Only show first step-start

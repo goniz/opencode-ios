@@ -6,7 +6,7 @@ import EventSource from 'react-native-sse';
 import { createClient } from '../api/client';
 import type { Client } from '../api/client/types.gen';
 import type { Session, Message, Part } from '../api/types.gen';
-import { sessionList, sessionMessages, sessionChat } from '../api/sdk.gen';
+import { sessionList, sessionMessages, sessionChat, sessionAbort } from '../api/sdk.gen';
 import { saveServer, type SavedServer } from '../utils/serverStorage';
 import { cacheAppPaths } from '../utils/pathUtils';
 import { processImageUris } from '../utils/imageProcessing';
@@ -37,6 +37,7 @@ export interface ConnectionState {
   messages: MessageWithParts[];
   isLoadingMessages: boolean;
   isStreamConnected: boolean;
+  isGenerating: boolean;
 }
 
 export interface ConnectionContextType extends ConnectionState {
@@ -48,7 +49,8 @@ export interface ConnectionContextType extends ConnectionState {
   retryConnection: () => Promise<void>;
   setCurrentSession: (session: Session | null) => void;
   loadMessages: (sessionId: string) => Promise<void>;
-  sendMessage: (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]) => Promise<void>;
+  sendMessage: (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]) => void;
+  abortSession: (sessionId: string) => Promise<boolean>;
 }
 
 type ConnectionAction =
@@ -64,6 +66,7 @@ type ConnectionAction =
   | { type: 'UPDATE_MESSAGE_PART'; payload: { messageId: string; partId: string; part: Part } }
   | { type: 'UPDATE_SESSION'; payload: { session: Session } }
   | { type: 'SET_STREAM_CONNECTED'; payload: { connected: boolean } }
+  | { type: 'SET_GENERATING'; payload: { generating: boolean } }
   | { type: 'DISCONNECT' }
   | { type: 'CLEAR_ERROR' };
 
@@ -77,6 +80,7 @@ const initialState: ConnectionState = {
   messages: [],
   isLoadingMessages: false,
   isStreamConnected: false,
+  isGenerating: false,
 };
 
 function connectionReducer(state: ConnectionState, action: ConnectionAction): ConnectionState {
@@ -203,6 +207,11 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
       return {
         ...state,
         isStreamConnected: action.payload.connected,
+      };
+    case 'SET_GENERATING':
+      return {
+        ...state,
+        isGenerating: action.payload.generating,
       };
     case 'DISCONNECT':
       return {
@@ -488,61 +497,85 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
   }, [state.client, state.connectionStatus]);
 
-  const sendMessage = useCallback(async (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]): Promise<void> => {
+  const sendMessage = useCallback((sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]): void => {
     if (!state.client || state.connectionStatus !== 'connected') {
-      throw new Error('Not connected to server');
+      console.error('Cannot send message: not connected to server');
+      return;
     }
 
     if (!providerID || !modelID) {
-      throw new Error('Provider and model must be selected');
+      console.error('Cannot send message: provider and model must be selected');
+      return;
     }
 
     console.log('Sending message to session:', sessionId, 'message:', message, 'images:', images?.length || 0);
 
-    try {
-    // Build the parts array
-    const parts: ({type: 'text', text: string} | {type: 'file', mime: string, url: string, filename?: string})[] = [];
-      
-      // Add text part if there's a message
-      if (message.trim()) {
-        parts.push({
-          type: 'text',
-          text: message
+    // Send message asynchronously without blocking the UI
+    const sendAsync = async () => {
+      try {
+        // Build the parts array
+        const parts: ({type: 'text', text: string} | {type: 'file', mime: string, url: string, filename?: string})[] = [];
+        
+        // Add text part if there's a message
+        if (message.trim()) {
+          parts.push({
+            type: 'text',
+            text: message
+          });
+        }
+        
+        // Add image parts if there are images
+        if (images && images.length > 0) {
+          const processedImages = await processImageUris(images);
+          
+          for (const processedImage of processedImages) {
+            parts.push({
+              type: 'file',
+              mime: processedImage.mime,
+              url: processedImage.base64Data,
+              filename: processedImage.filename
+            });
+          }
+        }
+
+        console.log('Built parts array:', parts);
+
+        // Send the message - the response will come through the event stream
+        await sessionChat({
+          client: state.client!,
+          path: { id: sessionId },
+          body: {
+            providerID,
+            modelID,
+            parts
+          }
         });
+
+        console.log('Message sent successfully');
+      } catch (error) {
+        console.error('Failed to send message:', error);
       }
-      
-    // Add image parts if there are images
-    if (images && images.length > 0) {
-      const processedImages = await processImageUris(images);
-      
-      for (const processedImage of processedImages) {
-        parts.push({
-          type: 'file',
-          mime: processedImage.mime,
-          url: processedImage.base64Data,
-          filename: processedImage.filename
-        });
-      }
+    };
+
+    // Execute without waiting
+    sendAsync();
+  }, [state.client, state.connectionStatus]);
+
+  const abortSession = useCallback(async (sessionId: string): Promise<boolean> => {
+    if (!state.client || state.connectionStatus !== 'connected') {
+      return false;
     }
 
-      console.log('Built parts array:', parts);
-
-      // Send the message - the response will come through the event stream
-      await sessionChat({
+    try {
+      await sessionAbort({
         client: state.client,
-        path: { id: sessionId },
-        body: {
-          providerID,
-          modelID,
-          parts
-        }
+        path: { id: sessionId }
       });
-
-      // Don't add empty assistant message - let the stream handle it
-      // The stream events will create and update the assistant message properly
+      console.log('Session aborted successfully:', sessionId);
+      return true;
     } catch (error) {
-      console.error('Failed to send message:', error);
-      throw error;
+      console.error('Failed to abort session:', sessionId, error);
+      return false;
     }
   }, [state.client, state.connectionStatus]);
 
@@ -644,6 +677,26 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
                   part: part 
                 } 
               });
+            }
+            break;
+
+          case 'step-start':
+            console.log('Generation step started');
+            dispatch({ type: 'SET_GENERATING', payload: { generating: true } });
+            break;
+
+          case 'step-end':
+            console.log('Generation step ended');
+            dispatch({ type: 'SET_GENERATING', payload: { generating: false } });
+            break;
+
+          case 'session.idle':
+            if (eventData.properties?.sessionID) {
+              const sessionID = eventData.properties.sessionID;
+              console.log('Session became idle:', sessionID);
+              // Use session.idle as backup to ensure generation state is cleared
+              // This provides redundancy in case step-end events are missed
+              dispatch({ type: 'SET_GENERATING', payload: { generating: false } });
             }
             break;
             
@@ -749,6 +802,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     setCurrentSession,
     loadMessages,
     sendMessage,
+    abortSession,
   }), [
     state,
     connect,
@@ -760,6 +814,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     setCurrentSession,
     loadMessages,
     sendMessage,
+    abortSession,
   ]);
 
   return (

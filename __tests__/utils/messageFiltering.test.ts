@@ -128,7 +128,7 @@ describe('messageFiltering', () => {
       expect((filtered[1] as any).tool).toBe('bash');
     });
 
-    it('should filter out pending and running tool calls', () => {
+    it('should show all tool calls including pending and running', () => {
       const parts = [
         createToolPart('1', 'bash', 'pending'),
         createToolPart('2', 'bash', 'running'),
@@ -137,9 +137,11 @@ describe('messageFiltering', () => {
       ];
 
       const filtered = filterMessageParts(parts);
-      expect(filtered).toHaveLength(2);
-      expect((filtered[0] as any).state.status).toBe('completed');
-      expect((filtered[1] as any).state.status).toBe('error');
+      expect(filtered).toHaveLength(4); // Now shows all tool calls
+      expect((filtered[0] as any).state.status).toBe('pending');
+      expect((filtered[1] as any).state.status).toBe('running');
+      expect((filtered[2] as any).state.status).toBe('completed');
+      expect((filtered[3] as any).state.status).toBe('error');
     });
   });
 
@@ -190,9 +192,9 @@ describe('messageFiltering', () => {
       expect(isPartVisible(createToolPart('1', 'bash', 'error'))).toBe(true);
     });
 
-    it('should return false for pending/running tool calls', () => {
-      expect(isPartVisible(createToolPart('1', 'bash', 'pending'))).toBe(false);
-      expect(isPartVisible(createToolPart('1', 'bash', 'running'))).toBe(false);
+    it('should return true for pending/running tool calls', () => {
+      expect(isPartVisible(createToolPart('1', 'bash', 'pending'))).toBe(true);
+      expect(isPartVisible(createToolPart('1', 'bash', 'running'))).toBe(true);
     });
 
     it('should return false for system parts', () => {
@@ -212,33 +214,33 @@ describe('messageFiltering', () => {
         createTextPart('1', 'Visible text'),
         createTextPart('2', '', false), // Empty text - should be hidden
         createToolPart('3', 'bash', 'completed'), // Should be visible
-        createToolPart('4', 'bash', 'pending'), // Should be hidden
+        createToolPart('4', 'bash', 'pending'), // Now should be visible
         createStepFinishPart('5'), // Should be hidden
       ];
 
       const result = categorizeMessageParts(parts);
 
       expect(result.total).toBe(5);
-      expect(result.visible).toHaveLength(2);
-      expect(result.hidden).toHaveLength(3);
+      expect(result.visible).toHaveLength(3); // Now 3 visible (text + 2 tools)
+      expect(result.hidden).toHaveLength(2); // Now 2 hidden (empty text + step-finish)
       expect(result.hasContent).toBe(true);
 
       expect((result.visible[0] as any).text).toBe('Visible text');
       expect((result.visible[1] as any).tool).toBe('bash');
+      expect((result.visible[2] as any).tool).toBe('bash');
     });
 
     it('should return hasContent false when no visible parts', () => {
       const parts = [
-        createTextPart('1', '', false),
-        createToolPart('2', 'bash', 'pending'),
-        createStepFinishPart('3'),
+        createTextPart('1', '', false), // Empty text - hidden
+        createStepFinishPart('3'), // System part - hidden
       ];
 
       const result = categorizeMessageParts(parts);
 
       expect(result.hasContent).toBe(false);
       expect(result.visible).toHaveLength(0);
-      expect(result.hidden).toHaveLength(3);
+      expect(result.hidden).toHaveLength(2);
     });
   });
 });
