@@ -246,6 +246,7 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
         isStreamConnected: action.payload.connected,
       };
     case 'SET_GENERATING':
+      console.log('🔧 SET_GENERATING action:', action.payload.generating, 'previous state:', state.isGenerating);
       return {
         ...state,
         isGenerating: action.payload.generating,
@@ -551,6 +552,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     const sendAsync = async () => {
       try {
         console.log('🚀 Starting message send - waiting for step-start event');
+        console.log('   Current isGenerating state before send:', state.isGenerating);
         
         // Build the parts array
         const parts: ({type: 'text', text: string} | {type: 'file', mime: string, url: string, filename?: string})[] = [];
@@ -747,9 +749,11 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
               // Check if this is a step-start or step-finish part
               if (part.type === 'step-start') {
                 console.log('🟢 Generation step started - setting isGenerating = true');
+                console.log('   Current isGenerating state:', state.isGenerating);
                 dispatch({ type: 'SET_GENERATING', payload: { generating: true } });
               } else if (part.type === 'step-finish') {
                 console.log('🔴 Generation step finished - setting isGenerating = false');
+                console.log('   Current isGenerating state:', state.isGenerating);
                 dispatch({ type: 'SET_GENERATING', payload: { generating: false } });
               }
               
@@ -770,6 +774,8 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
               console.log('Session became idle:', sessionID);
               // Use session.idle as backup to ensure generation state is cleared
               // This provides redundancy in case step-end events are missed
+              // However, we should be careful not to interfere with normal flow
+              console.log('🟡 Session idle event - setting isGenerating = false as backup');
               dispatch({ type: 'SET_GENERATING', payload: { generating: false } });
             }
             break;
