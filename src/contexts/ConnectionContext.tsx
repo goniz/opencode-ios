@@ -550,6 +550,8 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     // Send message asynchronously without blocking the UI
     const sendAsync = async () => {
       try {
+        console.log('🚀 Starting message send - waiting for step-start event');
+        
         // Build the parts array
         const parts: ({type: 'text', text: string} | {type: 'file', mime: string, url: string, filename?: string})[] = [];
         
@@ -588,7 +590,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
           }
         });
 
-        console.log('Message sent successfully');
+        console.log('✅ Message sent successfully - waiting for step-start event');
       } catch (error) {
         console.error('Failed to send message:', error);
       }
@@ -717,20 +719,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
             }
             break;
             
-          case 'message.part.updated':
-            if (eventData.properties?.part) {
-              const part = eventData.properties.part;
-              console.log('Updating message part:', part.messageID, part.id, 'for session:', part.sessionID);
-              dispatch({ 
-                type: 'UPDATE_MESSAGE_PART', 
-                payload: { 
-                  messageId: part.messageID, 
-                  partId: part.id, 
-                  part: part 
-                } 
-              });
-            }
-            break;
+          
 
           case 'message.part.removed':
             if (eventData.properties?.sessionID && eventData.properties?.messageID && eventData.properties?.partID) {
@@ -749,14 +738,30 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
             }
             break;
 
-          case 'step-start':
-            console.log('Generation step started');
-            dispatch({ type: 'SET_GENERATING', payload: { generating: true } });
-            break;
-
-          case 'step-end':
-            console.log('Generation step ended');
-            dispatch({ type: 'SET_GENERATING', payload: { generating: false } });
+          case 'message.part.updated':
+            // Handle step-start and step-finish parts
+            if (eventData.properties?.part) {
+              const part = eventData.properties.part;
+              console.log('Updating message part:', part.messageID, part.id, 'for session:', part.sessionID, 'type:', part.type);
+              
+              // Check if this is a step-start or step-finish part
+              if (part.type === 'step-start') {
+                console.log('🟢 Generation step started - setting isGenerating = true');
+                dispatch({ type: 'SET_GENERATING', payload: { generating: true } });
+              } else if (part.type === 'step-finish') {
+                console.log('🔴 Generation step finished - setting isGenerating = false');
+                dispatch({ type: 'SET_GENERATING', payload: { generating: false } });
+              }
+              
+              dispatch({ 
+                type: 'UPDATE_MESSAGE_PART', 
+                payload: { 
+                  messageId: part.messageID, 
+                  partId: part.id, 
+                  part: part 
+                } 
+              });
+            }
             break;
 
           case 'session.idle':

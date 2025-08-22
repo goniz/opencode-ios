@@ -115,7 +115,7 @@ class ToastService {
     }
 
     if (!this.permissionsGranted) {
-      console.warn('Notifications not permitted, falling back to console log:', title);
+      console.warn('Notifications not permitted, falling back to console log:', title, body);
       return;
     }
 
@@ -126,10 +126,13 @@ class ToastService {
       // Construct styled title with emoji
       const styledTitle = `${emoji} ${title}`;
       
+      // Ensure body is a valid string or undefined (not null)
+      const validBody = body && body.trim() !== '' ? body : undefined;
+      
       await Notifications.scheduleNotificationAsync({
         content: {
           title: styledTitle,
-          body,
+          body: validBody,
           data: { 
             type,
             color,

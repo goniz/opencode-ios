@@ -70,6 +70,7 @@ export default function ChatScreen() {
   const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string, contextLimit: number}[]>([]);
   const [currentProviderModels, setCurrentProviderModels] = useState<{modelID: string, name: string}[]>([]);
   const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
+  const [loadedSessionId, setLoadedSessionId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   // Handle session ID from navigation parameters
@@ -94,7 +95,8 @@ export default function ChatScreen() {
     console.log('Chat screen - messages count:', messages.length);
     console.log('Chat screen - isStreamConnected:', isStreamConnected);
     console.log('Chat screen - sessionId param:', sessionId);
-  }, [currentSession, sessions, connectionStatus, messages.length, isStreamConnected, sessionId]);
+    console.log('🎯 Chat screen - isGenerating:', isGenerating);
+  }, [currentSession, sessions, connectionStatus, messages.length, isStreamConnected, sessionId, isGenerating]);
 
   // Load available providers and models when connected
   useEffect(() => {
@@ -188,16 +190,18 @@ export default function ChatScreen() {
 
 
   useEffect(() => {
-    if (currentSession) {
+    if (currentSession && currentSession.id !== loadedSessionId) {
       console.log('Loading messages for session:', currentSession.id, currentSession.title);
+      setLoadedSessionId(currentSession.id);
       loadMessages(currentSession.id).catch(error => {
         console.error('Failed to load messages:', error);
         toast.showError('Failed to load messages', error instanceof Error ? error.message : 'Unknown error');
       });
-    } else {
+    } else if (!currentSession) {
       console.log('No current session set');
+      setLoadedSessionId(null);
     }
-  }, [currentSession, loadMessages]);
+  }, [currentSession?.id, loadMessages, loadedSessionId]);
 
   // Auto-scroll to bottom when messages change and on initial load
   useEffect(() => {
@@ -262,9 +266,9 @@ export default function ChatScreen() {
       try {
         const success = await abortSession(currentSession.id);
         if (success) {
-          toast.showSuccess('Generation interrupted');
+          toast.showSuccess('Generation interrupted', 'The generation has been stopped');
         } else {
-          toast.showError('Failed to interrupt generation');
+          toast.showError('Failed to interrupt generation', 'Could not stop the generation process');
         }
       } catch (error) {
         console.error('Failed to interrupt session:', error);
