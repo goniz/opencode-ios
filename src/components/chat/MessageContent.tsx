@@ -67,7 +67,7 @@ export function MessageContent({
       case 'step-start':
         return {
           ...basePart,
-          step: 'Starting task...',
+          step: '',
         };
         
         case 'agent':

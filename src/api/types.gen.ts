@@ -543,6 +543,14 @@ export type Config = {
          */
         scroll_speed: number;
     };
+    command?: {
+        [key: string]: {
+            template: string;
+            description?: string;
+            agent?: string;
+            model?: string;
+        };
+    };
     plugin?: Array<string>;
     snapshot?: boolean;
     /**
@@ -1050,6 +1058,14 @@ export type AgentPartInput = {
     };
 };
 
+export type Command = {
+    name: string;
+    description?: string;
+    agent?: string;
+    model?: string;
+    template: string;
+};
+
 export type Symbol = {
     name: string;
     kind: number;
@@ -1460,7 +1476,10 @@ export type SessionChatResponses = {
     /**
      * Created message
      */
-    200: AssistantMessage;
+    200: {
+        info: AssistantMessage;
+        parts: Array<Part>;
+    };
 };
 
 export type SessionChatResponse = SessionChatResponses[keyof SessionChatResponses];
@@ -1492,6 +1511,36 @@ export type SessionMessageResponses = {
 };
 
 export type SessionMessageResponse = SessionMessageResponses[keyof SessionMessageResponses];
+
+export type SessionCommandData = {
+    body?: {
+        messageID?: string;
+        agent?: string;
+        model?: string;
+        arguments: string;
+        command: string;
+    };
+    path: {
+        /**
+         * Session ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/session/{id}/command';
+};
+
+export type SessionCommandResponses = {
+    /**
+     * Created message
+     */
+    200: {
+        info: AssistantMessage;
+        parts: Array<Part>;
+    };
+};
+
+export type SessionCommandResponse = SessionCommandResponses[keyof SessionCommandResponses];
 
 export type SessionShellData = {
     body?: {
@@ -1576,6 +1625,22 @@ export type PostSessionByIdPermissionsByPermissionIdResponses = {
 };
 
 export type PostSessionByIdPermissionsByPermissionIdResponse = PostSessionByIdPermissionsByPermissionIdResponses[keyof PostSessionByIdPermissionsByPermissionIdResponses];
+
+export type CommandListData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/command';
+};
+
+export type CommandListResponses = {
+    /**
+     * List of commands
+     */
+    200: Array<Command>;
+};
+
+export type CommandListResponse = CommandListResponses[keyof CommandListResponses];
 
 export type ConfigProvidersData = {
     body?: never;

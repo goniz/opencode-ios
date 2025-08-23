@@ -92,6 +92,7 @@ This runs the development server in the background, allowing you to continue usi
 7. Maintain cross-platform compatibility
 8. **ALWAYS prefer `expo install` over `npm install`** for installing packages - Expo install ensures compatibility with the current Expo SDK version
 9. **NEVER edit files in `src/api/` directory** - These are auto-generated files that will be overwritten when the API schema is updated. Create custom types in `src/types/` instead.
+10. **ALWAYS use todo lists when handling user tasks** - Create todo lists using the TodoWrite tool for any non-trivial task to track progress and ensure all requirements are completed. Mark tasks as in_progress when working on them and completed immediately after finishing each task.
 
 ## TypeScript Guidelines
 - **NEVER use `any` type** - always specify proper types

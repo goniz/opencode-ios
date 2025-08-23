@@ -6,7 +6,7 @@ import EventSource from 'react-native-sse';
 import { createClient } from '../api/client';
 import type { Client } from '../api/client/types.gen';
 import type { Session, Message, Part } from '../api/types.gen';
-import { sessionList, sessionMessages, sessionChat } from '../api/sdk.gen';
+import { sessionList, sessionMessages, sessionChat, sessionAbort } from '../api/sdk.gen';
 import { saveServer, type SavedServer } from '../utils/serverStorage';
 import { cacheAppPaths } from '../utils/pathUtils';
 import { processImageUris } from '../utils/imageProcessing';
@@ -37,6 +37,8 @@ export interface ConnectionState {
   messages: MessageWithParts[];
   isLoadingMessages: boolean;
   isStreamConnected: boolean;
+  isGenerating: boolean;
+  latestProviderModel: { providerID: string; modelID: string } | null;
 }
 
 export interface ConnectionContextType extends ConnectionState {
@@ -48,7 +50,8 @@ export interface ConnectionContextType extends ConnectionState {
   retryConnection: () => Promise<void>;
   setCurrentSession: (session: Session | null) => void;
   loadMessages: (sessionId: string) => Promise<void>;
-  sendMessage: (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]) => Promise<void>;
+  sendMessage: (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]) => void;
+  abortSession: (sessionId: string) => Promise<boolean>;
 }
 
 type ConnectionAction =
@@ -62,8 +65,12 @@ type ConnectionAction =
   | { type: 'ADD_MESSAGE'; payload: { message: MessageWithParts } }
   | { type: 'UPDATE_MESSAGE'; payload: { messageId: string; info: Message } }
   | { type: 'UPDATE_MESSAGE_PART'; payload: { messageId: string; partId: string; part: Part } }
+  | { type: 'REMOVE_MESSAGE'; payload: { sessionId: string; messageId: string } }
+  | { type: 'REMOVE_MESSAGE_PART'; payload: { sessionId: string; messageId: string; partId: string } }
   | { type: 'UPDATE_SESSION'; payload: { session: Session } }
   | { type: 'SET_STREAM_CONNECTED'; payload: { connected: boolean } }
+  | { type: 'SET_GENERATING'; payload: { generating: boolean } }
+  | { type: 'SET_LATEST_PROVIDER_MODEL'; payload: { providerID: string; modelID: string } }
   | { type: 'DISCONNECT' }
   | { type: 'CLEAR_ERROR' };
 
@@ -77,6 +84,8 @@ const initialState: ConnectionState = {
   messages: [],
   isLoadingMessages: false,
   isStreamConnected: false,
+  isGenerating: false,
+  latestProviderModel: null,
 };
 
 function connectionReducer(state: ConnectionState, action: ConnectionAction): ConnectionState {
@@ -107,11 +116,12 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
         ...state,
         sessions: action.payload.sessions,
       };
-    case 'SET_CURRENT_SESSION':
+case 'SET_CURRENT_SESSION':
       return {
         ...state,
         currentSession: action.payload.session,
         messages: [], // Clear messages when switching sessions
+        isGenerating: false, // Clear isGenerating when switching sessions
       };
     case 'SET_MESSAGES':
       return {
@@ -186,6 +196,41 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
         console.warn('Received part for non-existent message:', action.payload.messageId);
         return state; // Could also create a placeholder message here
       }
+    case 'REMOVE_MESSAGE':
+      // Only process message removal for the current session
+      if (!state.currentSession || action.payload.sessionId !== state.currentSession.id) {
+        console.log('Ignoring message removal for different session:', action.payload.sessionId, 'current:', state.currentSession?.id);
+        return state;
+      }
+      
+      return {
+        ...state,
+        messages: state.messages.filter(msg => msg.info.id !== action.payload.messageId),
+      };
+
+    case 'REMOVE_MESSAGE_PART':
+      // Only process message part removal for the current session
+      if (!state.currentSession || action.payload.sessionId !== state.currentSession.id) {
+        console.log('Ignoring message part removal for different session:', action.payload.sessionId, 'current:', state.currentSession?.id);
+        return state;
+      }
+      
+      const messageIndexForRemoval = state.messages.findIndex(msg => msg.info.id === action.payload.messageId);
+      if (messageIndexForRemoval >= 0) {
+        return {
+          ...state,
+          messages: state.messages.map(msg => 
+            msg.info.id === action.payload.messageId 
+              ? {
+                  ...msg,
+                  parts: msg.parts.filter(part => part.id !== action.payload.partId)
+                }
+              : msg
+          ),
+        };
+      }
+      return state;
+
     case 'UPDATE_SESSION':
       const updatedSessions = state.sessions.map(s =>
         s.id === action.payload.session.id ? action.payload.session : s
@@ -203,6 +248,20 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
       return {
         ...state,
         isStreamConnected: action.payload.connected,
+      };
+    case 'SET_GENERATING':
+      console.log('🔧 SET_GENERATING action:', action.payload.generating, 'previous state:', state.isGenerating);
+      return {
+        ...state,
+        isGenerating: action.payload.generating,
+      };
+    case 'SET_LATEST_PROVIDER_MODEL':
+      return {
+        ...state,
+        latestProviderModel: {
+          providerID: action.payload.providerID,
+          modelID: action.payload.modelID
+        }
       };
     case 'DISCONNECT':
       return {
@@ -488,61 +547,120 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
   }, [state.client, state.connectionStatus]);
 
-  const sendMessage = useCallback(async (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]): Promise<void> => {
+  const sendMessage = useCallback((sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]): void => {
     if (!state.client || state.connectionStatus !== 'connected') {
-      throw new Error('Not connected to server');
+      console.error('Cannot send message: not connected to server');
+      return;
     }
 
     if (!providerID || !modelID) {
-      throw new Error('Provider and model must be selected');
+      console.error('Cannot send message: provider and model must be selected');
+      return;
     }
 
     console.log('Sending message to session:', sessionId, 'message:', message, 'images:', images?.length || 0);
 
-    try {
-    // Build the parts array
-    const parts: ({type: 'text', text: string} | {type: 'file', mime: string, url: string, filename?: string})[] = [];
-      
-      // Add text part if there's a message
-      if (message.trim()) {
-        parts.push({
-          type: 'text',
-          text: message
+    // Send message asynchronously without blocking the UI
+    const sendAsync = async () => {
+      try {
+        console.log('🚀 Starting message send - waiting for step-start event');
+        console.log('   Current isGenerating state before send:', state.isGenerating);
+        
+        // Build the parts array
+        const parts: ({type: 'text', text: string} | {type: 'file', mime: string, url: string, filename?: string})[] = [];
+        
+        // Add text part if there's a message
+        if (message.trim()) {
+          parts.push({
+            type: 'text',
+            text: message
+          });
+        }
+        
+        // Add image parts if there are images
+        if (images && images.length > 0) {
+          const processedImages = await processImageUris(images);
+          
+          for (const processedImage of processedImages) {
+            parts.push({
+              type: 'file',
+              mime: processedImage.mime,
+              url: processedImage.base64Data,
+              filename: processedImage.filename
+            });
+          }
+        }
+
+        console.log('Built parts array:', parts);
+
+        // Send the message - the response will come through the event stream
+        const response = await sessionChat({
+          client: state.client!,
+          path: { id: sessionId },
+          body: {
+            providerID,
+            modelID,
+            parts
+          }
         });
+
+        // Handle the immediate response (contains assistant message info and initial parts)
+        if (response.data) {
+          console.log('Received immediate response from chat:', response.data);
+          
+          // Add the assistant message to the state
+          const messageWithParts: MessageWithParts = {
+            info: response.data.info,
+            parts: response.data.parts || []
+          };
+          
+          dispatch({ 
+            type: 'ADD_MESSAGE', 
+            payload: { message: messageWithParts } 
+          });
+          
+          // Update latest provider/model if this is an assistant message with provider/model info
+          if (response.data.info.role === 'assistant' && 
+              'providerID' in response.data.info && 
+              'modelID' in response.data.info) {
+            const assistantMessage = response.data.info as { providerID: string; modelID: string };
+            if (assistantMessage.providerID && assistantMessage.modelID) {
+              dispatch({
+                type: 'SET_LATEST_PROVIDER_MODEL',
+                payload: {
+                  providerID: assistantMessage.providerID,
+                  modelID: assistantMessage.modelID
+                }
+              });
+            }
+          }
+        }
+
+        console.log('✅ Message sent successfully - waiting for step-start event');
+      } catch (error) {
+        console.error('Failed to send message:', error);
       }
-      
-    // Add image parts if there are images
-    if (images && images.length > 0) {
-      const processedImages = await processImageUris(images);
-      
-      for (const processedImage of processedImages) {
-        parts.push({
-          type: 'file',
-          mime: processedImage.mime,
-          url: processedImage.base64Data,
-          filename: processedImage.filename
-        });
-      }
+    };
+
+    // Execute without waiting
+    sendAsync();
+  }, [state.client, state.connectionStatus, state.isGenerating]);
+
+  const abortSession = useCallback(async (sessionId: string): Promise<boolean> => {
+    if (!state.client || state.connectionStatus !== 'connected') {
+      return false;
     }
 
-      console.log('Built parts array:', parts);
-
-      // Send the message - the response will come through the event stream
-      await sessionChat({
+    try {
+      await sessionAbort({
         client: state.client,
-        path: { id: sessionId },
-        body: {
-          providerID,
-          modelID,
-          parts
-        }
+        path: { id: sessionId }
       });
-
-      // Don't add empty assistant message - let the stream handle it
-      // The stream events will create and update the assistant message properly
+      console.log('Session aborted successfully:', sessionId);
+      return true;
     } catch (error) {
-      console.error('Failed to send message:', error);
-      throw error;
+      console.error('Failed to abort session:', sessionId, error);
+      return false;
     }
   }, [state.client, state.connectionStatus]);
 
@@ -605,6 +723,37 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
                   info: messageInfo
                 }
               });
+              
+              // Update latest provider/model if this is an assistant message with provider/model info
+              if (messageInfo.role === 'assistant' && 
+                  'providerID' in messageInfo && 
+                  'modelID' in messageInfo) {
+                const assistantMessage = messageInfo as { providerID: string; modelID: string };
+                if (assistantMessage.providerID && assistantMessage.modelID) {
+                  dispatch({
+                    type: 'SET_LATEST_PROVIDER_MODEL',
+                    payload: {
+                      providerID: assistantMessage.providerID,
+                      modelID: assistantMessage.modelID
+                    }
+                  });
+                }
+              }
+            }
+            break;
+
+          case 'message.removed':
+            if (eventData.properties?.sessionID && eventData.properties?.messageID) {
+              const sessionID = eventData.properties.sessionID as string;
+              const messageID = eventData.properties.messageID as string;
+              console.log('Removing message:', messageID, 'from session:', sessionID);
+              dispatch({ 
+                type: 'REMOVE_MESSAGE', 
+                payload: { 
+                  sessionId: sessionID,
+                  messageId: messageID
+                }
+              });
             }
             break;
 
@@ -632,10 +781,39 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
             }
             break;
             
+          
+
+          case 'message.part.removed':
+            if (eventData.properties?.sessionID && eventData.properties?.messageID && eventData.properties?.partID) {
+              const sessionID = eventData.properties.sessionID as string;
+              const messageID = eventData.properties.messageID as string;
+              const partID = eventData.properties.partID as string;
+              console.log('Removing message part:', partID, 'from message:', messageID, 'in session:', sessionID);
+              dispatch({ 
+                type: 'REMOVE_MESSAGE_PART', 
+                payload: { 
+                  sessionId: sessionID,
+                  messageId: messageID,
+                  partId: partID
+                }
+              });
+            }
+            break;
+
           case 'message.part.updated':
+            // Handle step-start and step-finish parts
             if (eventData.properties?.part) {
               const part = eventData.properties.part;
-              console.log('Updating message part:', part.messageID, part.id, 'for session:', part.sessionID);
+              console.log('Updating message part:', part.messageID, part.id, 'for session:', part.sessionID, 'type:', part.type);
+              
+              // Check if this is a step-start part (only set isGenerating to true on step-start)
+              if (part.type === 'step-start') {
+                console.log('🟢 Generation step started - setting isGenerating = true');
+                console.log('   Current isGenerating state:', state.isGenerating);
+                dispatch({ type: 'SET_GENERATING', payload: { generating: true } });
+              }
+              // Note: step-finish no longer sets isGenerating to false - that's handled by session.idle
+              
               dispatch({ 
                 type: 'UPDATE_MESSAGE_PART', 
                 payload: { 
@@ -644,6 +822,16 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
                   part: part 
                 } 
               });
+            }
+            break;
+
+          case 'session.idle':
+            if (eventData.properties?.sessionID) {
+              const sessionID = eventData.properties.sessionID;
+              console.log('Session became idle:', sessionID);
+              // Set isGenerating to false only on session.idle as per requirements
+              console.log('🟡 Session idle event - setting isGenerating = false');
+              dispatch({ type: 'SET_GENERATING', payload: { generating: false } });
             }
             break;
             
@@ -707,7 +895,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
         console.log('Max retry attempts reached for event stream');
       }
     }
-}, [stopEventStream]);
+}, [stopEventStream, state.isGenerating]);
 
   // Handle app state changes to manage connection gracefully
   useEffect(() => {
@@ -749,6 +937,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     setCurrentSession,
     loadMessages,
     sendMessage,
+    abortSession,
   }), [
     state,
     connect,
@@ -760,6 +949,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     setCurrentSession,
     loadMessages,
     sendMessage,
+    abortSession,
   ]);
 
   return (

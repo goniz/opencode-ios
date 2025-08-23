@@ -51,12 +51,15 @@ export default function ChatScreen() {
     messages, 
     isLoadingMessages,
     isStreamConnected,
+    isGenerating,
     lastError,
     clearError,
     loadMessages, 
     sendMessage,
+    abortSession,
     setCurrentSession,
-    client
+    client,
+    latestProviderModel
   } = useConnection();
   
   const [inputText, setInputText] = useState('');
@@ -68,6 +71,7 @@ export default function ChatScreen() {
   const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string, contextLimit: number}[]>([]);
   const [currentProviderModels, setCurrentProviderModels] = useState<{modelID: string, name: string}[]>([]);
   const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
+  const [loadedSessionId, setLoadedSessionId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   // Handle session ID from navigation parameters
@@ -92,7 +96,8 @@ export default function ChatScreen() {
     console.log('Chat screen - messages count:', messages.length);
     console.log('Chat screen - isStreamConnected:', isStreamConnected);
     console.log('Chat screen - sessionId param:', sessionId);
-  }, [currentSession, sessions, connectionStatus, messages.length, isStreamConnected, sessionId]);
+    console.log('🎯 Chat screen - isGenerating:', isGenerating);
+  }, [currentSession, sessions, connectionStatus, messages.length, isStreamConnected, sessionId, isGenerating]);
 
   // Load available providers and models when connected
   useEffect(() => {
@@ -135,10 +140,15 @@ export default function ChatScreen() {
     loadProvidersAndModels();
   }, [connectionStatus, client]);
 
-  // Set default provider and model from last assistant message
+  // Session-scoped provider and model selection - update when session or messages change
   useEffect(() => {
-    if (messages.length > 0 && availableProviders.length > 0 && !currentProvider && !currentModel) {
-      // Find the last assistant message with proper type checking
+    // Only set model selection if we have providers and a current session
+    if (availableProviders.length === 0 || !currentSession) {
+      return;
+    }
+
+    // Find the last assistant message in the current session
+    if (messages.length > 0) {
       const lastAssistantMessage = [...messages]
         .reverse()
         .find(msg => msg.info.role === 'assistant');
@@ -152,16 +162,31 @@ export default function ChatScreen() {
         if (assistantMessage.providerID && assistantMessage.modelID) {
           const providerExists = availableProviders.find(p => p.id === assistantMessage.providerID);
           if (providerExists) {
+            console.log('🎯 Setting session-scoped model:', assistantMessage.providerID, assistantMessage.modelID, 'for session:', currentSession.id);
             setCurrentProvider(assistantMessage.providerID);
             setCurrentModel({
               providerID: assistantMessage.providerID,
               modelID: assistantMessage.modelID
             });
+            return;
           }
         }
       }
     }
-  }, [messages, availableProviders, currentProvider, currentModel]);
+    
+    // Fallback to latest provider/model from connection context if no messages in session
+    if (latestProviderModel) {
+      const providerExists = availableProviders.find(p => p.id === latestProviderModel.providerID);
+      if (providerExists) {
+        console.log('🎯 Using fallback model from context:', latestProviderModel.providerID, latestProviderModel.modelID);
+        setCurrentProvider(latestProviderModel.providerID);
+        setCurrentModel({
+          providerID: latestProviderModel.providerID,
+          modelID: latestProviderModel.modelID
+        });
+      }
+    }
+  }, [messages, availableProviders, currentSession, latestProviderModel]);
 
   // Update available models for current provider
   useEffect(() => {
@@ -185,17 +210,29 @@ export default function ChatScreen() {
 
 
 
+  // Reset model selection when session changes to ensure session-scoped selection
   useEffect(() => {
-    if (currentSession) {
+    if (currentSession && currentSession.id !== loadedSessionId) {
+      console.log('🔄 Session changed, resetting model selection for session:', currentSession.id, currentSession.title);
+      // Reset model selection so it gets set from the new session's messages
+      setCurrentProvider(null);
+      setCurrentModel(null);
+    }
+  }, [currentSession, loadedSessionId]);
+
+  useEffect(() => {
+    if (currentSession && currentSession.id !== loadedSessionId) {
       console.log('Loading messages for session:', currentSession.id, currentSession.title);
+      setLoadedSessionId(currentSession.id);
       loadMessages(currentSession.id).catch(error => {
         console.error('Failed to load messages:', error);
         toast.showError('Failed to load messages', error instanceof Error ? error.message : 'Unknown error');
       });
-    } else {
+    } else if (!currentSession) {
       console.log('No current session set');
+      setLoadedSessionId(null);
     }
-  }, [currentSession, loadMessages]);
+  }, [currentSession, currentSession?.id, loadMessages, loadedSessionId]);
 
   // Auto-scroll to bottom when messages change and on initial load
   useEffect(() => {
@@ -206,6 +243,8 @@ export default function ChatScreen() {
       }, 150);
     }
   }, [messages]);
+
+  // Generation state is now tracked by step-start/step-end SSE events in ConnectionContext
 
   // Scroll to newest message on session load - ensure complete scroll
   useEffect(() => {
@@ -252,6 +291,22 @@ export default function ChatScreen() {
     }
   }, [lastError, clearError]);
 
+  const handleInterrupt = useCallback(async () => {
+    if (currentSession && isGenerating) {
+      console.log('Interrupting session:', currentSession.id);
+      try {
+        const success = await abortSession(currentSession.id);
+        if (success) {
+          console.log('Generation interrupted successfully');
+        } else {
+          console.error('Failed to interrupt generation');
+        }
+      } catch (error) {
+        console.error('Failed to interrupt session:', error);
+      }
+    }
+  }, [currentSession, isGenerating, abortSession]);
+
   const handleSendMessage = async () => {
     console.log('handleSendMessage called', {
       inputText: inputText.trim(),
@@ -282,14 +337,14 @@ export default function ChatScreen() {
     setIsSending(true);
 
     try {
-      await sendMessage(
+      sendMessage(
         currentSession.id, 
         messageText,
         currentModel.providerID,
         currentModel.modelID,
         imagesToSend
       );
-      console.log('Message sent successfully');
+      console.log('Message queued successfully');
       // Scroll to bottom after sending
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
@@ -364,6 +419,37 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
       );
     }
 
+    // Handle queued state (messages waiting to be processed)
+    const isQueued = isUser && isGenerating && index === messages.length - 1;
+    
+    if (isQueued) {
+      return (
+        <View style={styles.messageContainer}>
+          <View style={[styles.twoColumnLayout, styles.userMessageContainer]}>
+            <MessageDecoration 
+              role={item.info.role} 
+              isFirstPart={true}
+              isLastPart={true}
+            />
+            <View style={[styles.contentColumn, styles.userContentColumn]}>
+              <View style={styles.userMessageBubble}>
+                <View style={styles.queuedMessageContainer}>
+                  <ActivityIndicator size="small" color="#9ca3af" style={styles.queuedSpinner} />
+                  <Text style={styles.queuedMessageText}>
+                    Queued...
+                  </Text>
+                </View>
+              </View>
+              <MessageTimestamp 
+                timestamp={item.info.time.created}
+                compact={true}
+              />
+            </View>
+          </View>
+        </View>
+      );
+    }
+
     // Handle streaming state
     if (isStreaming) {
       return (
@@ -378,7 +464,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
               <View style={styles.streamingContainer}>
                 <ActivityIndicator size="small" color="#9ca3af" />
                 <Text style={[styles.messageText, styles.assistantText, styles.streamingText]}>
-                  Thinking...
+                  Generating...
                 </Text>
               </View>
             </View>
@@ -421,7 +507,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
           const isLastPart = partIndex === filteredParts.length - 1;
           
           return (
-            <View key={`${item.info.id}-part-${partIndex}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
+            <View key={`${item.info.id}-${index}-part-${partIndex}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
               <MessageDecoration 
                 role={item.info.role}
                 part={part}
@@ -634,8 +720,16 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
               </TouchableOpacity>
             )}
             
+            {/* Compact generating indicator */}
+            {isGenerating && (
+              <View style={styles.generatingContainer}>
+                <ActivityIndicator size="small" color="#f59e0b" style={styles.generatingSpinner} />
+                <Text style={styles.generatingText}>Generating...</Text>
+              </View>
+            )}
+
             {/* Context window usage and cost information on same line */}
-            {contextInfo && (
+            {contextInfo && !isGenerating && (
               <View style={styles.tokenInfoInline}>
                 <Text style={styles.tokenInfoValue}>
                   {contextInfo.isSubscriptionModel 
@@ -671,7 +765,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             ref={flatListRef}
             data={messages}
             renderItem={renderMessage}
-            keyExtractor={(item) => item.info.id}
+            keyExtractor={(item, index) => `${item.info.id}-${index}`}
             style={styles.messagesList}
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
@@ -694,6 +788,14 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             multiline
             maxLength={4000}
           />
+          {isGenerating && (
+            <TouchableOpacity
+              style={styles.interruptButton}
+              onPress={handleInterrupt}
+            >
+              <Ionicons name="stop" size={18} color="#ffffff" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[styles.sendButton, ((!inputText.trim() && selectedImages.length === 0) || isSending) && styles.sendButtonDisabled]}
             onPress={() => {
@@ -956,7 +1058,7 @@ title: {
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    marginRight: 10,
+    marginRight: 8,
     color: '#ffffff',
     fontSize: 16,
     maxHeight: 100,
@@ -1054,5 +1156,49 @@ title: {
   tokenInfoInline: {
     marginLeft: 'auto',
     paddingLeft: 8,
+  },
+  generatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  generatingSpinner: {
+    marginRight: 4,
+  },
+  generatingText: {
+    fontSize: 11,
+    color: '#f59e0b',
+    fontWeight: '500',
+  },
+  interruptButton: {
+    backgroundColor: '#dc2626',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  interruptButtonText: {
+    fontSize: 11,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  queuedMessageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  queuedSpinner: {
+    marginRight: 8,
+  },
+  queuedMessageText: {
+    color: '#9ca3af',
+    fontSize: 16,
+    lineHeight: 22,
+    fontStyle: 'italic',
   },
 });
