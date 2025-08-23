@@ -843,6 +843,14 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
       eventSource.addEventListener('open', () => {
         console.log('Event stream connected');
         dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: true } });
+        
+        // Reload current session to sync latest data after reconnection
+        if (state.currentSession) {
+          console.log('Reloading current session after reconnection:', state.currentSession.id);
+          loadMessages(state.currentSession.id).catch((error) => {
+            console.log('Failed to reload session after reconnection:', error);
+          });
+        }
       });
 
       eventSource.addEventListener('message', (event: unknown) => {
