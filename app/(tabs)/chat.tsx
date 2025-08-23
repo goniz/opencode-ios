@@ -507,7 +507,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
           const isLastPart = partIndex === filteredParts.length - 1;
           
           return (
-            <View key={`${item.info.id}-part-${partIndex}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
+            <View key={`${item.info.id}-${index}-part-${partIndex}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
               <MessageDecoration 
                 role={item.info.role}
                 part={part}
@@ -765,7 +765,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             ref={flatListRef}
             data={messages}
             renderItem={renderMessage}
-            keyExtractor={(item) => item.info.id}
+            keyExtractor={(item, index) => `${item.info.id}-${index}`}
             style={styles.messagesList}
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
