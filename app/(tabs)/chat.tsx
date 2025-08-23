@@ -281,13 +281,12 @@ export default function ChatScreen() {
       try {
         const success = await abortSession(currentSession.id);
         if (success) {
-          toast.showSuccess('Generation interrupted', 'The generation has been stopped');
+          console.log('Generation interrupted successfully');
         } else {
-          toast.showError('Failed to interrupt generation', 'Could not stop the generation process');
+          console.error('Failed to interrupt generation');
         }
       } catch (error) {
         console.error('Failed to interrupt session:', error);
-        toast.showError('Failed to interrupt generation', error instanceof Error ? error.message : 'Unknown error');
       }
     }
   }, [currentSession, isGenerating, abortSession]);
