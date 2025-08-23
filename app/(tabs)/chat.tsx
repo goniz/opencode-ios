@@ -58,7 +58,8 @@ export default function ChatScreen() {
     sendMessage,
     abortSession,
     setCurrentSession,
-    client
+    client,
+    latestProviderModel
   } = useConnection();
   
   const [inputText, setInputText] = useState('');
@@ -139,8 +140,22 @@ export default function ChatScreen() {
     loadProvidersAndModels();
   }, [connectionStatus, client]);
 
-  // Set default provider and model from last assistant message
+  // Set default provider and model from last assistant message or from connection context
   useEffect(() => {
+    // First try to use the latest provider/model from connection context
+    if (latestProviderModel && availableProviders.length > 0 && !currentProvider && !currentModel) {
+      const providerExists = availableProviders.find(p => p.id === latestProviderModel.providerID);
+      if (providerExists) {
+        setCurrentProvider(latestProviderModel.providerID);
+        setCurrentModel({
+          providerID: latestProviderModel.providerID,
+          modelID: latestProviderModel.modelID
+        });
+        return;
+      }
+    }
+    
+    // Fallback to using the last assistant message in the current session
     if (messages.length > 0 && availableProviders.length > 0 && !currentProvider && !currentModel) {
       // Find the last assistant message with proper type checking
       const lastAssistantMessage = [...messages]
@@ -165,7 +180,7 @@ export default function ChatScreen() {
         }
       }
     }
-  }, [messages, availableProviders, currentProvider, currentModel]);
+  }, [messages, availableProviders, currentProvider, currentModel, latestProviderModel]);
 
   // Update available models for current provider
   useEffect(() => {

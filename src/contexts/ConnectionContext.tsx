@@ -38,6 +38,7 @@ export interface ConnectionState {
   isLoadingMessages: boolean;
   isStreamConnected: boolean;
   isGenerating: boolean;
+  latestProviderModel: { providerID: string; modelID: string } | null;
 }
 
 export interface ConnectionContextType extends ConnectionState {
@@ -69,6 +70,7 @@ type ConnectionAction =
   | { type: 'UPDATE_SESSION'; payload: { session: Session } }
   | { type: 'SET_STREAM_CONNECTED'; payload: { connected: boolean } }
   | { type: 'SET_GENERATING'; payload: { generating: boolean } }
+  | { type: 'SET_LATEST_PROVIDER_MODEL'; payload: { providerID: string; modelID: string } }
   | { type: 'DISCONNECT' }
   | { type: 'CLEAR_ERROR' };
 
@@ -83,6 +85,7 @@ const initialState: ConnectionState = {
   isLoadingMessages: false,
   isStreamConnected: false,
   isGenerating: false,
+  latestProviderModel: null,
 };
 
 function connectionReducer(state: ConnectionState, action: ConnectionAction): ConnectionState {
@@ -250,6 +253,14 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
       return {
         ...state,
         isGenerating: action.payload.generating,
+      };
+    case 'SET_LATEST_PROVIDER_MODEL':
+      return {
+        ...state,
+        latestProviderModel: {
+          providerID: action.payload.providerID,
+          modelID: action.payload.modelID
+        }
       };
     case 'DISCONNECT':
       return {
@@ -606,6 +617,22 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
             type: 'ADD_MESSAGE', 
             payload: { message: messageWithParts } 
           });
+          
+          // Update latest provider/model if this is an assistant message with provider/model info
+          if (response.data.info.role === 'assistant' && 
+              'providerID' in response.data.info && 
+              'modelID' in response.data.info) {
+            const assistantMessage = response.data.info as { providerID: string; modelID: string };
+            if (assistantMessage.providerID && assistantMessage.modelID) {
+              dispatch({
+                type: 'SET_LATEST_PROVIDER_MODEL',
+                payload: {
+                  providerID: assistantMessage.providerID,
+                  modelID: assistantMessage.modelID
+                }
+              });
+            }
+          }
         }
 
         console.log('✅ Message sent successfully - waiting for step-start event');
@@ -695,6 +722,22 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
                   info: messageInfo
                 }
               });
+              
+              // Update latest provider/model if this is an assistant message with provider/model info
+              if (messageInfo.role === 'assistant' && 
+                  'providerID' in messageInfo && 
+                  'modelID' in messageInfo) {
+                const assistantMessage = messageInfo as { providerID: string; modelID: string };
+                if (assistantMessage.providerID && assistantMessage.modelID) {
+                  dispatch({
+                    type: 'SET_LATEST_PROVIDER_MODEL',
+                    payload: {
+                      providerID: assistantMessage.providerID,
+                      modelID: assistantMessage.modelID
+                    }
+                  });
+                }
+              }
             }
             break;
 
