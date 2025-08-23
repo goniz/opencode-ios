@@ -116,11 +116,12 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
         ...state,
         sessions: action.payload.sessions,
       };
-    case 'SET_CURRENT_SESSION':
+case 'SET_CURRENT_SESSION':
       return {
         ...state,
         currentSession: action.payload.session,
         messages: [], // Clear messages when switching sessions
+        isGenerating: false, // Clear isGenerating when switching sessions
       };
     case 'SET_MESSAGES':
       return {
@@ -805,16 +806,13 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
               const part = eventData.properties.part;
               console.log('Updating message part:', part.messageID, part.id, 'for session:', part.sessionID, 'type:', part.type);
               
-              // Check if this is a step-start or step-finish part
+              // Check if this is a step-start part (only set isGenerating to true on step-start)
               if (part.type === 'step-start') {
                 console.log('🟢 Generation step started - setting isGenerating = true');
                 console.log('   Current isGenerating state:', state.isGenerating);
                 dispatch({ type: 'SET_GENERATING', payload: { generating: true } });
-              } else if (part.type === 'step-finish') {
-                console.log('🔴 Generation step finished - setting isGenerating = false');
-                console.log('   Current isGenerating state:', state.isGenerating);
-                dispatch({ type: 'SET_GENERATING', payload: { generating: false } });
               }
+              // Note: step-finish no longer sets isGenerating to false - that's handled by session.idle
               
               dispatch({ 
                 type: 'UPDATE_MESSAGE_PART', 
@@ -831,10 +829,8 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
             if (eventData.properties?.sessionID) {
               const sessionID = eventData.properties.sessionID;
               console.log('Session became idle:', sessionID);
-              // Use session.idle as backup to ensure generation state is cleared
-              // This provides redundancy in case step-end events are missed
-              // However, we should be careful not to interfere with normal flow
-              console.log('🟡 Session idle event - setting isGenerating = false as backup');
+              // Set isGenerating to false only on session.idle as per requirements
+              console.log('🟡 Session idle event - setting isGenerating = false');
               dispatch({ type: 'SET_GENERATING', payload: { generating: false } });
             }
             break;
