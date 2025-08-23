@@ -201,7 +201,7 @@ export default function ChatScreen() {
       console.log('No current session set');
       setLoadedSessionId(null);
     }
-  }, [currentSession?.id, loadMessages, loadedSessionId]);
+  }, [currentSession, currentSession?.id, loadMessages, loadedSessionId]);
 
   // Auto-scroll to bottom when messages change and on initial load
   useEffect(() => {
@@ -378,6 +378,37 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                    error.name === 'MessageOutputLengthError' ? 'The response exceeded the maximum length limit.' :
                    'An unexpected error occurred.'}
                 </Text>
+              </View>
+              <MessageTimestamp 
+                timestamp={item.info.time.created}
+                compact={true}
+              />
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    // Handle queued state (messages waiting to be processed)
+    const isQueued = isUser && isGenerating && index === messages.length - 1;
+    
+    if (isQueued) {
+      return (
+        <View style={styles.messageContainer}>
+          <View style={[styles.twoColumnLayout, styles.userMessageContainer]}>
+            <MessageDecoration 
+              role={item.info.role} 
+              isFirstPart={true}
+              isLastPart={true}
+            />
+            <View style={[styles.contentColumn, styles.userContentColumn]}>
+              <View style={styles.userMessageBubble}>
+                <View style={styles.queuedMessageContainer}>
+                  <ActivityIndicator size="small" color="#9ca3af" style={styles.queuedSpinner} />
+                  <Text style={styles.queuedMessageText}>
+                    Queued...
+                  </Text>
+                </View>
               </View>
               <MessageTimestamp 
                 timestamp={item.info.time.created}
@@ -1126,5 +1157,18 @@ title: {
     fontSize: 11,
     color: '#ffffff',
     fontWeight: '600',
+  },
+  queuedMessageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  queuedSpinner: {
+    marginRight: 8,
+  },
+  queuedMessageText: {
+    color: '#9ca3af',
+    fontSize: 16,
+    lineHeight: 22,
+    fontStyle: 'italic',
   },
 });
