@@ -140,24 +140,15 @@ export default function ChatScreen() {
     loadProvidersAndModels();
   }, [connectionStatus, client]);
 
-  // Set default provider and model from last assistant message or from connection context
+  // Session-scoped provider and model selection - update when session or messages change
   useEffect(() => {
-    // First try to use the latest provider/model from connection context
-    if (latestProviderModel && availableProviders.length > 0 && !currentProvider && !currentModel) {
-      const providerExists = availableProviders.find(p => p.id === latestProviderModel.providerID);
-      if (providerExists) {
-        setCurrentProvider(latestProviderModel.providerID);
-        setCurrentModel({
-          providerID: latestProviderModel.providerID,
-          modelID: latestProviderModel.modelID
-        });
-        return;
-      }
+    // Only set model selection if we have providers and a current session
+    if (availableProviders.length === 0 || !currentSession) {
+      return;
     }
-    
-    // Fallback to using the last assistant message in the current session
-    if (messages.length > 0 && availableProviders.length > 0 && !currentProvider && !currentModel) {
-      // Find the last assistant message with proper type checking
+
+    // Find the last assistant message in the current session
+    if (messages.length > 0) {
       const lastAssistantMessage = [...messages]
         .reverse()
         .find(msg => msg.info.role === 'assistant');
@@ -171,16 +162,31 @@ export default function ChatScreen() {
         if (assistantMessage.providerID && assistantMessage.modelID) {
           const providerExists = availableProviders.find(p => p.id === assistantMessage.providerID);
           if (providerExists) {
+            console.log('🎯 Setting session-scoped model:', assistantMessage.providerID, assistantMessage.modelID, 'for session:', currentSession.id);
             setCurrentProvider(assistantMessage.providerID);
             setCurrentModel({
               providerID: assistantMessage.providerID,
               modelID: assistantMessage.modelID
             });
+            return;
           }
         }
       }
     }
-  }, [messages, availableProviders, currentProvider, currentModel, latestProviderModel]);
+    
+    // Fallback to latest provider/model from connection context if no messages in session
+    if (latestProviderModel) {
+      const providerExists = availableProviders.find(p => p.id === latestProviderModel.providerID);
+      if (providerExists) {
+        console.log('🎯 Using fallback model from context:', latestProviderModel.providerID, latestProviderModel.modelID);
+        setCurrentProvider(latestProviderModel.providerID);
+        setCurrentModel({
+          providerID: latestProviderModel.providerID,
+          modelID: latestProviderModel.modelID
+        });
+      }
+    }
+  }, [messages, availableProviders, currentSession, latestProviderModel]);
 
   // Update available models for current provider
   useEffect(() => {
@@ -203,6 +209,16 @@ export default function ChatScreen() {
   }, [currentProvider, availableModels, currentModel]);
 
 
+
+  // Reset model selection when session changes to ensure session-scoped selection
+  useEffect(() => {
+    if (currentSession && currentSession.id !== loadedSessionId) {
+      console.log('🔄 Session changed, resetting model selection for session:', currentSession.id, currentSession.title);
+      // Reset model selection so it gets set from the new session's messages
+      setCurrentProvider(null);
+      setCurrentModel(null);
+    }
+  }, [currentSession, loadedSessionId]);
 
   useEffect(() => {
     if (currentSession && currentSession.id !== loadedSessionId) {
