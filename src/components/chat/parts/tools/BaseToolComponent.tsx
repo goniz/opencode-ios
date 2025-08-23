@@ -42,13 +42,14 @@ export const ToolHeader: React.FC<{
   hasError: boolean;
   toolPart?: ToolPartType;
   children?: React.ReactNode;
-}> = ({ toolName, filePath, lineCount, hasError, toolPart, children }) => (
+  hideStateTitle?: boolean;
+}> = ({ toolName, filePath, lineCount, hasError, toolPart, children, hideStateTitle = false }) => (
   <View style={styles.header}>
     <Text style={styles.toolName}>{toolName}</Text>
     
     {/* Dynamic state indicator for API format tool parts */}
     {toolPart?.state && (
-      <ToolStateIndicator state={toolPart.state} />
+      <ToolStateIndicator state={toolPart.state} hideTitle={hideStateTitle} />
     )}
     
     {filePath && (
