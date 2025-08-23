@@ -582,7 +582,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         console.log('Built parts array:', parts);
 
         // Send the message - the response will come through the event stream
-        await sessionChat({
+        const response = await sessionChat({
           client: state.client!,
           path: { id: sessionId },
           body: {
@@ -592,6 +592,22 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
           }
         });
 
+        // Handle the immediate response (contains assistant message info and initial parts)
+        if (response.data) {
+          console.log('Received immediate response from chat:', response.data);
+          
+          // Add the assistant message to the state
+          const messageWithParts: MessageWithParts = {
+            info: response.data.info,
+            parts: response.data.parts || []
+          };
+          
+          dispatch({ 
+            type: 'ADD_MESSAGE', 
+            payload: { message: messageWithParts } 
+          });
+        }
+
         console.log('✅ Message sent successfully - waiting for step-start event');
       } catch (error) {
         console.error('Failed to send message:', error);
@@ -600,7 +616,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
 
     // Execute without waiting
     sendAsync();
-  }, [state.client, state.connectionStatus]);
+  }, [state.client, state.connectionStatus, state.isGenerating]);
 
   const abortSession = useCallback(async (sessionId: string): Promise<boolean> => {
     if (!state.client || state.connectionStatus !== 'connected') {
@@ -840,7 +856,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
         console.log('Max retry attempts reached for event stream');
       }
     }
-}, [stopEventStream]);
+}, [stopEventStream, state.isGenerating]);
 
   // Handle app state changes to manage connection gracefully
   useEffect(() => {
