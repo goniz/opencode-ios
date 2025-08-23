@@ -857,8 +857,8 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
         }
       });
 
-      eventSource.addEventListener('error', (error: unknown) => {
-        console.error('Event stream error:', error);
+      eventSource.addEventListener('error', () => {
+        // Silently handle stream disconnection without error notifications
         dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
         
         // Auto-reconnect with exponential backoff
@@ -875,12 +875,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
       });
 
     } catch (error) {
-      console.error('Failed to start event stream:', error);
-      console.error('Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : String(error),
-        cause: error instanceof Error ? error.cause : undefined
-      });
+      // Silently handle event stream startup failure
       dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
       
       // Auto-reconnect with exponential backoff
