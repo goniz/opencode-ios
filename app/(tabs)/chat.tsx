@@ -24,7 +24,7 @@ import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
 import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInput';
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
 import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
-import { configProviders, sessionCommand } from '../../src/api/sdk.gen';
+import { configProviders, configGet, sessionCommand } from '../../src/api/sdk.gen';
 import type { CommandSuggestion } from '../../src/utils/commandMentions';
 
 interface MessageWithParts {
@@ -77,6 +77,8 @@ export default function ChatScreen() {
    const [isUserAtBottom, setIsUserAtBottom] = useState(true);
    const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
    const [hasNewMessages, setHasNewMessages] = useState(false);
+   const [chutesQuota, setChutesQuota] = useState<{used: number, quota: number} | null>(null);
+   const [chutesLoading, setChutesLoading] = useState(false);
    const flatListRef = useRef<FlatList>(null);
    const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -145,6 +147,46 @@ export default function ChatScreen() {
 
     loadProvidersAndModels();
   }, [connectionStatus, client]);
+
+  // Load Chutes quota when current model changes
+  useEffect(() => {
+    const loadChutesQuota = async () => {
+      if (connectionStatus === 'connected' && client && currentModel) {
+        // Check if the current provider is Chutes and has an API key
+        try {
+          setChutesLoading(true);
+          const configResponse = await configGet({ client });
+          
+          const providerConfig = configResponse.data?.provider?.[currentModel.providerID];
+          const apiKey = providerConfig?.options?.apiKey;
+          
+          if (apiKey && typeof apiKey === 'string') {
+            // Import the Chutes utility function
+            const { fetchChutesQuota } = await import('../../src/utils/chutes');
+            
+            try {
+              const quota = await fetchChutesQuota(currentModel.modelID, apiKey);
+              setChutesQuota(quota);
+            } catch (error) {
+              console.error('Failed to fetch Chutes quota:', error);
+              setChutesQuota(null);
+            }
+          } else {
+            setChutesQuota(null);
+          }
+        } catch (error) {
+          console.error('Failed to load config for Chutes check:', error);
+          setChutesQuota(null);
+        } finally {
+          setChutesLoading(false);
+        }
+      } else {
+        setChutesQuota(null);
+      }
+    };
+
+    loadChutesQuota();
+  }, [connectionStatus, client, currentModel]);
 
   // Session-scoped provider and model selection - update when session or messages change
   useEffect(() => {
@@ -876,17 +918,33 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
               </View>
             )}
 
-            {/* Context window usage and cost information on same line */}
-            {contextInfo && !isGenerating && (
-              <View style={styles.tokenInfoInline}>
-                <Text style={styles.tokenInfoValue}>
-                  {contextInfo.isSubscriptionModel 
-                    ? `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}%`
-                    : `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}% ($${contextInfo.sessionCost.toFixed(2)})`
-                  }
-                </Text>
-              </View>
-            )}
+{/* Context window usage and cost information on same line */}
+             {contextInfo && !isGenerating && (
+               <View style={styles.tokenInfoInline}>
+                 <Text style={styles.tokenInfoValue}>
+                   {contextInfo.isSubscriptionModel 
+                     ? `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}%`
+                     : `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}% ($${contextInfo.sessionCost.toFixed(2)})`
+                   }
+                 </Text>
+               </View>
+             )}
+             
+             {/* Chutes quota display */}
+             {chutesQuota && (
+               <View style={styles.tokenInfoInline}>
+                 <Text style={styles.tokenInfoValue}>
+                   Chutes: {chutesQuota.used}/{chutesQuota.quota} requests
+                 </Text>
+               </View>
+             )}
+             {chutesLoading && (
+               <View style={styles.tokenInfoInline}>
+                 <Text style={styles.tokenInfoValue}>
+                   Loading Chutes quota...
+                 </Text>
+               </View>
+             )}
           </View>
         </View>
 
@@ -1335,10 +1393,21 @@ title: {
     color: '#9ca3af',
     fontWeight: '400',
   },
-  tokenInfoInline: {
-    marginLeft: 'auto',
-    paddingLeft: 8,
-  },
+tokenInfoInline: {
+     marginLeft: 'auto',
+     paddingLeft: 8,
+   },
+   chutesQuotaContainer: {
+     marginLeft: 8,
+     paddingLeft: 8,
+     borderLeftWidth: 1,
+     borderLeftColor: '#2a2a2a',
+   },
+   chutesQuotaText: {
+     fontSize: 12,
+     color: '#9ca3af',
+     fontWeight: '400',
+   },
   generatingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
