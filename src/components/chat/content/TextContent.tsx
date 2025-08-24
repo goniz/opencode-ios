@@ -27,6 +27,7 @@ export const TextContent: React.FC<TextContentProps> = ({
   // Ensure content is always a string to prevent undefined errors
   const safeContent = content ?? '';
   // Use expandable hook for content management
+  // For user messages, disable auto-expansion to prevent huge bubbles
   const {
     isExpanded,
     shouldShowExpandButton,
@@ -34,8 +35,8 @@ export const TextContent: React.FC<TextContentProps> = ({
     toggleExpanded,
   } = useExpandable({
     content: safeContent,
-    maxLines: 3,
-    autoExpand: isLast,
+    maxLines: variant === 'user' ? 10 : 3,
+    autoExpand: variant === 'user' ? false : isLast,
     contentType: 'text',
   });
 
@@ -279,6 +280,6 @@ export const TextContent: React.FC<TextContentProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexShrink: 1,
   },
 });

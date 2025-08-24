@@ -7,7 +7,7 @@ import { ExpandButton } from '../../ExpandButton';
 import { getRelativePath } from '../../../../utils/pathUtils';
 
 // Helper function to parse LSP diagnostics
-const parseLSPDiagnostics = (result: string): { diagnostics: Array<{ file: string; line: number; column: number; severity: string; message: string }> | null; cleanResult: string } => {
+const parseLSPDiagnostics = (result: string): { diagnostics: { file: string; line: number; column: number; severity: string; message: string }[] | null; cleanResult: string } => {
   if (!result || !result.includes('<project_diagnostics>')) {
     return { diagnostics: null, cleanResult: result };
   }
@@ -42,7 +42,7 @@ const parseLSPDiagnostics = (result: string): { diagnostics: Array<{ file: strin
   }
 
   const fileErrors = fileMatch[1].trim();
-  const diagnostics: Array<{ file: string; line: number; column: number; severity: string; message: string }> = [];
+  const diagnostics: { file: string; line: number; column: number; severity: string; message: string }[] = [];
   
   // Extract file path from diagnostics text
   const filePath = diagnosticsText.split('\n')[0];
