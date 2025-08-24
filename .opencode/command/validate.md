@@ -1,6 +1,7 @@
 ---
 description: Validate code quality and project health
 agent: build
+model: anthropic/claude-sonnet-4-20250514
 ---
 
 Validate the project by running all quality checks in sequence and fix any issues found:
