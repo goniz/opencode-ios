@@ -70,9 +70,13 @@ export default function ChatScreen() {
   const [availableProviders, setAvailableProviders] = useState<{id: string, name: string}[]>([]);
   const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string, contextLimit: number}[]>([]);
   const [currentProviderModels, setCurrentProviderModels] = useState<{modelID: string, name: string}[]>([]);
-  const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
-  const [loadedSessionId, setLoadedSessionId] = useState<string | null>(null);
-  const flatListRef = useRef<FlatList>(null);
+   const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
+   const [loadedSessionId, setLoadedSessionId] = useState<string | null>(null);
+   const [isUserAtBottom, setIsUserAtBottom] = useState(true);
+   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+   const [hasNewMessages, setHasNewMessages] = useState(false);
+   const flatListRef = useRef<FlatList>(null);
+   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Handle session ID from navigation parameters
   useEffect(() => {
@@ -232,44 +236,87 @@ export default function ChatScreen() {
       console.log('No current session set');
       setLoadedSessionId(null);
     }
-  }, [currentSession, currentSession?.id, loadMessages, loadedSessionId]);
+   }, [currentSession, currentSession?.id, loadMessages, loadedSessionId]);
 
-  // Auto-scroll to bottom when messages change and on initial load
-  useEffect(() => {
-    if (messages.length > 0) {
-      // Use a slightly longer timeout to ensure UI has updated
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 150);
-    }
-  }, [messages]);
+   // Unified scrolling function with improved reliability
+   const scrollToBottom = useCallback((animated = true, immediate = false) => {
+     if (!flatListRef.current || !shouldAutoScroll) return;
+
+     // Clear any existing timeout
+     if (scrollTimeoutRef.current) {
+       clearTimeout(scrollTimeoutRef.current);
+     }
+
+     const performScroll = () => {
+       try {
+         flatListRef.current?.scrollToEnd({ animated });
+         setIsUserAtBottom(true);
+       } catch (error) {
+         console.warn('Failed to scroll to bottom:', error);
+       }
+     };
+
+     if (immediate) {
+       performScroll();
+     } else {
+       // Use a consistent delay for better reliability
+       // Slightly longer delay for content changes to ensure rendering is complete
+       scrollTimeoutRef.current = setTimeout(performScroll, 150);
+     }
+   }, [shouldAutoScroll]);
+
+   // Handle scroll events to track user position
+   const handleScroll = useCallback((event: { nativeEvent: { layoutMeasurement: { height: number }; contentOffset: { y: number }; contentSize: { height: number } } }) => {
+     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+     const isAtBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 20; // 20px threshold
+
+     setIsUserAtBottom(isAtBottom);
+     setShouldAutoScroll(isAtBottom);
+   }, []);
+
+   // Manual scroll to bottom (for when user wants to return to latest messages)
+   const scrollToBottomManual = useCallback(() => {
+     setShouldAutoScroll(true);
+     setHasNewMessages(false);
+     scrollToBottom(true, true);
+   }, [scrollToBottom]);
+
+   // Auto-scroll to bottom when messages change
+   useEffect(() => {
+     if (messages.length > 0) {
+       if (shouldAutoScroll) {
+         scrollToBottom(true, false);
+         setHasNewMessages(false);
+       } else {
+         // User is not at bottom, show new messages indicator
+         setHasNewMessages(true);
+       }
+     }
+   }, [messages, shouldAutoScroll, scrollToBottom]);
 
   // Generation state is now tracked by step-start/step-end SSE events in ConnectionContext
 
-  // Scroll to newest message on session load - ensure complete scroll
-  useEffect(() => {
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
+   // Scroll to newest message on session load
+   useEffect(() => {
+     if (currentSession && !isLoadingMessages && messages.length > 0 && shouldAutoScroll) {
+       // Use immediate scroll for session load, then auto-scroll for new messages
+       scrollToBottom(false, true);
+     }
+   }, [currentSession, isLoadingMessages, messages.length, shouldAutoScroll, scrollToBottom]);
 
-    if (currentSession && !isLoadingMessages && messages.length > 0) {
-      // Multiple attempts to ensure complete scrolling with cleanup
-      [100, 300, 500].forEach(delay => {
-        const timeout = setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: false });
-        }, delay);
-        timeouts.push(timeout);
-      });
-    }
+   // Debug logging for selected images
+   useEffect(() => {
+     console.log('Selected images changed:', selectedImages);
+   }, [selectedImages]);
 
-    // Cleanup function to clear timeouts if component unmounts
-    return () => {
-      timeouts.forEach(timeout => clearTimeout(timeout));
-    };
-  }, [currentSession, isLoadingMessages, messages.length]);
-
-  // Debug logging for selected images
-  useEffect(() => {
-    console.log('Selected images changed:', selectedImages);
-  }, [selectedImages]);
+   // Cleanup scroll timeout on unmount
+   useEffect(() => {
+     return () => {
+       if (scrollTimeoutRef.current) {
+         clearTimeout(scrollTimeoutRef.current);
+       }
+     };
+   }, []);
 
   const handleImageSelected = useCallback((imageUri: string) => {
     console.log('Image selected:', imageUri);
@@ -291,23 +338,23 @@ export default function ChatScreen() {
     }
   }, [lastError, clearError]);
 
-  const handleInterrupt = useCallback(async () => {
-    if (currentSession && isGenerating) {
-      console.log('Interrupting session:', currentSession.id);
-      try {
-        const success = await abortSession(currentSession.id);
-        if (success) {
-          console.log('Generation interrupted successfully');
-        } else {
-          console.error('Failed to interrupt generation');
-        }
-      } catch (error) {
-        console.error('Failed to interrupt session:', error);
-      }
-    }
-  }, [currentSession, isGenerating, abortSession]);
+   const handleInterrupt = useCallback(async () => {
+     if (currentSession && isGenerating) {
+       console.log('Interrupting session:', currentSession.id);
+       try {
+         const success = await abortSession(currentSession.id);
+         if (success) {
+           console.log('Generation interrupted successfully');
+         } else {
+           console.error('Failed to interrupt generation');
+         }
+       } catch (error) {
+         console.error('Failed to interrupt session:', error);
+       }
+     }
+   }, [currentSession, isGenerating, abortSession]);
 
-  const handleSendMessage = async () => {
+   const handleSendMessage = async () => {
     console.log('handleSendMessage called', {
       inputText: inputText.trim(),
       selectedImagesCount: selectedImages.length,
@@ -337,18 +384,15 @@ export default function ChatScreen() {
     setIsSending(true);
 
     try {
-      sendMessage(
-        currentSession.id, 
-        messageText,
-        currentModel.providerID,
-        currentModel.modelID,
-        imagesToSend
-      );
-      console.log('Message queued successfully');
-      // Scroll to bottom after sending
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+       sendMessage(
+         currentSession.id,
+         messageText,
+         currentModel.providerID,
+         currentModel.modelID,
+         imagesToSend
+       );
+       console.log('Message queued successfully');
+       // Scroll to bottom after sending (will be handled by messages change effect)
     } catch (error) {
       console.error('Failed to send message:', error);
       const errorMsg = error instanceof Error ? error.message : 'Failed to send message';
@@ -760,17 +804,37 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             <ActivityIndicator size="large" color="#ffffff" />
             <Text style={styles.loadingText}>Loading messages...</Text>
           </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderMessage}
-            keyExtractor={(item, index) => `${item.info.id}-${index}`}
-            style={styles.messagesList}
-            contentContainerStyle={styles.messagesContent}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
+         ) : (
+           <>
+             <FlatList
+               ref={flatListRef}
+               data={messages}
+               renderItem={renderMessage}
+               keyExtractor={(item, index) => `${item.info.id}-${index}`}
+               style={styles.messagesList}
+               contentContainerStyle={styles.messagesContent}
+               showsVerticalScrollIndicator={false}
+               onScroll={handleScroll}
+               scrollEventThrottle={16}
+               onContentSizeChange={() => {
+                 // Auto-scroll when content size changes (new messages)
+                 if (shouldAutoScroll) {
+                   scrollToBottom(true, false);
+                 }
+               }}
+             />
+             {/* New messages indicator */}
+             {hasNewMessages && !isUserAtBottom && (
+               <TouchableOpacity
+                 style={styles.newMessagesIndicator}
+                 onPress={scrollToBottomManual}
+               >
+                 <Ionicons name="chevron-down" size={16} color="#ffffff" />
+                 <Text style={styles.newMessagesText}>New messages</Text>
+               </TouchableOpacity>
+             )}
+           </>
+         )}
 
         <ImagePreview 
           images={selectedImages}
@@ -1195,10 +1259,32 @@ title: {
   queuedSpinner: {
     marginRight: 8,
   },
-  queuedMessageText: {
-    color: '#9ca3af',
-    fontSize: 16,
-    lineHeight: 22,
-    fontStyle: 'italic',
-  },
-});
+   queuedMessageText: {
+     color: '#9ca3af',
+     fontSize: 16,
+     lineHeight: 22,
+     fontStyle: 'italic',
+   },
+   newMessagesIndicator: {
+     position: 'absolute',
+     bottom: 100,
+     right: 20,
+     backgroundColor: '#f59e0b',
+     flexDirection: 'row',
+     alignItems: 'center',
+     paddingHorizontal: 12,
+     paddingVertical: 8,
+     borderRadius: 20,
+     shadowColor: '#000',
+     shadowOffset: { width: 0, height: 2 },
+     shadowOpacity: 0.25,
+     shadowRadius: 4,
+     elevation: 5,
+   },
+   newMessagesText: {
+     color: '#ffffff',
+     fontSize: 12,
+     fontWeight: '600',
+     marginLeft: 4,
+   },
+ });
