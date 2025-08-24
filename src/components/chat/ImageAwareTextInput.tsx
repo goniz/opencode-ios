@@ -9,13 +9,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
-import { FileAwareTextInput } from './FileAwareTextInput';
+import { SmartTextInput } from './SmartTextInput';
+import type { CommandSuggestion } from '../../utils/commandMentions';
 
 interface ImageAwareTextInputProps extends Omit<TextInputProps, 'onChangeText' | 'onSelectionChange'> {
   value: string;
   onChangeText: (text: string) => void;
   onImageSelected?: (imageUri: string) => void;
   onSelectionChange?: (selection: { start: number; end: number }) => void;
+  onCommandSelect?: (command: CommandSuggestion) => void;
 }
 
 export function ImageAwareTextInput({ 
@@ -23,6 +25,7 @@ export function ImageAwareTextInput({
   onChangeText, 
   onImageSelected,
   onSelectionChange,
+  onCommandSelect,
   ...textInputProps 
 }: ImageAwareTextInputProps) {
   const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
@@ -165,11 +168,12 @@ export function ImageAwareTextInput({
 
   return (
     <View style={styles.container}>
-      <FileAwareTextInput
+      <SmartTextInput
         {...textInputProps}
         value={value}
         onChangeText={onChangeText}
         onSelectionChange={onSelectionChange}
+        onCommandSelect={onCommandSelect}
         style={[{ marginRight: 0 }, textInputProps.style]}
       />
       

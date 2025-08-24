@@ -24,7 +24,8 @@ import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
 import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInput';
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
 import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
-import { configProviders } from '../../src/api/sdk.gen';
+import { configProviders, sessionCommand } from '../../src/api/sdk.gen';
+import type { CommandSuggestion } from '../../src/utils/commandMentions';
 
 interface MessageWithParts {
   info: Message;
@@ -369,13 +370,20 @@ export default function ChatScreen() {
       return;
     }
 
+    const messageText = inputText.trim();
+    
+    // Check if this is a command
+    if (messageText.startsWith('/') && messageText.includes(' ')) {
+      await handleCommandExecution(messageText);
+      return;
+    }
+
     if (!currentModel?.providerID || !currentModel?.modelID) {
       console.log('No model selected');
       toast.showError('Select Model', 'Please select a provider and model before sending a message');
       return;
     }
 
-    const messageText = inputText.trim();
     const imagesToSend = [...selectedImages];
     
     console.log('Sending message:', { messageText, imagesToSend });
@@ -405,6 +413,54 @@ export default function ChatScreen() {
       setIsSending(false);
     }
   };
+
+  const handleCommandExecution = async (commandText: string) => {
+    if (!currentSession || !client) {
+      return;
+    }
+
+    const spaceIndex = commandText.indexOf(' ');
+    if (spaceIndex === -1) {
+      toast.showError('Invalid Command', 'Command must include arguments');
+      return;
+    }
+
+    const command = commandText.slice(1, spaceIndex); // Remove leading / and get command name
+    const args = commandText.slice(spaceIndex + 1); // Get everything after the space
+
+    console.log('Executing command:', { command, args });
+
+    setInputText('');
+    setIsSending(true);
+
+    try {
+      await sessionCommand({
+        client,
+        path: { id: currentSession.id },
+        body: {
+          command,
+          arguments: args,
+          model: currentModel?.modelID,
+          agent: 'general' // Default agent, can be made configurable
+        }
+      });
+      console.log('Command executed successfully');
+    } catch (error) {
+      console.error('Failed to execute command:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to execute command';
+      toast.showError('Command Failed', errorMsg);
+      // Restore the input text if command failed
+      setInputText(commandText);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleCommandSelect = useCallback((command: CommandSuggestion) => {
+    console.log('Command selected:', command);
+    // You can add additional logic here when a command is selected
+    // For example, showing a tooltip with command description
+  }, []);
 
 const renderMessage = ({ item, index }: { item: MessageWithParts; index: number }) => {
     // Filter parts using the existing filtering logic
@@ -881,6 +937,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             value={inputText}
             onChangeText={setInputText}
             onImageSelected={handleImageSelected}
+            onCommandSelect={handleCommandSelect}
             placeholder="Type a message..."
             placeholderTextColor="#6b7280"
             multiline
