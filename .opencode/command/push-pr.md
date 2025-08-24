@@ -5,9 +5,17 @@ agent: build
 
 Push the current branch to remote and create a Pull Request:
 
-1. **Check current branch status:**
-   - Run `git branch --show-current` to get the current branch name
-   - Run `git status` to see any uncommitted changes
+**Current branch and status:**
+`!git branch --show-current`
+`!git status`
+
+**Remote configuration:**
+`!git remote -v`
+
+**Changes since main:**
+`!git log origin/main..HEAD --oneline`
+
+1. **Analyze current branch status from above output:**
 
 2. **Handle main branch scenario:**
    - If currently on `main` branch:

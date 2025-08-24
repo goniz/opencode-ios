@@ -5,9 +5,17 @@ agent: build
 
 Create a git commit by inspecting the current repository state and committing only relevant changes:
 
-1. Run `git status` to see all untracked files and modifications
-2. Run `git diff` to see both staged and unstaged changes that will be committed
-3. Run `git log --oneline -10` to see recent commit messages for consistent style
+**Current repository status:**
+`!git status`
+
+**Current changes:**
+`!git diff`
+
+**Recent commit history for style reference:**
+`!git log --oneline -10`
+
+**Project gitignore patterns:**
+`@.gitignore`
 
 Analyze the changes and:
 - Identify which files are relevant for the commit (exclude temporary files, build artifacts, logs, etc.)

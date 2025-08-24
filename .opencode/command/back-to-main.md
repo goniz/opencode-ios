@@ -7,7 +7,13 @@ agent: build
 
 Switch to the main branch and reset to match origin/main exactly:
 
-1. **SAFETY CHECK FIRST** - Run `git status --porcelain` to check for any uncommitted changes
+**Current repository state:**
+`!git status --porcelain`
+
+**Current branch:**
+`!git branch --show-current`
+
+1. **SAFETY CHECK FIRST** - Analyze the above output to check for any uncommitted changes
    - If ANY files are modified, added, deleted, or untracked (except for ignored files), **REFUSE** to proceed
    - Display the dirty files and instruct the user to either:
      - Commit their changes using the `/commit` command
