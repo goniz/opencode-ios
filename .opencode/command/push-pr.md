@@ -28,8 +28,8 @@ Push the current branch to remote and create a Pull Request:
 3. **Push branch to remote:**
    - Run `git remote -v` to verify remote exists
    - Check if branch exists on remote: `git ls-remote --heads origin <branch-name>`
-   - If branch doesn't exist on remote: `git push -u origin <branch-name>`
-   - If branch exists on remote: `git push origin <branch-name>`
+   - If branch doesn't exist on remote: `git push -u origin HEAD`
+   - If branch exists on remote: `git push origin HEAD`
 
 4. **Create or check Pull Request:**
    - Run `gh pr view` to check if PR already exists for current branch

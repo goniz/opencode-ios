@@ -43,7 +43,7 @@ Pull the latest changes from origin/main using --no-rebase and resolve any confl
    - Use a descriptive merge commit message like "Merge latest changes from origin/main"
 
 5. **Push changes back to remote:**
-   - Run `git push origin <current-branch>` to update the remote branch
+   - Run `git push origin HEAD` to update the remote branch
    - Confirm the push was successful
 
 6. **Final confirmation:**
