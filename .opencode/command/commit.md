@@ -1,7 +1,6 @@
 ---
 description: Inspect git status and commit relevant changes
 agent: build
-model: anthropic/claude-sonnet-4-20250514
 ---
 
 Create a git commit by inspecting the current repository state and committing only relevant changes:

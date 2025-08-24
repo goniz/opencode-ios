@@ -5,8 +5,8 @@ import type { AppStateStatus } from 'react-native';
 import EventSource from 'react-native-sse';
 import { createClient } from '../api/client';
 import type { Client } from '../api/client/types.gen';
-import type { Session, Message, Part } from '../api/types.gen';
-import { sessionList, sessionMessages, sessionChat, sessionAbort } from '../api/sdk.gen';
+import type { Session, Message, Part, Command } from '../api/types.gen';
+import { sessionList, sessionMessages, sessionChat, sessionAbort, commandList } from '../api/sdk.gen';
 import { saveServer, type SavedServer } from '../utils/serverStorage';
 import { cacheAppPaths } from '../utils/pathUtils';
 import { processImageUris } from '../utils/imageProcessing';
@@ -39,6 +39,7 @@ export interface ConnectionState {
   isStreamConnected: boolean;
   isGenerating: boolean;
   latestProviderModel: { providerID: string; modelID: string } | null;
+  commands: Command[];
 }
 
 export interface ConnectionContextType extends ConnectionState {
@@ -52,6 +53,7 @@ export interface ConnectionContextType extends ConnectionState {
   loadMessages: (sessionId: string) => Promise<void>;
   sendMessage: (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]) => void;
   abortSession: (sessionId: string) => Promise<boolean>;
+  refreshCommands: () => Promise<void>;
 }
 
 type ConnectionAction =
@@ -71,6 +73,7 @@ type ConnectionAction =
   | { type: 'SET_STREAM_CONNECTED'; payload: { connected: boolean } }
   | { type: 'SET_GENERATING'; payload: { generating: boolean } }
   | { type: 'SET_LATEST_PROVIDER_MODEL'; payload: { providerID: string; modelID: string } }
+  | { type: 'SET_COMMANDS'; payload: { commands: Command[] } }
   | { type: 'DISCONNECT' }
   | { type: 'CLEAR_ERROR' };
 
@@ -86,6 +89,7 @@ const initialState: ConnectionState = {
   isStreamConnected: false,
   isGenerating: false,
   latestProviderModel: null,
+  commands: [],
 };
 
 function connectionReducer(state: ConnectionState, action: ConnectionAction): ConnectionState {
@@ -263,6 +267,11 @@ case 'SET_CURRENT_SESSION':
           modelID: action.payload.modelID
         }
       };
+    case 'SET_COMMANDS':
+      return {
+        ...state,
+        commands: action.payload.commands,
+      };
     case 'DISCONNECT':
       return {
         ...initialState,
@@ -415,6 +424,9 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       // Fetch initial sessions
       await refreshSessionsInternal(client);
       
+      // Fetch available commands
+      await fetchCommandsInternal(client);
+      
       // Start event stream for real-time updates
       await startEventStream(client);
       
@@ -502,9 +514,36 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
   };
 
+  const fetchCommandsInternal = async (client: Client): Promise<void> => {
+    try {
+      console.log('Fetching commands from API...');
+      const response = await commandList({ client });
+      if (response.data) {
+        console.log('Fetched commands:', response.data.length);
+        // Log each command name for debugging
+        response.data.forEach((command, index) => {
+          console.log(`Command ${index + 1}: ${command.name} - ${command.description || 'No description'}`);
+        });
+        dispatch({ type: 'SET_COMMANDS', payload: { commands: response.data } });
+      } else {
+        console.log('No commands data received from API');
+        dispatch({ type: 'SET_COMMANDS', payload: { commands: [] } });
+      }
+    } catch (error) {
+      console.error('Failed to fetch commands:', error);
+      dispatch({ type: 'SET_COMMANDS', payload: { commands: [] } });
+    }
+  };
+
   const refreshSessions = useCallback(async (): Promise<void> => {
     if (state.client && state.connectionStatus === 'connected') {
       await refreshSessionsInternal(state.client);
+    }
+  }, [state.client, state.connectionStatus]);
+
+  const refreshCommands = useCallback(async (): Promise<void> => {
+    if (state.client && state.connectionStatus === 'connected') {
+      await fetchCommandsInternal(state.client);
     }
   }, [state.client, state.connectionStatus]);
 
@@ -884,6 +923,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
 
     } catch (error) {
       // Silently handle event stream startup failure
+      console.error('Event stream startup failed:', error);
       dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
       
       // Auto-reconnect with exponential backoff
@@ -941,6 +981,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     loadMessages,
     sendMessage,
     abortSession,
+    refreshCommands,
   }), [
     state,
     connect,
@@ -953,6 +994,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     loadMessages,
     sendMessage,
     abortSession,
+    refreshCommands,
   ]);
 
   return (

@@ -24,7 +24,8 @@ import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
 import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInput';
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
 import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
-import { configProviders } from '../../src/api/sdk.gen';
+import { configProviders, sessionCommand } from '../../src/api/sdk.gen';
+import type { CommandSuggestion } from '../../src/utils/commandMentions';
 
 interface MessageWithParts {
   info: Message;
@@ -369,13 +370,20 @@ export default function ChatScreen() {
       return;
     }
 
+    const messageText = inputText.trim();
+    
+    // Check if this is a command
+    if (messageText.startsWith('/')) {
+      await handleCommandExecution(messageText);
+      return;
+    }
+
     if (!currentModel?.providerID || !currentModel?.modelID) {
       console.log('No model selected');
       toast.showError('Select Model', 'Please select a provider and model before sending a message');
       return;
     }
 
-    const messageText = inputText.trim();
     const imagesToSend = [...selectedImages];
     
     console.log('Sending message:', { messageText, imagesToSend });
@@ -405,6 +413,68 @@ export default function ChatScreen() {
       setIsSending(false);
     }
   };
+
+  const handleCommandExecution = useCallback(async (commandText: string) => {
+    if (!currentSession || !client) {
+      return;
+    }
+
+    // Extract command name and arguments
+    const trimmedCommandText = commandText.trim();
+    let commandName = '';
+    let args = '';
+
+    // Check if there's a space to separate command from arguments
+    const spaceIndex = trimmedCommandText.indexOf(' ');
+    if (spaceIndex === -1) {
+      // No arguments provided
+      commandName = trimmedCommandText.slice(1); // Remove leading /
+    } else {
+      // Arguments provided
+      commandName = trimmedCommandText.slice(1, spaceIndex); // Remove leading / and get command name
+      args = trimmedCommandText.slice(spaceIndex + 1); // Get everything after the space
+    }
+
+    console.log('Executing command:', { command: commandName, args });
+
+    setInputText('');
+    setIsSending(true);
+
+    try {
+      await sessionCommand({
+        client,
+        path: { id: currentSession.id },
+        body: {
+          command: commandName,
+          arguments: args
+        }
+      });
+      console.log('Command executed successfully');
+    } catch (error) {
+      console.error('Failed to execute command:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to execute command';
+      toast.showError('Command Failed', errorMsg);
+      // Restore the input text if command failed
+      setInputText(commandText);
+    } finally {
+      setIsSending(false);
+    }
+  }, [client, currentSession]);
+
+  const handleCommandSelect = useCallback((command: CommandSuggestion) => {
+    console.log('Command selected:', command);
+    // Check if the command template contains $ARGUMENTS
+    if (command.template && command.template.includes('$ARGUMENTS')) {
+      // For commands with $ARGUMENTS, we just insert the command name and let the user type arguments
+      // The command will be sent when the user presses send
+      console.log('Command requires arguments, inserting into input');
+      setInputText(`/${command.name} `);
+    } else {
+      // For commands without $ARGUMENTS, send immediately
+      const commandText = `/${command.name}`;
+      handleCommandExecution(commandText);
+    }
+  }, [handleCommandExecution, setInputText]);
 
 const renderMessage = ({ item, index }: { item: MessageWithParts; index: number }) => {
     // Filter parts using the existing filtering logic
@@ -881,6 +951,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             value={inputText}
             onChangeText={setInputText}
             onImageSelected={handleImageSelected}
+            onCommandSelect={handleCommandSelect}
             placeholder="Type a message..."
             placeholderTextColor="#6b7280"
             multiline

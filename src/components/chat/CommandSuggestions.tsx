@@ -7,45 +7,63 @@ import {
   StyleSheet 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { FileSuggestion } from '../../utils/fileMentions';
+import type { CommandSuggestion } from '../../utils/commandMentions';
 
-interface FileSuggestionsProps {
-  suggestions: FileSuggestion[];
+interface CommandSuggestionsProps {
+  suggestions: CommandSuggestion[];
   visible: boolean;
-  onSelectFile: (filePath: string) => void;
+  onSelectCommand: (commandName: string) => void;
   onClose: () => void;
 }
 
-export function FileSuggestions({ 
+export function CommandSuggestions({ 
   suggestions, 
   visible, 
-  onSelectFile, 
+  onSelectCommand, 
   onClose 
-}: FileSuggestionsProps) {
+}: CommandSuggestionsProps) {
+  console.log('CommandSuggestions render:', { visible, suggestionsCount: suggestions.length });
+  
   if (!visible || suggestions.length === 0) {
     return null;
   }
 
-  const renderSuggestion = ({ item }: { item: FileSuggestion }) => (
+  const renderSuggestion = ({ item }: { item: CommandSuggestion }) => (
     <TouchableOpacity
       style={styles.suggestionItem}
-      onPress={() => onSelectFile(item.path)}
+      onPress={() => onSelectCommand(item.name)}
       activeOpacity={0.7}
     >
       <View style={styles.suggestionContent}>
         <Ionicons 
-          name="document-text-outline" 
+          name="terminal-outline" 
           size={16} 
           color="#9ca3af" 
-          style={styles.fileIcon}
+          style={styles.commandIcon}
         />
-        <View style={styles.fileInfo}>
-          <Text style={styles.fileName} numberOfLines={1}>
-            {item.fileName}
+        <View style={styles.commandInfo}>
+          <Text style={styles.commandName} numberOfLines={1}>
+            /{item.name}
           </Text>
-          <Text style={styles.filePath} numberOfLines={1}>
-            {item.directory}
-          </Text>
+          {item.description && (
+            <Text style={styles.commandDescription} numberOfLines={2}>
+              {item.description}
+            </Text>
+          )}
+          {(item.agent || item.model) && (
+            <View style={styles.commandMeta}>
+              {item.agent && (
+                <Text style={styles.metaText}>
+                  Agent: {item.agent}
+                </Text>
+              )}
+              {item.model && (
+                <Text style={styles.metaText}>
+                  Model: {item.model}
+                </Text>
+              )}
+            </View>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -54,8 +72,12 @@ export function FileSuggestions({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>Select a file</Text>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+        <Text style={styles.headerText}>Select a command</Text>
+        <TouchableOpacity 
+          onPress={onClose} 
+          style={styles.closeButton}
+          testID="command-suggestions-close-button"
+        >
           <Ionicons name="close" size={16} color="#9ca3af" />
         </TouchableOpacity>
       </View>
@@ -63,7 +85,7 @@ export function FileSuggestions({
       <FlatList
         data={suggestions}
         renderItem={renderSuggestion}
-        keyExtractor={(item, index) => `${item.path}-${index}`}
+        keyExtractor={(item, index) => `${item.name}-${index}`}
         style={styles.suggestionsList}
         showsVerticalScrollIndicator={false}
         maxToRenderPerBatch={10}
@@ -73,8 +95,8 @@ export function FileSuggestions({
       
       {suggestions.length === 0 && (
         <View style={styles.emptyState}>
-          <Ionicons name="search-outline" size={24} color="#6b7280" />
-          <Text style={styles.emptyText}>No files found</Text>
+          <Ionicons name="terminal-outline" size={24} color="#6b7280" />
+          <Text style={styles.emptyText}>No commands found</Text>
         </View>
       )}
     </View>
@@ -91,9 +113,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#2a2a2a',
-    maxHeight: 200,
+    maxHeight: 300,
     marginBottom: 8,
-    elevation: 8,
+    elevation: 10, // Higher elevation to ensure it's above other elements
+    zIndex: 1000, // Add explicit z-index
     shadowColor: '#000000',
     shadowOffset: {
       width: 0,
@@ -125,29 +148,46 @@ const styles = StyleSheet.create({
   },
   suggestionItem: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#2a2a2a',
   },
   suggestionContent: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  fileIcon: {
+  commandIcon: {
     marginRight: 8,
+    marginTop: 2,
   },
-  fileInfo: {
+  commandInfo: {
     flex: 1,
   },
-  fileName: {
+  commandName: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#ffffff',
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  filePath: {
+  commandDescription: {
     fontSize: 12,
     color: '#9ca3af',
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  commandMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  metaText: {
+    fontSize: 10,
+    color: '#6b7280',
+    backgroundColor: '#2a2a2a',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   emptyState: {
     padding: 24,
