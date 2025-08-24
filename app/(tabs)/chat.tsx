@@ -1328,44 +1328,44 @@ title: {
      shadowRadius: 4,
      elevation: 5,
    },
-    newMessagesText: {
-      color: '#ffffff',
-      fontSize: 12,
-      fontWeight: '600',
-      marginLeft: 4,
-    },
-    // User file attachment styles
-    userFileContainer: {
-      backgroundColor: '#2563eb',
-      borderRadius: 12,
-      padding: 12,
-      maxWidth: '80%',
-      alignSelf: 'flex-end',
-      shadowColor: '#2563eb',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.3,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-    userFileHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 8,
-    },
-    userFileIcon: {
-      fontSize: 16,
-      marginRight: 8,
-    },
-    userFileName: {
-      color: '#ffffff',
-      fontSize: 14,
-      fontWeight: '500',
-      flex: 1,
-    },
-    userImagePreview: {
-      width: 200,
-      height: 150,
-      borderRadius: 8,
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    },
-  });
+   newMessagesText: {
+     color: '#ffffff',
+     fontSize: 12,
+     fontWeight: '600',
+     marginLeft: 4,
+   },
+   // User file attachment styles
+   userFileContainer: {
+     backgroundColor: '#2563eb',
+     borderRadius: 12,
+     padding: 12,
+     maxWidth: '80%',
+     alignSelf: 'flex-end',
+     shadowColor: '#2563eb',
+     shadowOffset: { width: 0, height: 2 },
+     shadowOpacity: 0.3,
+     shadowRadius: 4,
+     elevation: 3,
+   },
+   userFileHeader: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     marginBottom: 8,
+   },
+   userFileIcon: {
+     fontSize: 16,
+     marginRight: 8,
+   },
+   userFileName: {
+     color: '#ffffff',
+     fontSize: 14,
+     fontWeight: '500',
+     flex: 1,
+   },
+   userImagePreview: {
+     width: 200,
+     height: 150,
+     borderRadius: 8,
+     backgroundColor: 'rgba(255, 255, 255, 0.1)',
+   },
+ });
