@@ -1,7 +1,6 @@
 ---
 description: Switch to main branch and sync with origin (SAFE MODE - checks for clean worktree first)
 agent: build
-model: anthropic/claude-sonnet-4-20250514
 ---
 
 **DANGER: This command will erase uncommitted changes. Use with extreme caution.**

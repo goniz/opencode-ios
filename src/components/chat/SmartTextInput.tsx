@@ -51,6 +51,7 @@ export function SmartTextInput({
   
   const [cursorPosition, setCursorPosition] = useState(0);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const textInputRef = useRef<TextInput>(null);
   
   const handleTextChange = useCallback((text: string) => {
     onChangeText(text);
@@ -179,21 +180,31 @@ const handleSelectCommand = useCallback((commandName: string) => {
     // Check if the template contains $ARGUMENTS
     if (selectedCommand.template && selectedCommand.template.includes('$ARGUMENTS')) {
       // Inject the command into the input box with a space but don't send
-      const commandText = `/${commandName} `;
       if (currentCommandMention) {
-        newText = replaceCommandMention(value, currentCommandMention, commandText);
+        newText = replaceCommandMention(value, currentCommandMention, commandName);
+        // Add the space after the command for arguments
+        newText = newText + ' ';
       } else {
-        // If no current mention, just append to the end
-        newText = value + commandText;
+// If no current mention, replace the last / with the command
+        const lastSlashIndex = value.lastIndexOf('/');
+        if (lastSlashIndex !== -1) {
+          newText = value.substring(0, lastSlashIndex) + '/' + commandName + ' ';
+        } else {
+          newText = '/' + commandName + ' ';
+        }
       }
     } else {
       // For commands without $ARGUMENTS, inject the command
-      const commandText = `/${commandName}`;
       if (currentCommandMention) {
-        newText = replaceCommandMention(value, currentCommandMention, commandText);
+        newText = replaceCommandMention(value, currentCommandMention, commandName);
       } else {
-        // If no current mention, just append to the end
-        newText = value + commandText;
+// If no current mention, replace the last / with the command
+        const lastSlashIndex = value.lastIndexOf('/');
+        if (lastSlashIndex !== -1) {
+          newText = value.substring(0, lastSlashIndex) + '/' + commandName;
+        } else {
+          newText = '/' + commandName;
+        }
       }
     }
     
@@ -215,6 +226,11 @@ const handleSelectCommand = useCallback((commandName: string) => {
     setCommandSuggestions([]);
     setShowCommandSuggestions(false);
     setCurrentCommandMention(null);
+    
+    // Maintain focus on the text input
+    setTimeout(() => {
+      textInputRef.current?.focus();
+    }, 10);
   }, [value, currentCommandMention, onChangeText, commands, onCommandSelect]);
 
   const handleCloseFileSuggestions = useCallback(() => {
@@ -253,6 +269,7 @@ const handleSelectCommand = useCallback((commandName: string) => {
       />
       
       <TextInput
+        ref={textInputRef}
         {...textInputProps}
         value={value}
         onChangeText={handleTextChange}

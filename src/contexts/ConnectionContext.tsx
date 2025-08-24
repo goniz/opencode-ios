@@ -923,6 +923,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
 
     } catch (error) {
       // Silently handle event stream startup failure
+      console.error('Event stream startup failed:', error);
       dispatch({ type: 'SET_STREAM_CONNECTED', payload: { connected: false } });
       
       // Auto-reconnect with exponential backoff

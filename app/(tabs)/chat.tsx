@@ -373,7 +373,7 @@ export default function ChatScreen() {
     const messageText = inputText.trim();
     
     // Check if this is a command
-    if (messageText.startsWith('/') && messageText.includes(' ')) {
+    if (messageText.startsWith('/')) {
       await handleCommandExecution(messageText);
       return;
     }
@@ -419,16 +419,23 @@ export default function ChatScreen() {
       return;
     }
 
-    const spaceIndex = commandText.indexOf(' ');
+    // Extract command name and arguments
+    const trimmedCommandText = commandText.trim();
+    let commandName = '';
+    let args = '';
+
+    // Check if there's a space to separate command from arguments
+    const spaceIndex = trimmedCommandText.indexOf(' ');
     if (spaceIndex === -1) {
-      toast.showError('Invalid Command', 'Command must include arguments');
-      return;
+      // No arguments provided
+      commandName = trimmedCommandText.slice(1); // Remove leading /
+    } else {
+      // Arguments provided
+      commandName = trimmedCommandText.slice(1, spaceIndex); // Remove leading / and get command name
+      args = trimmedCommandText.slice(spaceIndex + 1); // Get everything after the space
     }
 
-    const command = commandText.slice(1, spaceIndex); // Remove leading / and get command name
-    const args = commandText.slice(spaceIndex + 1); // Get everything after the space
-
-    console.log('Executing command:', { command, args });
+    console.log('Executing command:', { command: commandName, args });
 
     setInputText('');
     setIsSending(true);
@@ -438,10 +445,10 @@ export default function ChatScreen() {
         client,
         path: { id: currentSession.id },
         body: {
-          command,
+          command: commandName,
           arguments: args,
           model: currentModel?.modelID,
-          agent: 'general' // Default agent, can be made configurable
+          agent: currentModel?.providerID || undefined // Use provider ID as agent if available, otherwise undefined
         }
       });
       console.log('Command executed successfully');

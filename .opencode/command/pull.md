@@ -1,7 +1,6 @@
 ---
 description: Pull latest changes from origin/main and resolve conflicts interactively
 agent: build
-model: anthropic/claude-sonnet-4-20250514
 ---
 
 Pull the latest changes from origin/main using --no-rebase and resolve any conflicts interactively:

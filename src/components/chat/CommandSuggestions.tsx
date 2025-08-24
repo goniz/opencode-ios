@@ -90,6 +90,7 @@ export function CommandSuggestions({
         showsVerticalScrollIndicator={false}
         maxToRenderPerBatch={10}
         windowSize={10}
+        keyboardShouldPersistTaps="always"
       />
       
       {suggestions.length === 0 && (

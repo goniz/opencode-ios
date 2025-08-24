@@ -1,5 +1,3 @@
-import { commandList } from '../api/sdk.gen';
-import type { Client } from '../api/client';
 import type { Command } from '../api/types.gen';
 
 export interface CommandMention {
@@ -39,31 +37,7 @@ export function detectCommandMentions(text: string): CommandMention[] {
   return mentions;
 }
 
-/**
- * Fetches available commands from the OpenCode API
- * @param client The API client
- * @returns Promise resolving to an array of commands
- */
-export async function fetchCommands(client: Client): Promise<Command[]> {
-  console.log('fetchCommands called with client:', !!client);
-  try {
-    if (!client) {
-      console.log('No client provided, returning empty array');
-      return [];
-    }
-    
-    console.log('Calling commandList API...');
-    const response = await commandList({ client });
-    console.log('commandList response:', response);
-    
-    const commands = response.data || [];
-    console.log('Fetched commands:', commands.length, commands);
-    return commands;
-  } catch (error) {
-    console.error('Error fetching commands:', error);
-    return [];
-  }
-}
+
 
 /**
  * Searches for commands based on a query
