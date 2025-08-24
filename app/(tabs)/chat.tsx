@@ -459,7 +459,7 @@ export default function ChatScreen() {
     } finally {
       setIsSending(false);
     }
-  }, [client, currentSession, currentModel]);
+  }, [client, currentSession]);
 
   const handleCommandSelect = useCallback((command: CommandSuggestion) => {
     console.log('Command selected:', command);
