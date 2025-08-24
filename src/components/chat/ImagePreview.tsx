@@ -15,7 +15,7 @@ interface ImagePreviewProps {
 }
 
 const { width: screenWidth } = Dimensions.get('window');
-const imageSize = Math.min(120, (screenWidth - 64) / 3); // 3 images per row with padding
+const imageSize = Math.min(80, (screenWidth - 64) / 4); // 4 images per row with padding
 
 export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
   if (images.length === 0) {
@@ -36,6 +36,7 @@ export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
               style={styles.image}
               contentFit="cover"
               placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
+              cachePolicy="memory-disk"
             />
             <TouchableOpacity
               style={styles.removeButton}
@@ -52,10 +53,11 @@ export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: '#2a2a2a',
+    backgroundColor: '#0d0d0d',
   },
   scrollContent: {
     paddingRight: 16,
@@ -67,14 +69,21 @@ const styles = StyleSheet.create({
   image: {
     width: imageSize,
     height: imageSize,
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: '#1a1a1a',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   removeButton: {
     position: 'absolute',
-    top: -8,
-    right: -8,
+    top: -6,
+    right: -6,
     backgroundColor: '#0a0a0a',
-    borderRadius: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
   },
 });

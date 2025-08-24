@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 import { toast } from '../../src/utils/toast';
 import { filterMessageParts } from '../../src/utils/messageFiltering';
@@ -550,29 +551,63 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
           const isFirstPart = partIndex === 0;
           const isLastPart = partIndex === filteredParts.length - 1;
           
-          return (
-            <View key={`${item.info.id}-${index}-part-${partIndex}`} style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
-              <MessageDecoration 
-                role={item.info.role}
-                part={part}
-                isFirstPart={isFirstPart}
-                isLastPart={isLastPart}
-                providerID={item.info.role === 'assistant' ? (item.info as AssistantMessage).providerID : undefined}
-                modelID={item.info.role === 'assistant' ? (item.info as AssistantMessage).modelID : undefined}
-              />
-              <View style={[styles.contentColumn, isUser && styles.userContentColumn]}>
-                {isUser ? (
+          if (isUser) {
+            return (
+              <View key={`${item.info.id}-${index}-part-${partIndex}`} style={styles.userMessageRow}>
+                {/* Render different content based on part type */}
+                {part.type === 'text' && (
                   <View style={styles.userMessageBubble}>
-                    <MessageContent 
-                      role={item.info.role}
-                      part={part}
-                      isLast={index === messages.length - 1}
-                      partIndex={partIndex}
-                      totalParts={filteredParts.length}
-                      messageId={item.info.id}
-                    />
+                    <Text style={styles.userMessageText}>
+                      {part.text || ''}
+                    </Text>
                   </View>
-                ) : (
+                )}
+                {part.type === 'file' && (
+                  <View style={styles.userFileContainer}>
+                    <View style={styles.userFileHeader}>
+                      <Text style={styles.userFileIcon}>📄</Text>
+                      <Text style={styles.userFileName}>
+                        {part.filename || 'Unknown file'}
+                      </Text>
+                    </View>
+                    {/* Show image preview if it's an image file */}
+                    {part.url && part.mime?.startsWith('image/') && (
+                      <Image
+                        source={{ uri: part.url }}
+                        style={styles.userImagePreview}
+                        contentFit="cover"
+                      />
+                    )}
+                  </View>
+                )}
+                {/* Handle other part types */}
+                {part.type !== 'text' && part.type !== 'file' && (
+                  <View style={styles.userMessageBubble}>
+                    <Text style={styles.userMessageText}>
+                      {part.type} content
+                    </Text>
+                  </View>
+                )}
+                {isLastPart && (
+                  <MessageTimestamp 
+                    timestamp={item.info.time.created}
+                    compact={true}
+                  />
+                )}
+              </View>
+            );
+          } else {
+            return (
+              <View key={`${item.info.id}-${index}-part-${partIndex}`} style={styles.twoColumnLayout}>
+                <MessageDecoration 
+                  role={item.info.role}
+                  part={part}
+                  isFirstPart={isFirstPart}
+                  isLastPart={isLastPart}
+                  providerID={item.info.role === 'assistant' ? (item.info as AssistantMessage).providerID : undefined}
+                  modelID={item.info.role === 'assistant' ? (item.info as AssistantMessage).modelID : undefined}
+                />
+                <View style={styles.contentColumn}>
                   <MessageContent 
                     role={item.info.role}
                     part={part}
@@ -581,17 +616,16 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                     totalParts={filteredParts.length}
                     messageId={item.info.id}
                   />
-                )}
-                {/* Compact timestamp for each message part (only on last part) */}
-                {isLastPart && (
-                  <MessageTimestamp 
-                    timestamp={item.info.time.created}
-                    compact={true}
-                  />
-                )}
+                  {isLastPart && (
+                    <MessageTimestamp 
+                      timestamp={item.info.time.created}
+                      compact={true}
+                    />
+                  )}
+                </View>
               </View>
-            </View>
-          );
+            );
+          }
         })}
       </View>
     );
@@ -1043,18 +1077,14 @@ title: {
     marginBottom: 4,
   },
   userMessageContainer: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    backgroundColor: 'transparent',
   },
   contentColumn: {
     flex: 1,
     paddingLeft: 8,
   },
   userContentColumn: {
-    paddingLeft: 8,
+    paddingLeft: 0,
   },
   userMessage: {
     alignItems: 'flex-end',
@@ -1074,13 +1104,27 @@ title: {
   assistantBubble: {
     backgroundColor: '#2a2a2a',
   },
+  userMessageRow: {
+    alignItems: 'flex-end',
+    marginBottom: 2,
+    minHeight: 0,
+    flexShrink: 1,
+  },
   userMessageBubble: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    maxWidth: '100%',
+    backgroundColor: '#2563eb',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    maxWidth: '80%',
+    alignSelf: 'flex-end',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+    flexShrink: 1,
+    minHeight: 0,
+    maxHeight: 400,
   },
   messageText: {
     fontSize: 16,
@@ -1091,8 +1135,11 @@ title: {
   },
   userMessageText: {
     color: '#ffffff',
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '400',
+    flexShrink: 1,
+    textAlign: 'left',
   },
   assistantText: {
     color: '#ffffff',
@@ -1286,5 +1333,39 @@ title: {
      fontSize: 12,
      fontWeight: '600',
      marginLeft: 4,
+   },
+   // User file attachment styles
+   userFileContainer: {
+     backgroundColor: '#2563eb',
+     borderRadius: 12,
+     padding: 12,
+     maxWidth: '80%',
+     alignSelf: 'flex-end',
+     shadowColor: '#2563eb',
+     shadowOffset: { width: 0, height: 2 },
+     shadowOpacity: 0.3,
+     shadowRadius: 4,
+     elevation: 3,
+   },
+   userFileHeader: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     marginBottom: 8,
+   },
+   userFileIcon: {
+     fontSize: 16,
+     marginRight: 8,
+   },
+   userFileName: {
+     color: '#ffffff',
+     fontSize: 14,
+     fontWeight: '500',
+     flex: 1,
+   },
+   userImagePreview: {
+     width: 200,
+     height: 150,
+     borderRadius: 8,
+     backgroundColor: 'rgba(255, 255, 255, 0.1)',
    },
  });

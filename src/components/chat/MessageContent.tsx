@@ -114,8 +114,8 @@ export function MessageContent({
 
 const styles = StyleSheet.create({
   contentColumn: {
-    flex: 1,
-    paddingLeft: 8,
+    flexShrink: 1,
+    paddingLeft: 6,
   },
   contentText: {
     fontSize: 16,

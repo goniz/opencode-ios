@@ -898,7 +898,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
         console.log('Max retry attempts reached for event stream');
       }
     }
-}, [stopEventStream, state.isGenerating]);
+}, [stopEventStream, state.isGenerating, loadMessages, state.currentSession]);
 
   // Handle app state changes to manage connection gracefully
   useEffect(() => {

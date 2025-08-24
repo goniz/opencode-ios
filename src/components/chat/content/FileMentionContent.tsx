@@ -93,20 +93,20 @@ const styles = StyleSheet.create({
   mentionContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     marginHorizontal: 2,
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderColor: 'rgba(59, 130, 246, 0.4)',
   },
   mentionIcon: {
     marginRight: 4,
   },
   mentionText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
     color: '#3b82f6',
   },
 });
