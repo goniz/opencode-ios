@@ -11,7 +11,7 @@ let cachedAppCwd: string | null = null;
 export async function cacheAppPaths(client: Client): Promise<void> {
   try {
     const response = await appGet({ client });
-    if (response.data) {
+    if (response.data?.path) {
       cachedAppRoot = response.data.path.root;
       cachedAppCwd = response.data.path.cwd;
       console.log('Cached app paths:', { root: cachedAppRoot, cwd: cachedAppCwd });

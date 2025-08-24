@@ -30,10 +30,24 @@ export const BashTool: React.FC<ToolComponentProps> = ({
   let command = '';
   let description = '';
   
+  // Try to get input from the converted part first
   if ('input' in part && typeof part.input === 'object' && part.input !== null) {
     const input = part.input as Record<string, unknown>;
     command = (input.command as string) || '';
     description = (input.description as string) || '';
+  }
+  
+  // If not found and we have an original tool part, get from there
+  if ((!command || !description) && toolPart?.state) {
+    if ((toolPart.state.status === 'completed' || toolPart.state.status === 'error') && toolPart.state.input) {
+      const input = toolPart.state.input as Record<string, unknown>;
+      command = command || (input.command as string) || '';
+      description = description || (input.description as string) || '';
+    } else if (toolPart.state.status === 'running' && toolPart.state.input) {
+      const input = toolPart.state.input as Record<string, unknown>;
+      command = command || (input.command as string) || '';
+      description = description || (input.description as string) || '';
+    }
   }
 
   const commandLines = command.split('\n');
