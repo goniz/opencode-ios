@@ -414,7 +414,7 @@ export default function ChatScreen() {
     }
   };
 
-  const handleCommandExecution = async (commandText: string) => {
+  const handleCommandExecution = useCallback(async (commandText: string) => {
     if (!currentSession || !client) {
       return;
     }
@@ -454,13 +454,22 @@ export default function ChatScreen() {
     } finally {
       setIsSending(false);
     }
-  };
+  }, [client, currentSession, currentModel]);
 
   const handleCommandSelect = useCallback((command: CommandSuggestion) => {
     console.log('Command selected:', command);
-    // You can add additional logic here when a command is selected
-    // For example, showing a tooltip with command description
-  }, []);
+    // Check if the command template contains $ARGUMENTS
+    if (command.template && command.template.includes('$ARGUMENTS')) {
+      // For commands with $ARGUMENTS, we just insert the command name and let the user type arguments
+      // The command will be sent when the user presses send
+      console.log('Command requires arguments, inserting into input');
+      setInputText(`/${command.name} `);
+    } else {
+      // For commands without $ARGUMENTS, send immediately
+      const commandText = `/${command.name}`;
+      handleCommandExecution(commandText);
+    }
+  }, [handleCommandExecution, setInputText]);
 
 const renderMessage = ({ item, index }: { item: MessageWithParts; index: number }) => {
     // Filter parts using the existing filtering logic

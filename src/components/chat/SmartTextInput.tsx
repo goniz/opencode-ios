@@ -170,28 +170,51 @@ export function SmartTextInput({
     }
   }, [value, currentFileMention, onChangeText]);
   
-  const handleSelectCommand = useCallback((commandName: string) => {
-    if (currentCommandMention) {
-      const newText = replaceCommandMention(value, currentCommandMention, commandName);
-      onChangeText(newText);
-      
-      // Find the selected command for additional info
-      const selectedCommand = commands.find(cmd => cmd.name === commandName);
-      if (selectedCommand && onCommandSelect) {
-        onCommandSelect({
-          name: selectedCommand.name,
-          description: selectedCommand.description,
-          agent: selectedCommand.agent,
-          model: selectedCommand.model,
-          template: selectedCommand.template
-        });
+const handleSelectCommand = useCallback((commandName: string) => {
+    const selectedCommand = commands.find(cmd => cmd.name === commandName);
+    if (!selectedCommand) return;
+    
+    let newText = '';
+    
+    // Check if the template contains $ARGUMENTS
+    if (selectedCommand.template && selectedCommand.template.includes('$ARGUMENTS')) {
+      // Inject the command into the input box with a space but don't send
+      const commandText = `/${commandName} `;
+      if (currentCommandMention) {
+        newText = replaceCommandMention(value, currentCommandMention, commandText);
+      } else {
+        // If no current mention, just append to the end
+        newText = value + commandText;
       }
-      
-      // Clear suggestions
-      setCommandSuggestions([]);
-      setShowCommandSuggestions(false);
-      setCurrentCommandMention(null);
+    } else {
+      // For commands without $ARGUMENTS, inject the command
+      const commandText = `/${commandName}`;
+      if (currentCommandMention) {
+        newText = replaceCommandMention(value, currentCommandMention, commandText);
+      } else {
+        // If no current mention, just append to the end
+        newText = value + commandText;
+      }
     }
+    
+    // Update the text
+    onChangeText(newText);
+    
+    // If there's an onCommandSelect callback, call it
+    if (onCommandSelect) {
+      onCommandSelect({
+        name: selectedCommand.name,
+        description: selectedCommand.description,
+        agent: selectedCommand.agent,
+        model: selectedCommand.model,
+        template: selectedCommand.template
+      });
+    }
+    
+    // Clear suggestions
+    setCommandSuggestions([]);
+    setShowCommandSuggestions(false);
+    setCurrentCommandMention(null);
   }, [value, currentCommandMention, onChangeText, commands, onCommandSelect]);
 
   const handleCloseFileSuggestions = useCallback(() => {

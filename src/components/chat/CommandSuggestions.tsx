@@ -73,7 +73,11 @@ export function CommandSuggestions({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerText}>Select a command</Text>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+        <TouchableOpacity 
+          onPress={onClose} 
+          style={styles.closeButton}
+          testID="command-suggestions-close-button"
+        >
           <Ionicons name="close" size={16} color="#9ca3af" />
         </TouchableOpacity>
       </View>
