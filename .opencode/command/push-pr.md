@@ -1,6 +1,7 @@
 ---
 description: Push branch to remote and create PR (creates new branch if on main)
 agent: build
+model: anthropic/claude-sonnet-4-20250514
 ---
 
 Push the current branch to remote and create a Pull Request:
