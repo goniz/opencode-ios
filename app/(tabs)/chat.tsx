@@ -446,9 +446,7 @@ export default function ChatScreen() {
         path: { id: currentSession.id },
         body: {
           command: commandName,
-          arguments: args,
-          model: currentModel?.modelID,
-          agent: currentModel?.providerID || undefined // Use provider ID as agent if available, otherwise undefined
+          arguments: args
         }
       });
       console.log('Command executed successfully');
