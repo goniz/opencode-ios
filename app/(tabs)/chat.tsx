@@ -23,9 +23,11 @@ import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
 
 import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInput';
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
+import { CrutesApiKeyInput } from '../../src/components/chat/CrutesApiKeyInput';
 import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
 import { configProviders, configGet, sessionCommand } from '../../src/api/sdk.gen';
 import type { CommandSuggestion } from '../../src/utils/commandMentions';
+import { ChutesApiKeyRequiredError, ChutesApiKeyInvalidError } from '../../src/utils/chutes';
 
 interface MessageWithParts {
   info: Message;
@@ -50,7 +52,7 @@ export default function ChatScreen() {
     connectionStatus, 
     sessions,
     currentSession, 
-    messages, 
+    messages,
     isLoadingMessages,
     isStreamConnected,
     isGenerating,
@@ -61,7 +63,8 @@ export default function ChatScreen() {
     abortSession,
     setCurrentSession,
     client,
-    latestProviderModel
+    latestProviderModel,
+    onSessionIdle
   } = useConnection();
   
   const [inputText, setInputText] = useState('');
@@ -78,7 +81,8 @@ export default function ChatScreen() {
    const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
    const [hasNewMessages, setHasNewMessages] = useState(false);
    const [chutesQuota, setChutesQuota] = useState<{used: number, quota: number} | null>(null);
-   const [chutesLoading, setChutesLoading] = useState(false);
+   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+   const [pendingApiKeyRequest, setPendingApiKeyRequest] = useState<{providerID: string, modelID: string} | null>(null);
    const flatListRef = useRef<FlatList>(null);
    const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -151,42 +155,74 @@ export default function ChatScreen() {
   // Load Chutes quota when current model changes
   useEffect(() => {
     const loadChutesQuota = async () => {
+      console.log(`[Chutes] Checking quota - Connection: ${connectionStatus}, Has client: ${!!client}, Has model: ${!!currentModel}`);
       if (connectionStatus === 'connected' && client && currentModel) {
-        // Check if the current provider is Chutes and has an API key
-        try {
-          setChutesLoading(true);
-          const configResponse = await configGet({ client });
-          
-          const providerConfig = configResponse.data?.provider?.[currentModel.providerID];
-          const apiKey = providerConfig?.options?.apiKey;
-          
-          if (apiKey && typeof apiKey === 'string') {
+        console.log(`[Chutes] Current model - Provider: ${currentModel.providerID}, Model: ${currentModel.modelID}`);
+        
+        // Check if this is a Chutes model or a model that requires Chutes quota checking
+        const shouldCheckQuota = currentModel.providerID === 'chutes' || 
+          (currentModel.providerID !== 'chutes' && await shouldCheckChutesQuota(currentModel.providerID));
+        
+        if (shouldCheckQuota) {
+          try {
             // Import the Chutes utility function
             const { fetchChutesQuota } = await import('../../src/utils/chutes');
             
-            try {
-              const quota = await fetchChutesQuota(currentModel.modelID, apiKey);
-              setChutesQuota(quota);
-            } catch (error) {
-              console.error('Failed to fetch Chutes quota:', error);
-              setChutesQuota(null);
+            console.log(`[Chutes] Requesting quota for model: ${currentModel.modelID}`);
+            const quota = await fetchChutesQuota(client, currentModel.modelID);
+            console.log(`[Chutes] Quota updated - Used: ${quota.used}, Quota: ${quota.quota}`);
+            setChutesQuota(quota);
+          } catch (error) {
+            console.error('Failed to fetch Chutes quota:', error);
+            
+            // Check if this is an API key required or invalid error
+            if (error instanceof ChutesApiKeyRequiredError || error instanceof ChutesApiKeyInvalidError) {
+              console.log('[Chutes] API key required/invalid, showing input dialog');
+              setPendingApiKeyRequest({
+                providerID: currentModel.providerID,
+                modelID: currentModel.modelID
+              });
+              setShowApiKeyInput(true);
             }
-          } else {
+            
             setChutesQuota(null);
           }
-        } catch (error) {
-          console.error('Failed to load config for Chutes check:', error);
+        } else {
+          console.log(`[Chutes] Skipping quota check for provider ${currentModel.providerID}`);
           setChutesQuota(null);
-        } finally {
-          setChutesLoading(false);
         }
       } else {
+        console.log(`[Chutes] Skipping quota check - Connection: ${connectionStatus}, Has client: ${!!client}, Has model: ${!!currentModel}`);
         setChutesQuota(null);
+      }
+    };
+    
+    // Helper function to check if we should check Chutes quota for non-Chutes providers
+    const shouldCheckChutesQuota = async (providerID: string): Promise<boolean> => {
+      if (!client) return false;
+      
+      try {
+        const configResponse = await configGet({ client });
+        const providerConfig = configResponse.data?.provider?.[providerID];
+        const apiKey = providerConfig?.options?.apiKey;
+        console.log(`[Chutes] Provider ${providerID} config found: ${!!providerConfig}, API key present: ${!!apiKey}`);
+        return !!(apiKey && typeof apiKey === 'string');
+      } catch (error) {
+        console.error('Failed to check provider config:', error);
+        return false;
       }
     };
 
     loadChutesQuota();
-  }, [connectionStatus, client, currentModel]);
+    
+    // Also subscribe to session.idle events to refresh quota
+    const unsubscribe = onSessionIdle((sessionId: string) => {
+      console.log(`[Chutes] Session ${sessionId} became idle, refreshing quota`);
+      loadChutesQuota();
+    });
+    
+    return unsubscribe;
+  }, [connectionStatus, client, currentModel, onSessionIdle]);
 
   // Session-scoped provider and model selection - update when session or messages change
   useEffect(() => {
@@ -503,20 +539,81 @@ export default function ChatScreen() {
     }
   }, [client, currentSession]);
 
-  const handleCommandSelect = useCallback((command: CommandSuggestion) => {
-    console.log('Command selected:', command);
-    // Check if the command template contains $ARGUMENTS
-    if (command.template && command.template.includes('$ARGUMENTS')) {
-      // For commands with $ARGUMENTS, we just insert the command name and let the user type arguments
-      // The command will be sent when the user presses send
-      console.log('Command requires arguments, inserting into input');
-      setInputText(`/${command.name} `);
-    } else {
-      // For commands without $ARGUMENTS, send immediately
-      const commandText = `/${command.name}`;
-      handleCommandExecution(commandText);
-    }
-  }, [handleCommandExecution, setInputText]);
+   const handleCommandSelect = useCallback((command: CommandSuggestion) => {
+     console.log('Command selected:', command);
+     // Check if the command template contains $ARGUMENTS
+     if (command.template && command.template.includes('$ARGUMENTS')) {
+       // For commands with $ARGUMENTS, we just insert the command name and let the user type arguments
+       // The command will be sent when the user presses send
+       console.log('Command requires arguments, inserting into input');
+       setInputText(`/${command.name} `);
+     } else {
+       // For commands without $ARGUMENTS, send immediately
+       const commandText = `/${command.name}`;
+       handleCommandExecution(commandText);
+     }
+   }, [handleCommandExecution, setInputText]);
+
+   const handleApiKeyProvided = useCallback(async (apiKey: string) => {
+     console.log('[Chutes] API key provided, retrying quota fetch');
+     setShowApiKeyInput(false);
+     
+      if (pendingApiKeyRequest && client) {
+        try {
+          // Import the Chutes utility function
+          const { fetchChutesQuota } = await import('../../src/utils/chutes');
+         
+         // Retry the quota fetch with the provided API key
+         const quota = await fetchChutesQuota(client, pendingApiKeyRequest.modelID, apiKey);
+         console.log(`[Chutes] Quota updated with provided API key - Used: ${quota.used}, Quota: ${quota.quota}`);
+         setChutesQuota(quota);
+       } catch (error) {
+         console.error('Failed to fetch Chutes quota with provided API key:', error);
+         
+         if (error instanceof ChutesApiKeyInvalidError) {
+           Alert.alert(
+             'Invalid API Key', 
+             'The provided API key appears to be invalid or expired. Please check and try again.',
+             [
+               {
+                 text: 'Try Again',
+                 onPress: () => setShowApiKeyInput(true)
+               },
+               {
+                 text: 'Cancel',
+                 style: 'cancel'
+               }
+             ]
+           );
+         } else {
+           Alert.alert(
+             'Connection Error', 
+             'Failed to fetch quota information. Please check your connection and try again.',
+             [
+               {
+                 text: 'Try Again',
+                 onPress: () => setShowApiKeyInput(true)
+               },
+               {
+                 text: 'Cancel',
+                 style: 'cancel'
+               }
+             ]
+           );
+         }
+         
+          setChutesQuota(null);
+        }
+     }
+     
+     setPendingApiKeyRequest(null);
+   }, [pendingApiKeyRequest, client]);
+
+   const handleApiKeyInputCancel = useCallback(() => {
+     console.log('[Chutes] API key input cancelled');
+     setShowApiKeyInput(false);
+     setPendingApiKeyRequest(null);
+   }, []);
 
 const renderMessage = ({ item, index }: { item: MessageWithParts; index: number }) => {
     // Filter parts using the existing filtering logic
@@ -846,107 +943,98 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
       keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
     >
       <SafeAreaView style={styles.container}>
-         <View style={styles.header}>
-          <Text style={styles.title}>{currentSession.title}</Text>
-          <View style={styles.headerBottom}>
-            {connectionStatus === 'connected' && (
-              <View style={[styles.streamStatus, !isStreamConnected && styles.streamStatusOffline]}>
-                <View style={[styles.streamIndicator, !isStreamConnected && styles.streamIndicatorOffline]} />
-                <Text style={[styles.streamText, !isStreamConnected && styles.streamTextOffline]}>
-                  {isStreamConnected ? 'Live' : 'Offline'}
-                </Text>
-              </View>
-            )}
-            <TouchableOpacity onPress={() => {
-              if (availableProviders.length > 0) {
-                Alert.alert(
-                  'Select Provider',
-                  'Choose a provider for this conversation',
-                  [
-                    ...availableProviders.map(provider => ({
-                      text: provider.name,
-                      onPress: () => setCurrentProvider(provider.id)
-                    })),
-                    { text: 'Cancel', style: 'cancel' }
-                  ]
-                );
-              }
-            }}>
-              <View style={styles.providerSelector}>
-                <Text style={styles.providerSelectorText} numberOfLines={1}>
-                  {currentProvider ? 
-                    availableProviders.find(p => p.id === currentProvider)?.name || currentProvider : 
-                    'Select Provider'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-            
-            {currentProvider && (
-              <TouchableOpacity onPress={() => {
-                if (currentProviderModels.length > 0) {
-                  Alert.alert(
-                    'Select Model',
-                    'Choose a model for this conversation',
-                    [
-                      ...currentProviderModels.map(model => ({
-                        text: model.name,
-                        onPress: () => setCurrentModel({
-                          providerID: currentProvider,
-                          modelID: model.modelID
-                        })
-                      })),
-                      { text: 'Cancel', style: 'cancel' }
-                    ]
-                  );
-                }
-              }}>
-                <View style={styles.modelSelector}>
-                  <Text style={styles.modelSelectorText} numberOfLines={1}>
-                    {currentModel ? 
-                      currentProviderModels.find(m => m.modelID === currentModel.modelID)?.name || currentModel.modelID : 
-                      'Select Model'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-            
-            {/* Compact generating indicator */}
-            {isGenerating && (
-              <View style={styles.generatingContainer}>
-                <ActivityIndicator size="small" color="#f59e0b" style={styles.generatingSpinner} />
-                <Text style={styles.generatingText}>Generating...</Text>
-              </View>
-            )}
-
-{/* Context window usage and cost information on same line */}
-             {contextInfo && !isGenerating && (
-               <View style={styles.tokenInfoInline}>
-                 <Text style={styles.tokenInfoValue}>
+          <View style={styles.header}>
+           <Text style={styles.title}>{currentSession.title}</Text>
+           <View style={styles.headerBottom}>
+             {connectionStatus === 'connected' && (
+               <View style={[styles.streamStatus, !isStreamConnected && styles.streamStatusOffline]}>
+                 <View style={[styles.streamIndicator, !isStreamConnected && styles.streamIndicatorOffline]} />
+                 <Text style={[styles.streamText, !isStreamConnected && styles.streamTextOffline]}>
+                   {isStreamConnected ? 'Live' : 'Offline'}
+                 </Text>
+               </View>
+             )}
+             <TouchableOpacity onPress={() => {
+               if (availableProviders.length > 0) {
+                 Alert.alert(
+                   'Select Provider',
+                   'Choose a provider for this conversation',
+                   [
+                     ...availableProviders.map(provider => ({
+                       text: provider.name,
+                       onPress: () => setCurrentProvider(provider.id)
+                     })),
+                     { text: 'Cancel', style: 'cancel' }
+                   ]
+                 );
+               }
+             }}>
+               <View style={styles.providerSelector}>
+                 <Text style={styles.providerSelectorText} numberOfLines={1}>
+                   {currentProvider ? 
+                     availableProviders.find(p => p.id === currentProvider)?.name || currentProvider : 
+                     'Select Provider'}
+                 </Text>
+               </View>
+             </TouchableOpacity>
+             
+             {currentProvider && (
+               <TouchableOpacity onPress={() => {
+                 if (currentProviderModels.length > 0) {
+                   Alert.alert(
+                     'Select Model',
+                     'Choose a model for this conversation',
+                     [
+                       ...currentProviderModels.map(model => ({
+                         text: model.name,
+                         onPress: () => setCurrentModel({
+                           providerID: currentProvider,
+                           modelID: model.modelID
+                         })
+                       })),
+                       { text: 'Cancel', style: 'cancel' }
+                     ]
+                   );
+                 }
+               }}>
+                 <View style={styles.modelSelector}>
+                   <Text style={styles.modelSelectorText} numberOfLines={1}>
+                     {currentModel ? 
+                       currentProviderModels.find(m => m.modelID === currentModel.modelID)?.name || currentModel.modelID : 
+                       'Select Model'}
+                   </Text>
+                 </View>
+               </TouchableOpacity>
+             )}
+             
+             {/* Compact generating indicator */}
+             {isGenerating && (
+               <View style={styles.generatingContainer}>
+                 <ActivityIndicator size="small" color="#f59e0b" style={styles.generatingSpinner} />
+                 <Text style={styles.generatingText}>Generating...</Text>
+               </View>
+             )}
+           </View>
+           
+           {/* Token/cost/quota info row */}
+           {(contextInfo || chutesQuota) && !isGenerating && (
+             <View style={styles.headerInfoRow}>
+               {contextInfo && (
+                 <Text style={styles.tokenInfoCompact}>
                    {contextInfo.isSubscriptionModel 
                      ? `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}%`
                      : `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}% ($${contextInfo.sessionCost.toFixed(2)})`
                    }
                  </Text>
-               </View>
-             )}
-             
-             {/* Chutes quota display */}
-             {chutesQuota && (
-               <View style={styles.tokenInfoInline}>
-                 <Text style={styles.tokenInfoValue}>
-                   Chutes: {chutesQuota.used}/{chutesQuota.quota} requests
+               )}
+               {chutesQuota && (
+                 <Text style={styles.tokenInfoCompact}>
+                   Chutes: {chutesQuota.used}/{chutesQuota.quota}
                  </Text>
-               </View>
-             )}
-             {chutesLoading && (
-               <View style={styles.tokenInfoInline}>
-                 <Text style={styles.tokenInfoValue}>
-                   Loading Chutes quota...
-                 </Text>
-               </View>
-             )}
-          </View>
-        </View>
+               )}
+             </View>
+           )}
+         </View>
 
         {lastError && !dismissedErrors.has(lastError) && (
           <View style={styles.sessionErrorBanner}>
@@ -998,12 +1086,18 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
            </>
          )}
 
-        <ImagePreview 
-          images={selectedImages}
-          onRemoveImage={handleRemoveImage}
-        />
+         <ImagePreview 
+           images={selectedImages}
+           onRemoveImage={handleRemoveImage}
+         />
 
-        <View style={styles.inputContainer}>
+         <CrutesApiKeyInput
+           visible={showApiKeyInput}
+           onApiKeyProvided={handleApiKeyProvided}
+           onCancel={handleApiKeyInputCancel}
+         />
+
+         <View style={styles.inputContainer}>
           <ImageAwareTextInput
             style={styles.textInput}
             value={inputText}
@@ -1070,6 +1164,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
+  },
+  headerInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 12,
   },
   headerRight: {
     flexDirection: 'row',
@@ -1390,6 +1490,11 @@ title: {
   },
   tokenInfoValue: {
     fontSize: 12,
+    color: '#9ca3af',
+    fontWeight: '400',
+  },
+  tokenInfoCompact: {
+    fontSize: 11,
     color: '#9ca3af',
     fontWeight: '400',
   },
