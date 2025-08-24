@@ -5,9 +5,10 @@ import type { ToolState } from '../../../../api/types.gen';
 interface ToolStateIndicatorProps {
   state: ToolState;
   title?: string;
+  hideTitle?: boolean;
 }
 
-export const ToolStateIndicator: React.FC<ToolStateIndicatorProps> = ({ state, title }) => {
+export const ToolStateIndicator: React.FC<ToolStateIndicatorProps> = ({ state, title, hideTitle = false }) => {
   const spinAnimation = useRef(new Animated.Value(0)).current;
   const pulseAnimation = useRef(new Animated.Value(0)).current;
 
@@ -75,33 +76,35 @@ export const ToolStateIndicator: React.FC<ToolStateIndicatorProps> = ({ state, t
       case 'running':
         return (
           <View style={styles.statusContainer}>
-            <Animated.View 
-              style={[
-                styles.statusBadge,
-                styles.runningBadge,
-                {
-                  opacity: spinAnimation.interpolate({
-                    inputRange: [0, 0.5, 1],
-                    outputRange: [0.7, 1, 0.7],
-                  }),
-                }
-              ]}
-            >
-              <Text style={styles.badgeText}>RUNNING</Text>
-            </Animated.View>
-            {state.title && (
-              <Text style={styles.titleText}>
-                {state.title}
+            <View style={styles.badgeTimeContainer}>
+              <Animated.View 
+                style={[
+                  styles.statusBadge,
+                  styles.runningBadge,
+                  {
+                    opacity: spinAnimation.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0.7, 1, 0.7],
+                    }),
+                  }
+                ]}
+              >
+                <Text style={styles.badgeText}>RUNNING</Text>
+              </Animated.View>
+              {state.time && (
+                <Text style={styles.timeText}>
+                  {formatDuration(Date.now() - state.time.start)}
+                </Text>
+              )}
+            </View>
+            {!hideTitle && state.title && (
+              <Text style={styles.titleText} numberOfLines={1}>
+                {state.title.length > 50 ? `${state.title.substring(0, 47)}...` : state.title}
               </Text>
             )}
-            {!state.title && title && (
-              <Text style={styles.titleText}>
-                {title}
-              </Text>
-            )}
-            {state.time && (
-              <Text style={styles.timeText}>
-                {formatDuration(Date.now() - state.time.start)}
+            {!hideTitle && !state.title && title && (
+              <Text style={styles.titleText} numberOfLines={1}>
+                {title && title.length > 50 ? `${title.substring(0, 47)}...` : title}
               </Text>
             )}
           </View>
@@ -110,17 +113,19 @@ export const ToolStateIndicator: React.FC<ToolStateIndicatorProps> = ({ state, t
       case 'completed':
         return (
           <View style={styles.statusContainer}>
-            <View style={[styles.statusBadge, styles.completedBadge]}>
-              <Text style={styles.badgeText}>DONE</Text>
+            <View style={styles.badgeTimeContainer}>
+              <View style={[styles.statusBadge, styles.completedBadge]}>
+                <Text style={styles.badgeText}>DONE</Text>
+              </View>
+              {state.time && (
+                <Text style={styles.timeText}>
+                  {formatDuration(state.time.end - state.time.start)}
+                </Text>
+              )}
             </View>
-            {state.title && (
-              <Text style={styles.titleText}>
-                {state.title}
-              </Text>
-            )}
-            {state.time && (
-              <Text style={styles.timeText}>
-                {formatDuration(state.time.end - state.time.start)}
+            {!hideTitle && state.title && (
+              <Text style={styles.titleText} numberOfLines={1}>
+                {state.title.length > 50 ? `${state.title.substring(0, 47)}...` : state.title}
               </Text>
             )}
           </View>
@@ -129,14 +134,16 @@ export const ToolStateIndicator: React.FC<ToolStateIndicatorProps> = ({ state, t
       case 'error':
         return (
           <View style={styles.statusContainer}>
-            <View style={[styles.statusBadge, styles.errorBadge]}>
-              <Text style={styles.badgeText}>ERROR</Text>
+            <View style={styles.badgeTimeContainer}>
+              <View style={[styles.statusBadge, styles.errorBadge]}>
+                <Text style={styles.badgeText}>ERROR</Text>
+              </View>
+              {state.time && (
+                <Text style={styles.timeText}>
+                  {formatDuration(state.time.end - state.time.start)}
+                </Text>
+              )}
             </View>
-            {state.time && (
-              <Text style={styles.timeText}>
-                {formatDuration(state.time.end - state.time.start)}
-              </Text>
-            )}
           </View>
         );
 
@@ -177,6 +184,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flexWrap: 'wrap',
+    maxWidth: '100%',
+  },
+  badgeTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
   },
   statusBadge: {
     paddingHorizontal: 6,
@@ -211,6 +225,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#9ca3af',
     fontStyle: 'italic',
+    flex: 1,
+    minWidth: 0,
   },
   timeText: {
     fontSize: 10,
