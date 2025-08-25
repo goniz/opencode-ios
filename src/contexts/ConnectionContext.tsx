@@ -632,10 +632,20 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
           const processedImages = await processImageUris(images);
           
           for (const processedImage of processedImages) {
+            // Create a proper data URI from the processed image data
+            const dataUri = `data:${processedImage.mime};base64,${processedImage.base64Data}`;
+            
+            console.log('Creating file part for image:', {
+              filename: processedImage.filename,
+              mime: processedImage.mime,
+              dataUriLength: dataUri.length,
+              dataUriPrefix: dataUri.substring(0, 50)
+            });
+            
             parts.push({
               type: 'file',
               mime: processedImage.mime,
-              url: processedImage.base64Data,
+              url: dataUri,
               filename: processedImage.filename
             });
           }
