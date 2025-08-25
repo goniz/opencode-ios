@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 
 import type { Part } from '../../../api/types.gen';
-import { colors } from '../../../styles/colors';
+import { MessageStyles } from '../../../styles/messageStyles';
 
 // Extended Part type to maintain backward compatibility with existing components
 export type ExtendedPart = Part | {
@@ -47,14 +47,14 @@ export const getMessagePartStyles = (context: MessagePartStyleContext) => {
   
   return {
     container: messageRole === 'user' && renderMode === 'bubble'
-      ? styles.userBubbleContainer 
-      : styles.expandedContainer,
+      ? MessageStyles.userBubbleContainer 
+      : MessageStyles.expandedContainer,
     text: messageRole === 'user' && renderMode === 'bubble'
-      ? styles.userBubbleText 
-      : styles.assistantText,
+      ? MessageStyles.userBubbleText 
+      : MessageStyles.assistantText,
     fileContainer: messageRole === 'user' && renderMode === 'bubble'
-      ? styles.userFileContainer
-      : styles.assistantFileContainer,
+      ? MessageStyles.userFileContainer
+      : MessageStyles.assistantFileContainer,
   };
 };
 
@@ -84,57 +84,5 @@ export const MessagePartContainer: React.FC<{
 const styles = StyleSheet.create({
   container: {
     marginBottom: 8,
-  },
-  
-// User message styles (bubble mode)
-  userBubbleContainer: {
-    backgroundColor: colors.primary[600],
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    shadowColor: colors.primary[600],
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-    flexShrink: 1,
-    flexGrow: 1,
-  },
-  
-  userBubbleText: {
-    color: colors.white,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '400',
-  },
-  
-  userFileContainer: {
-    backgroundColor: colors.primary[600],
-    borderRadius: 12,
-    padding: 12,
-    shadowColor: colors.primary[600],
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-    flexGrow: 1,
-  },
-  
-  // Assistant message styles (expanded mode)
-  expandedContainer: {
-    flex: 1,
-    paddingLeft: 6,
-  },
-  
-  assistantText: {
-    color: colors.gray[200],
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  
-  assistantFileContainer: {
-    // Keep existing assistant file styling
-    flex: 1,
-    paddingLeft: 6,
   },
 });
