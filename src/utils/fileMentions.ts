@@ -402,7 +402,9 @@ export async function createFilePartFromMention(
       filename: filePartInput.filename,
       url: filePartInput.url,
       sourceType: filePartInput.source?.type,
-      contentLength: content.length
+      contentLength: content.length,
+      sourceContentLength: filePartInput.source?.text?.value?.length || 0,
+      sourceTextPreview: filePartInput.source?.text?.value?.substring(0, 100) + '...' || 'none'
     });
 
     // Validate the created FilePartInput

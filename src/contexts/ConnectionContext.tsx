@@ -777,7 +777,11 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
               url: part.url,
               urlType: typeof part.url,
               urlLength: part.url.length,
-              urlPreview: part.url.substring(0, 50) + (part.url.length > 50 ? '...' : '')
+              urlPreview: part.url.substring(0, 50) + (part.url.length > 50 ? '...' : ''),
+              hasSource: !!part.source,
+              sourceType: part.source?.type,
+              sourceContentLength: part.source?.text?.value?.length || 0,
+              sourceTextPreview: part.source?.text?.value?.substring(0, 100) + '...' || 'none'
             });
           }
         });
@@ -799,6 +803,20 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
           parts
         };
         console.log('📤 [sendMessage] Full request body:', JSON.stringify(requestBody, null, 2));
+
+        // Log detailed parts structure
+        parts.forEach((part, index) => {
+          if (part.type === 'file' && part.source) {
+            console.log(`📤 [sendMessage] Part ${index} source details:`, {
+              sourceType: part.source.type,
+              sourcePath: part.source.path,
+              contentLength: part.source.text?.value?.length || 0,
+              contentStart: part.source.text?.start || 0,
+              contentEnd: part.source.text?.end || 0,
+              contentPreview: part.source.text?.value?.substring(0, 200) + '...' || 'none'
+            });
+          }
+        });
 
         const response = await sessionChat({
           client: state.client!,
