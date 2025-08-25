@@ -5,11 +5,12 @@ import type { AppStateStatus } from 'react-native';
 import EventSource from 'react-native-sse';
 import { createClient } from '../api/client';
 import type { Client } from '../api/client/types.gen';
-import type { Session, Message, Part, Command } from '../api/types.gen';
+import type { Session, Message, Part, Command, TextPartInput, FilePartInput } from '../api/types.gen';
 import { sessionList, sessionMessages, sessionChat, sessionAbort, commandList } from '../api/sdk.gen';
 import { saveServer, type SavedServer } from '../utils/serverStorage';
 import { cacheAppPaths } from '../utils/pathUtils';
 import { processImageUris } from '../utils/imageProcessing';
+import { processMessageForSending } from '../utils/messageUtils';
 
 const CURRENT_CONNECTION_KEY = 'current_connection';
 const CURRENT_SESSION_KEY = 'current_session';
@@ -615,33 +616,90 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       try {
         console.log('🚀 Starting message send - waiting for step-start event');
         console.log('   Current isGenerating state before send:', state.isGenerating);
-        
+
+        // Process the message for file mentions and create parts
+        console.log('📝 Processing message for file mentions...');
+        let processedMessage;
+
+        try {
+          processedMessage = await processMessageForSending(message, state.client!, {
+            keepMentionText: true, // Keep @filepath references for context
+            maxFileParts: 10, // Reasonable limit to prevent abuse
+            validateFiles: true
+          });
+
+          console.log('📊 Message processing complete:', {
+            textLength: processedMessage.textPart.text.length,
+            filePartsCount: processedMessage.fileParts.length,
+            invalidMentionsCount: processedMessage.invalidMentions.length
+          });
+        } catch (error) {
+          console.error('❌ Failed to process message for file mentions:', error);
+
+          // Fallback to original message processing if file processing fails
+          console.log('🔄 Falling back to original message processing...');
+          processedMessage = {
+            textPart: { type: 'text' as const, text: message },
+            fileParts: [],
+            invalidMentions: []
+          };
+        }
+
         // Build the parts array
-        const parts: ({type: 'text', text: string} | {type: 'file', mime: string, url: string, filename?: string})[] = [];
-        
-        // Add text part if there's a message
-        if (message.trim()) {
+        const parts: (TextPartInput | FilePartInput)[] = [];
+
+        // Add text part if there's processed text
+        if (processedMessage.textPart.text.trim()) {
           parts.push({
             type: 'text',
-            text: message
+            text: processedMessage.textPart.text,
+            id: undefined,
+            synthetic: undefined,
+            time: undefined
           });
         }
+
+        // Add file parts from message processing
+        if (processedMessage.fileParts.length > 0) {
+          console.log('📎 Adding file parts to message:', processedMessage.fileParts.map(fp => ({
+            filename: fp.filename,
+            mime: fp.mime,
+            url: fp.url.substring(0, 50) + '...' // Truncate for logging
+          })));
+
+          parts.push(...processedMessage.fileParts);
+        }
+
+        // Handle invalid mentions that couldn't be processed
+        if (processedMessage.invalidMentions.length > 0) {
+          console.warn('⚠️ Some file mentions could not be processed:', processedMessage.invalidMentions.map(m => m.path));
+
+          // Could add user notification here in the future
+          // For now, we just log and continue with the valid parts
+        }
+
+        // Validate that we have at least some content to send
+        if (parts.length === 0) {
+          console.error('❌ No content to send after processing');
+          throw new Error('Message has no content to send after processing file mentions');
+        }
         
-        // Add image parts if there are images
+        // Add image parts if there are images (processed separately from file mentions)
         if (images && images.length > 0) {
+          console.log('🖼️ Processing images for message...');
           const processedImages = await processImageUris(images);
-          
+
           for (const processedImage of processedImages) {
             // Create a proper data URI from the processed image data
             const dataUri = `data:${processedImage.mime};base64,${processedImage.base64Data}`;
-            
+
             console.log('Creating file part for image:', {
               filename: processedImage.filename,
               mime: processedImage.mime,
               dataUriLength: dataUri.length,
               dataUriPrefix: dataUri.substring(0, 50)
             });
-            
+
             parts.push({
               type: 'file',
               mime: processedImage.mime,
@@ -651,9 +709,17 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
           }
         }
 
-        console.log('Built parts array:', parts);
+        console.log('Built parts array:', parts.map(part => ({
+          type: part.type,
+          ...(part.type === 'text' ? { textLength: part.text.length } : {
+            filename: part.filename,
+            mime: part.mime,
+            urlLength: part.url.length
+          })
+        })));
 
         // Send the message - the response will come through the event stream
+        console.log('📤 Sending message to server...');
         const response = await sessionChat({
           client: state.client!,
           path: { id: sessionId },
@@ -663,6 +729,8 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
             parts
           }
         });
+
+        console.log('✅ Message sent successfully, waiting for response...');
 
         // Handle the immediate response (contains assistant message info and initial parts)
         if (response.data) {
