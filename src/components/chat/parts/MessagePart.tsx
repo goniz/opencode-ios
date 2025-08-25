@@ -86,20 +86,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   
-  // User message styles (bubble mode)
+// User message styles (bubble mode)
   userBubbleContainer: {
     backgroundColor: colors.primary[600],
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    maxWidth: '80%',
-    alignSelf: 'flex-end',
     shadowColor: colors.primary[600],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
     flexShrink: 1,
+    flexGrow: 1,
   },
   
   userBubbleText: {
@@ -113,13 +112,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[600],
     borderRadius: 12,
     padding: 12,
-    maxWidth: '80%',
-    alignSelf: 'flex-end',
     shadowColor: colors.primary[600],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
+    flexGrow: 1,
   },
   
   // Assistant message styles (expanded mode)

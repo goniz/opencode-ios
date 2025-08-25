@@ -9,6 +9,8 @@ import { StepPart } from './StepPart';
 export const PartComponentSelector: React.FC<MessagePartProps> = (props) => {
   const { part } = props;
   
+  console.log('PartComponentSelector - part.type:', part.type);
+  
   // Determine which component to render based on part type
   switch (part.type) {
     case 'text':

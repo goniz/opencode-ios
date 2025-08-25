@@ -1,8 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { MessagePartProps, MessagePartContainer } from './MessagePart';
+import { MessagePartProps, MessagePartContainer, getRenderMode, getMessagePartStyles } from './MessagePart';
 
-export const StepPart: React.FC<MessagePartProps> = ({ part }) => {
+export const StepPart: React.FC<MessagePartProps> = ({ 
+  part,
+  messageRole = 'assistant',
+  renderMode = 'auto'
+}) => {
+  const actualRenderMode = getRenderMode(renderMode, messageRole);
+  
   // Type guard for step parts
   const stepInfo = ('step' in part ? part.step : undefined) || 
                   ('content' in part ? part.content : undefined) || '';
@@ -10,6 +16,19 @@ export const StepPart: React.FC<MessagePartProps> = ({ part }) => {
   // Don't render anything if step info is empty
   if (!stepInfo) {
     return null;
+  }
+  
+  // For user messages in bubble mode, show a simplified version
+  if (messageRole === 'user' && actualRenderMode === 'bubble') {
+    return (
+      <MessagePartContainer>
+        <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).container}>
+          <Text style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).text}>
+            {stepInfo}
+          </Text>
+        </View>
+      </MessagePartContainer>
+    );
   }
   
   // Extract model information if available

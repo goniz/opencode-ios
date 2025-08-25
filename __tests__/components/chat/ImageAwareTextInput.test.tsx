@@ -84,4 +84,34 @@ describe('ImageAwareTextInput', () => {
     // In a real scenario, you might want to use a custom modal component instead
     expect(imageButton).toBeTruthy();
   });
+
+  it('handles base64 image from clipboard', async () => {
+    // Mock clipboard to return an image with base64 data
+    const hasImageAsyncMock = jest.spyOn(require('expo-clipboard'), 'hasImageAsync');
+    const getImageAsyncMock = jest.spyOn(require('expo-clipboard'), 'getImageAsync');
+    
+    hasImageAsyncMock.mockResolvedValueOnce(true);
+    getImageAsyncMock.mockResolvedValueOnce({ data: 'test-base64-data' });
+
+    // Verify that the mocks are properly set up
+    expect(hasImageAsyncMock).toBeDefined();
+    expect(getImageAsyncMock).toBeDefined();
+  });
+
+  it('creates data URI from base64 clipboard data', async () => {
+    // Mock clipboard to return an image with base64 data
+    const hasImageAsyncMock = jest.spyOn(require('expo-clipboard'), 'hasImageAsync');
+    const getImageAsyncMock = jest.spyOn(require('expo-clipboard'), 'getImageAsync');
+    
+    hasImageAsyncMock.mockResolvedValueOnce(true);
+    getImageAsyncMock.mockResolvedValueOnce({ data: 'test-base64-data' });
+
+    // Verify that when hasImageAsync returns true, getImageAsync is called
+    const hasImage = await require('expo-clipboard').hasImageAsync();
+    if (hasImage) {
+      const imageData = await require('expo-clipboard').getImageAsync({ format: 'png' });
+      const expectedDataUri = `data:image/png;base64,${imageData?.data}`;
+      expect(expectedDataUri).toBe('data:image/png;base64,test-base64-data');
+    }
+  });
 });

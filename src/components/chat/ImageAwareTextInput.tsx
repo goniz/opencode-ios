@@ -36,11 +36,47 @@ export function ImageAwareTextInput({
       const hasImage = await Clipboard.hasImageAsync();
       
       if (hasImage) {
-        const imageData = await Clipboard.getImageAsync({ format: 'png' });
+        // Try different formats to see what works best
+        let imageData = await Clipboard.getImageAsync({ format: 'png' });
+        let requestedFormat = 'png';
+        
+        // If PNG doesn't work, try JPEG
+        if (!imageData || !imageData.data) {
+          console.log('PNG format failed, trying JPEG...');
+          imageData = await Clipboard.getImageAsync({ format: 'jpeg' });
+          requestedFormat = 'jpeg';
+        }
         
         if (imageData && onImageSelected) {
-          // Create a data URI from the base64 data
-          const dataUri = `data:image/png;base64,${imageData.data}`;
+          console.log('Clipboard image data received:', {
+            dataType: typeof imageData.data,
+            dataLength: imageData.data?.length,
+            dataPrefix: imageData.data?.substring(0, 50),
+            requestedFormat
+          });
+          
+          // Validate that we have actual data
+          if (!imageData.data || imageData.data.trim() === '') {
+            throw new Error('Clipboard image data is empty');
+          }
+          
+          // Check if the data is already a complete data URI
+          let dataUri: string;
+          if (imageData.data.startsWith('data:')) {
+            // Data already includes data URI prefix
+            dataUri = imageData.data;
+          } else {
+            // Need to add data URI prefix to base64 data
+            // Use the format we requested (PNG or JPEG)
+            const mimeType = requestedFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+            dataUri = `data:${mimeType};base64,${imageData.data}`;
+          }
+          
+          console.log('Created data URI for clipboard image:', {
+            uriLength: dataUri.length,
+            uriPrefix: dataUri.substring(0, 50)
+          });
+          
           onImageSelected(dataUri);
         }
       } else {

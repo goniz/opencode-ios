@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 import { toast } from '../../src/utils/toast';
 import { filterMessageParts } from '../../src/utils/messageFiltering';
@@ -754,55 +753,11 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
         {filteredParts.map((part, partIndex) => {
           const isFirstPart = partIndex === 0;
           const isLastPart = partIndex === filteredParts.length - 1;
+          const isLastMessage = index === messages.length - 1;
           
-          if (isUser) {
-            return (
-              <View key={`${item.info.id}-${index}-part-${partIndex}`} style={styles.userMessageRow}>
-                {/* Render different content based on part type */}
-                {part.type === 'text' && (
-                  <View style={styles.userMessageBubble}>
-                    <Text style={styles.userMessageText}>
-                      {part.text || ''}
-                    </Text>
-                  </View>
-                )}
-                {part.type === 'file' && (
-                  <View style={styles.userFileContainer}>
-                    <View style={styles.userFileHeader}>
-                      <Text style={styles.userFileIcon}>📄</Text>
-                      <Text style={styles.userFileName}>
-                        {part.filename || 'Unknown file'}
-                      </Text>
-                    </View>
-                    {/* Show image preview if it's an image file */}
-                    {part.url && part.mime?.startsWith('image/') && (
-                      <Image
-                        source={{ uri: part.url }}
-                        style={styles.userImagePreview}
-                        contentFit="cover"
-                      />
-                    )}
-                  </View>
-                )}
-                {/* Handle other part types */}
-                {part.type !== 'text' && part.type !== 'file' && (
-                  <View style={styles.userMessageBubble}>
-                    <Text style={styles.userMessageText}>
-                      {part.type} content
-                    </Text>
-                  </View>
-                )}
-                {isLastPart && (
-                  <MessageTimestamp 
-                    timestamp={item.info.time.created}
-                    compact={true}
-                  />
-                )}
-              </View>
-            );
-          } else {
-            return (
-              <View key={`${item.info.id}-${index}-part-${partIndex}`} style={styles.twoColumnLayout}>
+          return (
+            <View key={`${item.info.id}-${index}-part-${partIndex}`} style={getMessageRowStyle(isUser)}>
+              {!isUser && (
                 <MessageDecoration 
                   role={item.info.role}
                   part={part}
@@ -811,25 +766,26 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                   providerID={item.info.role === 'assistant' ? (item.info as AssistantMessage).providerID : undefined}
                   modelID={item.info.role === 'assistant' ? (item.info as AssistantMessage).modelID : undefined}
                 />
-                <View style={styles.contentColumn}>
-                  <MessageContent 
-                    role={item.info.role}
-                    part={part}
-                    isLast={index === messages.length - 1}
-                    partIndex={partIndex}
-                    totalParts={filteredParts.length}
-                    messageId={item.info.id}
+              )}
+              <View style={getContentColumnStyle(isUser)}>
+                <MessageContent 
+                  role={item.info.role}
+                  part={part}
+                  isLast={isLastMessage}
+                  partIndex={partIndex}
+                  totalParts={filteredParts.length}
+                  messageId={item.info.id}
+                  renderMode={isUser ? 'bubble' : 'expanded'}
+                />
+                {isLastPart && (
+                  <MessageTimestamp 
+                    timestamp={item.info.time.created}
+                    compact={true}
                   />
-                  {isLastPart && (
-                    <MessageTimestamp 
-                      timestamp={item.info.time.created}
-                      compact={true}
-                    />
-                  )}
-                </View>
+                )}
               </View>
-            );
-          }
+            </View>
+          );
         })}
       </View>
     );
@@ -1137,6 +1093,15 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
   );
 }
 
+// Helper functions for unified message rendering
+const getMessageRowStyle = (isUser: boolean) => {
+  return isUser ? styles.userMessageRow : styles.twoColumnLayout;
+};
+
+const getContentColumnStyle = (isUser: boolean) => {
+  return isUser ? styles.userContentColumn : styles.contentColumn;
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1308,7 +1273,9 @@ title: {
     paddingLeft: 8,
   },
   userContentColumn: {
+    flex: 1,
     paddingLeft: 0,
+    alignItems: 'flex-end',
   },
   userMessage: {
     alignItems: 'flex-end',
@@ -1333,6 +1300,8 @@ title: {
     marginBottom: 2,
     minHeight: 0,
     flexShrink: 1,
+    alignSelf: 'flex-end',
+    width: '100%',
   },
   userMessageBubble: {
     backgroundColor: '#2563eb',

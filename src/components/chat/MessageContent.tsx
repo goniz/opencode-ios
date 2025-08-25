@@ -12,6 +12,7 @@ interface MessageContentProps {
   partIndex?: number;
   totalParts?: number;
   messageId?: string;
+  renderMode?: 'bubble' | 'expanded' | 'auto';
 }
 
 export function MessageContent({ 
@@ -20,13 +21,21 @@ export function MessageContent({
   isLast = false, 
   partIndex = 0, 
   totalParts = 1,
-  messageId = ''
+  messageId = '',
+  renderMode = 'auto'
 }: MessageContentProps) {
   // Determine if this is the last part of the last message
   const isLastPart = isLast && partIndex === totalParts - 1;
   
   // Convert API part format to component part format
   const getComponentPart = () => {
+    console.log('MessageContent - processing part:', {
+      type: part.type,
+      filename: 'filename' in part ? part.filename : 'no filename',
+      mime: 'mime' in part ? part.mime : 'no mime',
+      url: 'url' in part ? (part.url?.substring(0, 20) + '...') : 'no url'
+    });
+    
     const basePart = {
       type: part.type,
     };
@@ -58,6 +67,9 @@ export function MessageContent({
       case 'file':
         return {
           ...basePart,
+          filename: part.filename ?? 'Unknown file',
+          mime: part.mime ?? '',
+          url: part.url ?? '',
           file: {
             path: part.filename ?? 'Unknown file',
             content: '', // File content would come from another source
@@ -86,24 +98,54 @@ export function MessageContent({
 
   const componentPart = getComponentPart();
 
+  // Handle special todo tool case
   if (part.type === 'tool' && part.tool === 'todowrite') {
     const toolPart = part as ToolPart;
     if (toolPart.state?.status === 'completed') {
       const todos = (toolPart.state.input as { todos: Todo[] }).todos;
+      // For user messages in bubble mode, don't add extra container styling
+      const actualRenderMode = renderMode === 'auto' 
+        ? (role === 'user' ? 'bubble' : 'expanded')
+        : renderMode;
+        
+      if (role === 'user' && actualRenderMode === 'bubble') {
+        return <TodoTool todos={todos} />;
+      }
+      
       return (
-        <View style={styles.contentColumn}>
+        <View style={getContentContainerStyle(role, renderMode)}>
           <TodoTool todos={todos} />
         </View>
       );
     }
   }
 
-  return (
-    <View style={styles.contentColumn}>
+  // For user messages in bubble mode, don't add extra container styling
+  const actualRenderMode = renderMode === 'auto' 
+    ? (role === 'user' ? 'bubble' : 'expanded')
+    : renderMode;
+    
+  if (role === 'user' && actualRenderMode === 'bubble') {
+    return (
       <PartComponentSelector
         part={componentPart}
         isLast={isLastPart}
         messageRole={role as 'user' | 'assistant'}
+        renderMode={renderMode}
+        messageId={messageId}
+        partIndex={partIndex}
+        originalPart={part}
+      />
+    );
+  }
+
+  return (
+    <View style={getContentContainerStyle(role, renderMode)}>
+      <PartComponentSelector
+        part={componentPart}
+        isLast={isLastPart}
+        messageRole={role as 'user' | 'assistant'}
+        renderMode={renderMode}
         messageId={messageId}
         partIndex={partIndex}
         originalPart={part}
@@ -112,9 +154,27 @@ export function MessageContent({
   );
 }
 
+const getContentContainerStyle = (role: string, renderMode: string) => {
+  if (role === 'user' && renderMode === 'bubble') {
+    return styles.userContentContainer;
+  }
+  return styles.assistantContentContainer;
+};
+
 const styles = StyleSheet.create({
   contentColumn: {
     flexShrink: 1,
+    paddingLeft: 6,
+  },
+  userContentContainer: {
+    // User message styles (bubble mode) - no flex: 1 to prevent huge bubbles
+    flexShrink: 1,
+    alignSelf: 'flex-end',
+    flexGrow: 1,
+  },
+  assistantContentContainer: {
+    // Assistant message styles (expanded mode)
+    flex: 1,
     paddingLeft: 6,
   },
   contentText: {

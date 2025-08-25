@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
-import { MessagePartProps, MessagePartContainer } from './MessagePart';
+import { MessagePartProps, MessagePartContainer, getRenderMode, getMessagePartStyles } from './MessagePart';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
+import { FullScreenImageViewer } from '../FullScreenImageViewer';
 
 interface FilePartData {
   file?: {
@@ -21,7 +22,20 @@ interface FilePartData {
   url?: string;
 }
 
-export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
+export const FilePart: React.FC<MessagePartProps> = ({ 
+  part, 
+  isLast = false,
+  messageRole = 'assistant',
+  renderMode = 'auto'
+}) => {
+  const actualRenderMode = getRenderMode(renderMode, messageRole);
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  
+  // Debug state changes
+  React.useEffect(() => {
+    console.log('FilePart imageViewerVisible changed:', imageViewerVisible);
+  }, [imageViewerVisible]);
+  
   // Handle both the MessagePartProps interface and actual API FilePart type
   const filePart = part as FilePartData;
   
@@ -36,11 +50,31 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
     ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tiff', 'tif'].some(ext => 
       filePath.toLowerCase().endsWith(`.${ext}`)
     );
+    
+  // For user messages, we might have image data in different formats
+  // Check if we have a valid URL for rendering (including base64 data URLs)
+  const hasValidUrl = Boolean(fileUrl && fileUrl.trim() !== '') && 
+    (fileUrl.startsWith('http') || fileUrl.startsWith('file://') || fileUrl.startsWith('data:'));
+    
+
+  
+  // For user messages with local files, check if we can render them directly
+  const isLocalImage = messageRole === 'user' && 
+    !hasValidUrl && 
+    ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'tif'].some(ext => 
+      filePath.toLowerCase().endsWith(`.${ext}`)
+    );
+  
+  // Extract content for the expandable hook
+  let extractedFileContent = '';
+  if ('content' in part && typeof part.content === 'string') {
+    extractedFileContent = part.content;
+  }
   
   // Always call useExpandable hook to maintain hook order
   const expandableResult = useExpandable({
-    content: fileContent || '',
-    autoExpand: isLast || (fileContent ? fileContent.length < 500 : false),
+    content: extractedFileContent,
+    autoExpand: isLast || (extractedFileContent ? extractedFileContent.length < 500 : false),
     contentType: 'text',
     maxLines: 10,
     estimatedCharsPerLine: 60,
@@ -52,6 +86,69 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
     displayContent,
     toggleExpanded,
   } = expandableResult;
+  
+  console.log('FilePart render check:', {
+    messageRole,
+    isImage,
+    hasValidUrl,
+    isLocalImage,
+    mimeType: mimeType.substring(0, 20),
+    actualRenderMode
+  });
+  
+  if (messageRole === 'user' && actualRenderMode === 'bubble') {
+    return (
+      <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).fileContainer}>
+        <View style={styles.userFileHeader}>
+          <Text style={styles.fileIcon}>{isImage ? '🖼️' : '📄'}</Text>
+          <Text style={styles.userFileName} numberOfLines={1}>
+            {filePath.split('/').pop() || filePath}
+          </Text>
+        </View>
+        {(isImage && hasValidUrl) || isLocalImage ? (
+          <View style={{ alignSelf: 'center', marginTop: 8 }}>
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('USER IMAGE CLICKED - Debug info:', {
+                  fileUrl: fileUrl?.substring(0, 50) + '...',
+                  filePath,
+                  hasValidUrl,
+                  isLocalImage,
+                  imageViewerVisible
+                });
+                setImageViewerVisible(true);
+              }}
+              activeOpacity={0.7}
+              style={{ 
+                borderRadius: 8,
+                overflow: 'hidden',
+                backgroundColor: '#1a1a1a',
+              }}
+            >
+              <Image
+                source={{ uri: hasValidUrl ? fileUrl : `file://${filePath}` }}
+                style={styles.userImagePreview}
+                contentFit="cover"
+                placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
+                cachePolicy="memory-disk"
+                onError={(error) => console.log('Image load error:', error)}
+                onLoad={() => console.log('Image loaded successfully')}
+              />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+        
+        <FullScreenImageViewer
+          visible={imageViewerVisible}
+          imageUri={hasValidUrl ? fileUrl : `file://${filePath}`}
+          onClose={() => {
+            console.log('FullScreenImageViewer closed');
+            setImageViewerVisible(false);
+          }}
+        />
+      </View>
+    );
+  }
 
   // Fallback if no content is available
   if (!filePath && !fileContent && !fileUrl) {
@@ -70,9 +167,9 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
       <View style={styles.container}>
         {/* File header */}
         <View style={styles.header}>
-          <View style={styles.fileIcon}>
-            <Text style={styles.fileIconText}>{isImage ? '🖼️' : '📄'}</Text>
-          </View>
+<View style={styles.fileIconContainer}>
+  <Text style={styles.fileIconText}>{isImage ? '🖼️' : '📄'}</Text>
+</View>
           <View style={styles.fileInfo}>
             <Text style={styles.fileName}>{fileName}</Text>
             <Text style={styles.filePath}>{filePath}</Text>
@@ -80,15 +177,21 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
         </View>
 
         {/* Image content */}
-        {isImage && fileUrl && (
-          <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: fileUrl }}
-              style={styles.image}
-              contentFit="contain"
-              placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
-            />
-          </View>
+        {isImage && hasValidUrl && (
+          <TouchableOpacity onPress={() => {
+            console.log('IMAGE CLICKED');
+            setImageViewerVisible(true);
+          }}>
+            <View style={styles.imageContainer}>
+              <Image
+                source={{ uri: fileUrl }}
+                style={styles.image}
+                contentFit="contain"
+                placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
+                cachePolicy="memory-disk"
+              />
+            </View>
+          </TouchableOpacity>
         )}
 
         {/* File content */}
@@ -111,6 +214,15 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
             )}
           </View>
         )}
+        
+        <FullScreenImageViewer
+          visible={imageViewerVisible}
+          imageUri={hasValidUrl ? fileUrl : `file://${filePath}`}
+          onClose={() => {
+            console.log('FullScreenImageViewer closed');
+            setImageViewerVisible(false);
+          }}
+        />
       </View>
     </MessagePartContainer>
   );
@@ -129,7 +241,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f2937',
     borderRadius: 8,
   },
-  fileIcon: {
+  fileIconContainer: {
     width: 28,
     height: 28,
     borderRadius: 6,
@@ -187,5 +299,28 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 12,
   },
-
+  
+  // User bubble mode styles
+  userFileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  fileIcon: {
+    marginRight: 8,
+    fontSize: 16,
+  },
+  userFileName: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '400',
+    flex: 1,
+  },
+  userImagePreview: {
+    width: 120,
+    height: 120,
+    borderRadius: 8,
+    alignSelf: 'center',
+    marginTop: 8,
+  },
 });

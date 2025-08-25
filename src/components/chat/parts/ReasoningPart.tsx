@@ -1,15 +1,22 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { MessagePartProps, MessagePartContainer } from './MessagePart';
+import { MessagePartProps, MessagePartContainer, getRenderMode, getMessagePartStyles } from './MessagePart';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 
-export const ReasoningPart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
+export const ReasoningPart: React.FC<MessagePartProps> = ({ 
+  part, 
+  isLast = false,
+  messageRole = 'assistant',
+  renderMode = 'auto'
+}) => {
+  const actualRenderMode = getRenderMode(renderMode, messageRole);
+  
   // Type guard for reasoning parts
   const thinkingContent = ('thinking' in part ? part.thinking : undefined) || 
                          ('content' in part ? part.content : undefined) || '';
   
-  // Use expandable hook for reasoning content
+  // Use expandable hook for reasoning content (always call to maintain hook order)
   const {
     isExpanded,
     shouldShowExpandButton,
@@ -20,6 +27,19 @@ export const ReasoningPart: React.FC<MessagePartProps> = ({ part, isLast = false
     autoExpand: isLast,
     contentType: 'reasoning',
   });
+  
+  // For user messages in bubble mode, show a simplified version
+  if (messageRole === 'user' && actualRenderMode === 'bubble') {
+    return (
+      <MessagePartContainer>
+        <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).container}>
+          <Text style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).text}>
+            {thinkingContent}
+          </Text>
+        </View>
+      </MessagePartContainer>
+    );
+  }
 
   return (
     <MessagePartContainer>
