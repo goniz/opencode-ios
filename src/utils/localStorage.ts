@@ -3,13 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const CHUTES_API_KEY = 'chutes_api_key';
 
 export interface LocalStorageService {
-  getCrutesApiKey(): Promise<string | null>;
-  setCrutesApiKey(apiKey: string): Promise<void>;
-  removeCrutesApiKey(): Promise<void>;
+  getChutesApiKey(): Promise<string | null>;
+  setChutesApiKey(apiKey: string): Promise<void>;
+  removeChutesApiKey(): Promise<void>;
 }
 
 export const localStorage: LocalStorageService = {
-  async getCrutesApiKey(): Promise<string | null> {
+  async getChutesApiKey(): Promise<string | null> {
     try {
       return await AsyncStorage.getItem(CHUTES_API_KEY);
     } catch (error) {
@@ -18,7 +18,7 @@ export const localStorage: LocalStorageService = {
     }
   },
 
-  async setCrutesApiKey(apiKey: string): Promise<void> {
+  async setChutesApiKey(apiKey: string): Promise<void> {
     try {
       await AsyncStorage.setItem(CHUTES_API_KEY, apiKey);
     } catch (error) {
@@ -27,7 +27,7 @@ export const localStorage: LocalStorageService = {
     }
   },
 
-  async removeCrutesApiKey(): Promise<void> {
+  async removeChutesApiKey(): Promise<void> {
     try {
       await AsyncStorage.removeItem(CHUTES_API_KEY);
     } catch (error) {

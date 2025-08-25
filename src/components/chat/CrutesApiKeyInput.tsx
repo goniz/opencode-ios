@@ -33,7 +33,7 @@ export function CrutesApiKeyInput({ visible, onApiKeyProvided, onCancel }: Crute
     
     try {
       // Store the API key locally
-      await localStorage.setCrutesApiKey(trimmedApiKey);
+      await localStorage.setChutesApiKey(trimmedApiKey);
       console.log('[Chutes] API key stored locally');
       
       // Clear the input

@@ -61,25 +61,3 @@ export function getCachedHomeDir(): string | null {
   return cachedAppRoot;
 }
 
-/**
- * Make file path relative to the application root
- */
-export function getRelativePath(filePath: string): string {
-  if (!filePath) return '';
-  
-  // Use cached app root first, then fall back to cwd
-  const appRoot = cachedAppRoot || cachedAppCwd;
-  
-  if (appRoot && filePath.startsWith(appRoot)) {
-    const relativePath = filePath.substring(appRoot.length);
-    // Remove leading slash
-    return relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
-  }
-  
-  // Remove leading slash for cleaner display
-  if (filePath.startsWith('/')) {
-    return filePath.substring(1);
-  }
-  
-  return filePath;
-}

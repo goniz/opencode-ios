@@ -25,9 +25,10 @@ import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInp
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
 import { CrutesApiKeyInput } from '../../src/components/chat/CrutesApiKeyInput';
 import type { Message, Part, AssistantMessage } from '../../src/api/types.gen';
-import { configProviders, configGet, sessionCommand } from '../../src/api/sdk.gen';
+import { configProviders, sessionCommand } from '../../src/api/sdk.gen';
 import type { CommandSuggestion } from '../../src/utils/commandMentions';
-import { ChutesApiKeyRequiredError, ChutesApiKeyInvalidError } from '../../src/utils/chutes';
+import { ChutesApiKeyInvalidError, fetchChutesQuota } from '../../src/utils/chutes';
+import { localStorage } from '../../src/utils/localStorage';
 
 interface MessageWithParts {
   info: Message;
@@ -159,25 +160,36 @@ export default function ChatScreen() {
       if (connectionStatus === 'connected' && client && currentModel) {
         console.log(`[Chutes] Current model - Provider: ${currentModel.providerID}, Model: ${currentModel.modelID}`);
         
-        // Check if this is a Chutes model or a model that requires Chutes quota checking
-        const shouldCheckQuota = currentModel.providerID === 'chutes' || 
-          (currentModel.providerID !== 'chutes' && await shouldCheckChutesQuota(currentModel.providerID));
+        // Only check quota for Chutes providers
+        const shouldCheckQuota = currentModel.providerID === 'chutes';
         
         if (shouldCheckQuota) {
           try {
-            // Import the Chutes utility function
-            const { fetchChutesQuota } = await import('../../src/utils/chutes');
-            
             console.log(`[Chutes] Requesting quota for model: ${currentModel.modelID}`);
-            const quota = await fetchChutesQuota(client, currentModel.modelID);
+            
+            // Get API key from localStorage
+            const storedKey = await localStorage.getChutesApiKey();
+            if (!storedKey) {
+              console.log('[Chutes] No API key in localStorage, showing input dialog');
+              setPendingApiKeyRequest({
+                providerID: currentModel.providerID,
+                modelID: currentModel.modelID
+              });
+              setShowApiKeyInput(true);
+              setChutesQuota(null);
+              return;
+            }
+            
+            // Pass model ID as chute ID for quota checking
+            const quota = await fetchChutesQuota(client, currentModel.modelID, storedKey);
             console.log(`[Chutes] Quota updated - Used: ${quota.used}, Quota: ${quota.quota}`);
             setChutesQuota(quota);
           } catch (error) {
             console.error('Failed to fetch Chutes quota:', error);
             
-            // Check if this is an API key required or invalid error
-            if (error instanceof ChutesApiKeyRequiredError || error instanceof ChutesApiKeyInvalidError) {
-              console.log('[Chutes] API key required/invalid, showing input dialog');
+            // Check if this is an API key invalid error
+            if (error instanceof ChutesApiKeyInvalidError) {
+              console.log('[Chutes] API key invalid, showing input dialog');
               setPendingApiKeyRequest({
                 providerID: currentModel.providerID,
                 modelID: currentModel.modelID
@@ -197,21 +209,7 @@ export default function ChatScreen() {
       }
     };
     
-    // Helper function to check if we should check Chutes quota for non-Chutes providers
-    const shouldCheckChutesQuota = async (providerID: string): Promise<boolean> => {
-      if (!client) return false;
-      
-      try {
-        const configResponse = await configGet({ client });
-        const providerConfig = configResponse.data?.provider?.[providerID];
-        const apiKey = providerConfig?.options?.apiKey;
-        console.log(`[Chutes] Provider ${providerID} config found: ${!!providerConfig}, API key present: ${!!apiKey}`);
-        return !!(apiKey && typeof apiKey === 'string');
-      } catch (error) {
-        console.error('Failed to check provider config:', error);
-        return false;
-      }
-    };
+
 
     loadChutesQuota();
     
@@ -558,11 +556,8 @@ export default function ChatScreen() {
      console.log('[Chutes] API key provided, retrying quota fetch');
      setShowApiKeyInput(false);
      
-      if (pendingApiKeyRequest && client) {
+       if (pendingApiKeyRequest && client) {
         try {
-          // Import the Chutes utility function
-          const { fetchChutesQuota } = await import('../../src/utils/chutes');
-         
          // Retry the quota fetch with the provided API key
          const quota = await fetchChutesQuota(client, pendingApiKeyRequest.modelID, apiKey);
          console.log(`[Chutes] Quota updated with provided API key - Used: ${quota.used}, Quota: ${quota.quota}`);
