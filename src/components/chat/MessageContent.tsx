@@ -88,12 +88,13 @@ export function MessageContent({
 
   const componentPart = getComponentPart();
 
+  // Handle special todo tool case
   if (part.type === 'tool' && part.tool === 'todowrite') {
     const toolPart = part as ToolPart;
     if (toolPart.state?.status === 'completed') {
       const todos = (toolPart.state.input as { todos: Todo[] }).todos;
       return (
-        <View style={styles.contentColumn}>
+        <View style={getContentContainerStyle(role, renderMode)}>
           <TodoTool todos={todos} />
         </View>
       );
@@ -101,7 +102,7 @@ export function MessageContent({
   }
 
   return (
-    <View style={styles.contentColumn}>
+    <View style={getContentContainerStyle(role, renderMode)}>
       <PartComponentSelector
         part={componentPart}
         isLast={isLastPart}
@@ -115,9 +116,25 @@ export function MessageContent({
   );
 }
 
+const getContentContainerStyle = (role: string, renderMode: string) => {
+  if (role === 'user' && renderMode === 'bubble') {
+    return styles.userContentContainer;
+  }
+  return styles.assistantContentContainer;
+};
+
 const styles = StyleSheet.create({
   contentColumn: {
     flexShrink: 1,
+    paddingLeft: 6,
+  },
+  userContentContainer: {
+    // User message styles (bubble mode) - no flex: 1 to prevent huge bubbles
+    flexShrink: 1,
+  },
+  assistantContentContainer: {
+    // Assistant message styles (expanded mode)
+    flex: 1,
     paddingLeft: 6,
   },
   contentText: {
