@@ -1,7 +1,6 @@
 ---
 description: Reply to a specific PR comment
 agent: build
-model: anthropic/claude-3-5-sonnet-20241022
 ---
 Reply to a specific GitHub PR comment with an acknowledgment and explanation.
 
