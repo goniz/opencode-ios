@@ -4,11 +4,7 @@ import { MessagePartContainer } from '../MessagePart';
 import { ToolHeader, ToolResult, ToolComponentProps } from './BaseToolComponent';
 import { useExpandable } from '../../../../hooks/useExpandable';
 import { ExpandButton } from '../../ExpandButton';
-// Simple helper to make paths more readable by removing leading slash
-const getDisplayPath = (filePath: string): string => {
-  if (!filePath) return '';
-  return filePath.startsWith('/') ? filePath.substring(1) : filePath;
-};
+import { getRelativePath } from '../../../../utils/pathUtils';
 
 // Helper function to parse LSP diagnostics
 const parseLSPDiagnostics = (result: string): { diagnostics: { file: string; line: number; column: number; severity: string; message: string }[] | null; cleanResult: string } => {
@@ -92,7 +88,7 @@ export const EditTool: React.FC<ToolComponentProps> = ({
     contentType: 'tool',
   });
 
-  const relativePath = filePath ? getDisplayPath(filePath) : undefined;
+  const relativePath = filePath ? getRelativePath(filePath) : undefined;
 
   // Extract edit details from input
   let oldString = '';
@@ -244,7 +240,7 @@ export const EditTool: React.FC<ToolComponentProps> = ({
                         <Text style={styles.severityText}>ERROR</Text>
                       </View>
                       <Text style={styles.locationText}>
-                        {getDisplayPath(diagnostic.file)}:{diagnostic.line}:{diagnostic.column}
+                        {getRelativePath(diagnostic.file)}:{diagnostic.line}:{diagnostic.column}
                       </Text>
                     </View>
                     <Text style={styles.diagnosticMessage}>

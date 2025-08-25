@@ -2,20 +2,15 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MessagePartContainer } from '../MessagePart';
 import { ToolComponentProps } from './BaseToolComponent';
+import { getRelativePath } from '../../../../utils/pathUtils';
 import { ToolStateIndicator } from './ToolStateIndicator';
-
-// Simple helper to make paths more readable by removing leading slash
-const getDisplayPath = (filePath: string): string => {
-  if (!filePath) return '';
-  return filePath.startsWith('/') ? filePath.substring(1) : filePath;
-};
 
 export const ReadTool: React.FC<ToolComponentProps> = ({ 
   filePath, 
   hasError,
   toolPart
 }) => {
-  const relativePath = filePath ? getDisplayPath(filePath) : 'file';
+  const relativePath = filePath ? getRelativePath(filePath) : 'file';
 
   if (hasError) {
     return (

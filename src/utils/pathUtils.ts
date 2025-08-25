@@ -36,28 +36,24 @@ export function getCachedAppCwd(): string | null {
 }
 
 /**
- * Get user home directory by deriving it from app root path
- * This assumes the app root is somewhere under the user's home directory
+ * Make file path relative to the application root
  */
-export function getCachedHomeDir(): string | null {
-  if (!cachedAppRoot) return null;
+export function getRelativePath(filePath: string): string {
+  if (!filePath) return '';
   
-  // Try to find the home directory by looking for common patterns
-  // Typically app root might be something like: /home/username/... or /Users/username/...
-  const pathParts = cachedAppRoot.split('/');
+  // Use cached app root first, then fall back to cwd
+  const appRoot = cachedAppRoot || cachedAppCwd;
   
-  // Look for common home directory patterns
-  for (let i = 0; i < pathParts.length - 1; i++) {
-    const part = pathParts[i];
-    const nextPart = pathParts[i + 1];
-    
-    // Check for /home/username or /Users/username patterns
-    if ((part === 'home' || part === 'Users') && nextPart) {
-      return '/' + pathParts.slice(1, i + 2).join('/');
-    }
+  if (appRoot && filePath.startsWith(appRoot)) {
+    const relativePath = filePath.substring(appRoot.length);
+    // Remove leading slash
+    return relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
   }
   
-  // Fallback: if we can't determine home directory, use app root
-  return cachedAppRoot;
+  // Remove leading slash for cleaner display
+  if (filePath.startsWith('/')) {
+    return filePath.substring(1);
+  }
+  
+  return filePath;
 }
-

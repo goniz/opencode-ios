@@ -4,11 +4,7 @@ import { MessagePartContainer } from '../MessagePart';
 import { ToolHeader, ToolResult, ToolComponentProps } from './BaseToolComponent';
 import { useExpandable } from '../../../../hooks/useExpandable';
 import { ExpandButton } from '../../ExpandButton';
-// Simple helper to make paths more readable by removing leading slash
-const getDisplayPath = (filePath: string): string => {
-  if (!filePath) return '';
-  return filePath.startsWith('/') ? filePath.substring(1) : filePath;
-};
+import { getRelativePath } from '../../../../utils/pathUtils';
 
 export const WriteTool: React.FC<ToolComponentProps> = ({ 
   part, 
@@ -30,7 +26,7 @@ export const WriteTool: React.FC<ToolComponentProps> = ({
     contentType: 'tool',
   });
 
-  const relativePath = filePath ? getDisplayPath(filePath) : undefined;
+  const relativePath = filePath ? getRelativePath(filePath) : undefined;
 
   return (
     <MessagePartContainer>
