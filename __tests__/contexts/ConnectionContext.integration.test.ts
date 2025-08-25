@@ -5,8 +5,8 @@ import type { FilePartInput } from '../../src/api/types.gen';
 // Mock the fileMentions utilities
 jest.mock('../../src/utils/fileMentions', () => ({
   detectFileMentions: jest.fn(),
-  createFilePartsFromMentions: jest.fn(),
-  createFilePartFromMention: jest.fn()
+  createFilePartFromMention: jest.fn(),
+  createFilePartsFromMentions: jest.fn()
 }));
 
 // Mock the messageUtils
@@ -15,6 +15,9 @@ jest.mock('../../src/utils/messageUtils', () => ({
 }));
 
 const mockProcessMessageForSending = processMessageForSending as jest.MockedFunction<typeof processMessageForSending>;
+const mockDetectFileMentions = require('../../src/utils/fileMentions').detectFileMentions as jest.MockedFunction<any>;
+const mockCreateFilePartFromMention = require('../../src/utils/fileMentions').createFilePartFromMention as jest.MockedFunction<any>;
+const mockCreateFilePartsFromMentions = require('../../src/utils/fileMentions').createFilePartsFromMentions as jest.MockedFunction<any>;
 
 describe('ConnectionContext - File Mentions Integration', () => {
   // Mock client for testing
@@ -22,6 +25,46 @@ describe('ConnectionContext - File Mentions Integration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Reset the processMessageForSending mock to default behavior
+    mockProcessMessageForSending.mockImplementation(async (text, client, options = {}) => {
+      // Simple default implementation
+      return {
+        textPart: { type: 'text' as const, text },
+        fileParts: [],
+        invalidMentions: []
+      };
+    });
+
+    // Default mock setup
+    mockDetectFileMentions.mockImplementation((text: string) => {
+      // Simple implementation that finds @filepath patterns
+      const mentions = [];
+      const regex = /@([^\s@]+)/g;
+      let match;
+
+      while ((match = regex.exec(text)) !== null) {
+        mentions.push({
+          path: match[1],
+          start: match.index,
+          end: match.index + match[0].length,
+          query: match[1]
+        });
+      }
+
+      return mentions;
+    });
+
+    // Mock createFilePartsFromMentions to use individual createFilePartFromMention calls
+    mockCreateFilePartsFromMentions.mockImplementation(async (mentions: any[], client: any) => {
+      const results = await Promise.allSettled(
+        mentions.map((mention: any) => mockCreateFilePartFromMention(mention, client))
+      );
+
+      return results
+        .map(result => result.status === 'fulfilled' ? result.value : null)
+        .filter((filePart): filePart is FilePartInput => filePart !== null);
+    });
   });
 
   describe('sendMessage integration with file mentions', () => {
@@ -62,19 +105,38 @@ describe('ConnectionContext - File Mentions Integration', () => {
     });
 
     it('should handle messages without file mentions', async () => {
-      const mockProcessedMessage = {
-        textPart: { type: 'text' as const, text: 'Hello world, no file mentions here' },
-        fileParts: [] as FilePartInput[],
-        invalidMentions: []
+      const text = 'Hello world, no file mentions here';
+      const result = await processMessageForSending(text, mockClient);
+
+      expect(result.textPart.text).toBe(text);
+      expect(result.fileParts).toEqual([]);
+      expect(result.invalidMentions).toEqual([]);
+    });
+
+    it('should handle file-only message through processMessageForSending', async () => {
+      const text = '@example.ts';
+
+      const mockFilePart: FilePartInput = {
+        type: 'file',
+        mime: 'text/typescript',
+        filename: 'example.ts',
+        url: '/path/to/example.ts'
       };
 
-      mockProcessMessageForSending.mockResolvedValue(mockProcessedMessage);
+      mockProcessMessageForSending.mockResolvedValue({
+        textPart: { type: 'text' as const, text: '' },
+        fileParts: [mockFilePart],
+        invalidMentions: []
+      });
 
-      const result = await processMessageForSending('Hello world, no file mentions here', mockClient);
+      const result = await processMessageForSending(text, mockClient, {
+        keepMentionText: false // Remove the @filepath text
+      });
 
-      expect(result).toEqual(mockProcessedMessage);
-      expect(result.fileParts).toHaveLength(0);
-      expect(result.invalidMentions).toHaveLength(0);
+      expect(result.textPart.text).toBe(''); // Text should be empty after removing mention
+      expect(result.fileParts).toHaveLength(1);
+      expect(result.fileParts[0]).toEqual(mockFilePart);
+      expect(result.invalidMentions).toEqual([]);
     });
 
     it('should handle file processing errors gracefully', async () => {
@@ -212,6 +274,87 @@ describe('ConnectionContext - File Mentions Integration', () => {
 
       expect(parts).toHaveLength(1);
       expect(parts[0].type).toBe('file');
+    });
+
+    it('should handle file-only message (no text content)', () => {
+      const processedMessage = {
+        textPart: { type: 'text' as const, text: '' },
+        fileParts: [
+          {
+            type: 'file' as const,
+            mime: 'text/typescript',
+            filename: 'example.ts',
+            url: '/path/to/example.ts'
+          }
+        ] as FilePartInput[],
+        invalidMentions: []
+      };
+
+      const parts: any[] = [];
+
+      // This simulates the logic from ConnectionContext
+      if (processedMessage.textPart.text.trim()) {
+        parts.push({
+          type: 'text',
+          text: processedMessage.textPart.text,
+          id: undefined,
+          synthetic: undefined,
+          time: undefined
+        });
+      }
+
+      if (processedMessage.fileParts.length > 0) {
+        parts.push(...processedMessage.fileParts);
+      }
+
+      // Should have only the file part
+      expect(parts).toHaveLength(1);
+      expect(parts[0].type).toBe('file');
+      expect(parts[0].filename).toBe('example.ts');
+      expect(parts[0].mime).toBe('text/typescript');
+    });
+
+    it('should handle multiple files without text', () => {
+      const processedMessage = {
+        textPart: { type: 'text' as const, text: '' },
+        fileParts: [
+          {
+            type: 'file' as const,
+            mime: 'text/typescript',
+            filename: 'file1.ts',
+            url: '/path/to/file1.ts'
+          },
+          {
+            type: 'file' as const,
+            mime: 'text/javascript',
+            filename: 'file2.js',
+            url: '/path/to/file2.js'
+          }
+        ] as FilePartInput[],
+        invalidMentions: []
+      };
+
+      const parts: any[] = [];
+
+      if (processedMessage.textPart.text.trim()) {
+        parts.push({
+          type: 'text',
+          text: processedMessage.textPart.text,
+          id: undefined,
+          synthetic: undefined,
+          time: undefined
+        });
+      }
+
+      if (processedMessage.fileParts.length > 0) {
+        parts.push(...processedMessage.fileParts);
+      }
+
+      expect(parts).toHaveLength(2);
+      expect(parts[0].type).toBe('file');
+      expect(parts[0].filename).toBe('file1.ts');
+      expect(parts[1].type).toBe('file');
+      expect(parts[1].filename).toBe('file2.js');
     });
   });
 });
