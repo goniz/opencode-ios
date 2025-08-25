@@ -24,7 +24,10 @@ export function MessageContent({
   messageId = '',
   renderMode = 'auto'
 }: MessageContentProps) {
-  // Determine if this is the last part of the last message
+  const actualRenderMode = renderMode === 'auto' 
+    ? (role === 'user' ? 'bubble' : 'expanded')
+    : renderMode;
+    
   const isLastPart = isLast && partIndex === totalParts - 1;
   
   // Convert API part format to component part format
@@ -103,49 +106,26 @@ export function MessageContent({
     const toolPart = part as ToolPart;
     if (toolPart.state?.status === 'completed') {
       const todos = (toolPart.state.input as { todos: Todo[] }).todos;
-      // For user messages in bubble mode, don't add extra container styling
-      const actualRenderMode = renderMode === 'auto' 
-        ? (role === 'user' ? 'bubble' : 'expanded')
-        : renderMode;
         
       if (role === 'user' && actualRenderMode === 'bubble') {
         return <TodoTool todos={todos} />;
       }
       
       return (
-        <View style={getContentContainerStyle(role, renderMode)}>
+        <View style={getContentContainerStyle(role, actualRenderMode)}>
           <TodoTool todos={todos} />
         </View>
       );
     }
   }
 
-  // For user messages in bubble mode, don't add extra container styling
-  const actualRenderMode = renderMode === 'auto' 
-    ? (role === 'user' ? 'bubble' : 'expanded')
-    : renderMode;
-    
-  if (role === 'user' && actualRenderMode === 'bubble') {
-    return (
-      <PartComponentSelector
-        part={componentPart}
-        isLast={isLastPart}
-        messageRole={role as 'user' | 'assistant'}
-        renderMode={renderMode}
-        messageId={messageId}
-        partIndex={partIndex}
-        originalPart={part}
-      />
-    );
-  }
-
   return (
-    <View style={getContentContainerStyle(role, renderMode)}>
+    <View style={getContentContainerStyle(role, actualRenderMode)}>
       <PartComponentSelector
         part={componentPart}
         isLast={isLastPart}
         messageRole={role as 'user' | 'assistant'}
-        renderMode={renderMode}
+        renderMode={actualRenderMode}
         messageId={messageId}
         partIndex={partIndex}
         originalPart={part}
@@ -170,7 +150,6 @@ const styles = StyleSheet.create({
     // User message styles (bubble mode) - no flex: 1 to prevent huge bubbles
     flexShrink: 1,
     alignSelf: 'flex-end',
-    flexGrow: 1,
   },
   assistantContentContainer: {
     // Assistant message styles (expanded mode)

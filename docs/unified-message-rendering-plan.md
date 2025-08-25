@@ -367,20 +367,20 @@ export const MessageStyles = StyleSheet.create({
 ## Migration Steps
 
 ### Step 1: Prepare Component Interface (Non-Breaking)
-- [ ] Update `MessagePartProps` interface with role/mode props
-- [ ] Add default values to maintain backward compatibility
-- [ ] Create style helper functions
+- [x] Update `MessagePartProps` interface with role/mode props
+- [x] Add default values to maintain backward compatibility
+- [x] Create style helper functions
 
 ### Step 2: Update Part Components (Non-Breaking)
-- [ ] Update `TextPart` to handle bubble mode
-- [ ] Update `FilePart` to handle bubble mode  
-- [ ] Update other part components with role awareness
-- [ ] Add fallback rendering for user messages
+- [x] Update `TextPart` to handle bubble mode
+- [x] Update `FilePart` to handle bubble mode  
+- [x] Update other part components with role awareness
+- [x] Add fallback rendering for user messages
 
 ### Step 3: Update MessageContent (Non-Breaking)
-- [ ] Add renderMode prop to MessageContent
-- [ ] Update container styling logic
-- [ ] Test that assistant messages still work correctly
+- [x] Add renderMode prop to MessageContent
+- [x] Update container styling logic
+- [x] Test that assistant messages still work correctly
 
 ### Step 4: Unify Chat Layout (Breaking Change)
 - [ ] Remove duplicate user rendering logic from chat.tsx
