@@ -27,6 +27,8 @@ export default function TabLayout() {
         );
       case 'chat':
         return <Ionicons name="chatbubble-ellipses-outline" size={size} color={iconColor} />;
+      case 'settings':
+        return <Ionicons name="settings-outline" size={size} color={iconColor} />;
       default:
         return <Ionicons name="help-outline" size={size} color={iconColor} />;
     }
@@ -69,6 +71,13 @@ export default function TabLayout() {
         options={{
           title: 'Chat',
           tabBarIcon: ({ color, size, focused }) => getTabIcon('chat', focused, color, size),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, size, focused }) => getTabIcon('settings', focused, color, size),
         }}
       />
     </Tabs>
