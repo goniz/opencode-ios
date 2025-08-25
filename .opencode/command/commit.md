@@ -15,7 +15,7 @@ Create a git commit by inspecting the current repository state and committing on
 `!git log --oneline -10`
 
 **Project gitignore patterns:**
-`@.gitignore`
+@.gitignore
 
 Analyze the changes and:
 - Identify which files are relevant for the commit (exclude temporary files, build artifacts, logs, etc.)
@@ -23,7 +23,6 @@ Analyze the changes and:
   - `.DS_Store`, `Thumbs.db`
   - `*.log`, `*.tmp`, `*.temp`
   - `node_modules/`, `.expo/`, `dist/`, `build/`
-  - IDE files like `.vscode/`, `.idea/`
   - Any files matching patterns in `.gitignore`
 
 4. Add only the relevant files to staging using `git add <specific-files>`

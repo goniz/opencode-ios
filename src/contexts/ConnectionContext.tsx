@@ -54,6 +54,7 @@ export interface ConnectionContextType extends ConnectionState {
   sendMessage: (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]) => void;
   abortSession: (sessionId: string) => Promise<boolean>;
   refreshCommands: () => Promise<void>;
+  onSessionIdle: (callback: (sessionId: string) => void) => () => void;
 }
 
 type ConnectionAction =
@@ -373,6 +374,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const appStateRef = useRef<AppStateStatus>('active');
   const reconnectAttemptRef = useRef<number>(0);
+  const sessionIdleCallbacksRef = useRef<Set<(sessionId: string) => void>>(new Set());
 
   const connectWithTimeout = async (client: Client, timeoutMs: number): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -546,6 +548,15 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       await fetchCommandsInternal(state.client);
     }
   }, [state.client, state.connectionStatus]);
+
+  const onSessionIdle = useCallback((callback: (sessionId: string) => void): (() => void) => {
+    sessionIdleCallbacksRef.current.add(callback);
+    
+    // Return cleanup function
+    return () => {
+      sessionIdleCallbacksRef.current.delete(callback);
+    };
+  }, []);
 
   const clearError = useCallback((): void => {
     dispatch({ type: 'CLEAR_ERROR' });
@@ -871,6 +882,15 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
               // Set isGenerating to false only on session.idle as per requirements
               console.log('🟡 Session idle event - setting isGenerating = false');
               dispatch({ type: 'SET_GENERATING', payload: { generating: false } });
+              
+              // Call all registered session idle callbacks
+              sessionIdleCallbacksRef.current.forEach(callback => {
+                try {
+                  callback(sessionID as string);
+                } catch (error) {
+                  console.error('Error in session idle callback:', error);
+                }
+              });
             }
             break;
             
@@ -982,6 +1002,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     sendMessage,
     abortSession,
     refreshCommands,
+    onSessionIdle,
   }), [
     state,
     connect,
@@ -995,6 +1016,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     sendMessage,
     abortSession,
     refreshCommands,
+    onSessionIdle,
   ]);
 
   return (
