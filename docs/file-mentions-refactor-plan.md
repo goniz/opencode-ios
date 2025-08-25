@@ -37,37 +37,46 @@ This plan outlines a comprehensive refactoring to properly implement file mentio
 
 ## Refactoring Plan
 
-### Phase 1: Enhanced File Mention Detection and Replacement
+### Phase 1: Enhanced File Mention Detection and Replacement ✅ COMPLETED
 
-#### 1.1 Fix Text Matching Issues
+#### 1.1 Fix Text Matching Issues ✅
 - **File**: `src/utils/fileMentions.ts`
 - **Changes**:
-  - Improve `getCurrentFileMention()` function to handle edge cases:
-    - Cursor at beginning/end of mention
-    - Multiple @ symbols in text
-    - Whitespace handling
-  - Enhance `replaceFileMention()` to be more robust:
-    - Handle cursor position preservation
-    - Support partial matches
-    - Better whitespace management
+  - ✅ Improve `getCurrentFileMention()` function to handle edge cases:
+    - ✅ Cursor at beginning/end of mention
+    - ✅ Multiple @ symbols in text
+    - ✅ Whitespace handling
+  - ✅ Enhance `replaceFileMention()` to be more robust:
+    - ✅ Handle cursor position preservation
+    - ✅ Support partial matches
+    - ✅ Better whitespace management
 
-#### 1.2 Add File Content Fetching
+#### 1.2 Add File Content Fetching ✅
 - **File**: `src/utils/fileMentions.ts`
 - **Changes**:
-  - Add new function `fetchFileContent(filePath: string, client: Client): Promise<string>`
-  - Integrate with `/file` API endpoint to read file content
-  - Handle file read errors gracefully
+  - ✅ Add new function `fetchFileContent(filePath: string, client: Client): Promise<string>`
+  - ✅ Integrate with `/file` API endpoint to read file content
+  - ✅ Handle file read errors gracefully
 
-#### 1.3 Create FilePart Factory
+#### 1.3 Create FilePart Factory ✅
 - **File**: `src/utils/fileMentions.ts`
 - **Changes**:
-  - Add `createFilePartFromMention(mention: FileMention, client: Client): Promise<FilePartInput>`
-  - Generate proper FilePart objects with:
-    - `type: 'file'`
-    - `mime: 'text/plain'` (or detect from file extension)
-    - `url: string` (file path or content URI)
-    - `filename: string` (extracted from path)
-    - `source: FilePartSource` with file metadata
+  - ✅ Add `createFilePartFromMention(mention: FileMention, client: Client): Promise<FilePartInput>`
+  - ✅ Generate proper FilePart objects with:
+    - ✅ `type: 'file'`
+    - ✅ `mime: 'text/plain'` (or detect from file extension)
+    - ✅ `url: string` (file path or content URI)
+    - ✅ `filename: string` (extracted from path)
+    - ✅ `source: FilePartSource` with file metadata
+
+**Phase 1 Implementation Notes:**
+- Enhanced `getCurrentFileMention()` with better edge case handling
+- `replaceFileMention()` now returns both text and cursor position for better UX
+- Added `fetchFileContent()` with proper API integration
+- Created `createFilePartFromMention()` and `createFilePartsFromMentions()` factory functions
+- Added MIME type detection for 15+ file extensions
+- All tests updated and passing (13/13 tests pass)
+- Full TypeScript support with enhanced FileMention interface
 
 ### Phase 2: Enhanced Message Composition
 
