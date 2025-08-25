@@ -49,6 +49,12 @@ src/
 - `npm run reset-project` - Reset project to clean state
 - `npm run ota-host` - Start OTA hosting server for IPA distribution
 - `npm run ota-host:dev` - Start OTA hosting server in development mode
+- `npm run opencode:start` - Start opencode server in background
+- `npm run opencode:stop` - Stop opencode server
+- `npm run expo:start-bg` - Start Expo development server in background
+- `npm run expo:stop` - Stop Expo development server
+- `npm run expo:logs` - View Expo development server logs
+- `npm run opencode:logs` - View opencode server logs
 
 ## Testing on Physical Device
 Use the Expo Go app to test on your phone:
@@ -63,6 +69,10 @@ This project uses EAS Build for production builds:
 - `npx eas build --platform all` - Build for both platforms
 - `npx eas build --local` - Build locally (experimental)
 
+This project also includes OTA-focused build commands:
+- `npm run build:ota` - Build iOS preview and start OTA hosting server
+- `npm run build:ota:dev` - Build iOS preview and start OTA hosting server in development mode
+
 Note: Traditional `npm run build` is not available for Expo projects. Use EAS Build for production builds.
 
 ### Non-blocking Development Server
@@ -71,6 +81,27 @@ To start the Expo development server without blocking the terminal:
 npx expo start &
 ```
 This runs the development server in the background, allowing you to continue using the terminal for other commands while the server remains active.
+
+## Development Cycle with Background Services
+For an improved development workflow, you can run both the Expo development server and opencode server in the background:
+
+1. Start both servers in background:
+   ```bash
+   npm run expo:start-bg  # Start Expo server in background
+   npm run opencode:start # Start opencode server in background
+   ```
+
+2. View logs when needed:
+   ```bash
+   npm run expo:logs      # View Expo server logs
+   npm run opencode:logs  # View opencode server logs
+   ```
+
+3. Stop servers when done:
+   ```bash
+   npm run expo:stop      # Stop Expo server
+   npm run opencode:stop  # Stop opencode server
+   ```
 
 ## Key Features
 - Cross-platform mobile app (iOS, Android, Web)
@@ -163,3 +194,4 @@ npm run ota-host -- --help
 - Icons: Use @expo/vector-icons or expo-symbols
 - Installing packages: Use `expo install package-name` for compatibility
 - Testing: Run on Expo Go app or simulators
+- Running background services: Use `npm run expo:start-bg` and `npm run opencode:start` to run development servers in background

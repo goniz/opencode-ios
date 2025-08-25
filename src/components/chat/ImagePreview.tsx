@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   TouchableOpacity, 
@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { FullScreenImageViewer } from './FullScreenImageViewer';
 
 interface ImagePreviewProps {
   images: string[];
@@ -18,9 +19,16 @@ const { width: screenWidth } = Dimensions.get('window');
 const imageSize = Math.min(80, (screenWidth - 64) / 4); // 4 images per row with padding
 
 export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  console.log('ImagePreview received images:', images);
+  
   if (images.length === 0) {
+    console.log('ImagePreview: No images to display');
     return null;
   }
+  
+  console.log('ImagePreview: Rendering with', images.length, 'images');
 
   return (
     <View style={styles.container}>
@@ -31,14 +39,23 @@ export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
       >
         {images.map((imageUri, index) => (
           <View key={index} style={styles.imageContainer}>
-            <Image
-              source={{ uri: imageUri }}
-              style={styles.image}
-              contentFit="cover"
-              placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
-              cachePolicy="memory-disk"
-              onError={() => console.warn('Failed to load image:', imageUri)}
-            />
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('Image clicked:', imageUri);
+                console.log('Setting selected image to:', imageUri);
+                setSelectedImage(imageUri);
+              }}
+              activeOpacity={0.7}
+            >
+              <Image
+                source={{ uri: imageUri }}
+                style={styles.image}
+                contentFit="cover"
+                placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
+                cachePolicy="memory-disk"
+                onError={() => console.warn('Failed to load image:', imageUri)}
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.removeButton}
               onPress={() => onRemoveImage(index)}
@@ -48,6 +65,12 @@ export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
           </View>
         ))}
       </ScrollView>
+      
+      <FullScreenImageViewer
+        visible={!!selectedImage}
+        imageUri={selectedImage || ''}
+        onClose={() => setSelectedImage(null)}
+      />
     </View>
   );
 }

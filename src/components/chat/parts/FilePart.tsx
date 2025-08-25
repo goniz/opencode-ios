@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { MessagePartProps, MessagePartContainer, getRenderMode, getMessagePartStyles } from './MessagePart';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
+import { FullScreenImageViewer } from '../FullScreenImageViewer';
 
 interface FilePartData {
   file?: {
@@ -28,6 +29,7 @@ export const FilePart: React.FC<MessagePartProps> = ({
   renderMode = 'auto'
 }) => {
   const actualRenderMode = getRenderMode(renderMode, messageRole);
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
   
   // Handle both the MessagePartProps interface and actual API FilePart type
   const filePart = part as FilePartData;
@@ -48,6 +50,10 @@ export const FilePart: React.FC<MessagePartProps> = ({
   // Check if we have a valid URL for rendering (including base64 data URLs)
   const hasValidUrl = Boolean(fileUrl && fileUrl.trim() !== '') && 
     (fileUrl.startsWith('http') || fileUrl.startsWith('file://') || fileUrl.startsWith('data:'));
+    
+  if (isImage) {
+    console.log('FilePart: Image detected, mimeType:', mimeType, 'hasValidUrl:', hasValidUrl);
+  }
   
   // For user messages with local files, check if we can render them directly
   const isLocalImage = messageRole === 'user' && 
@@ -88,13 +94,18 @@ export const FilePart: React.FC<MessagePartProps> = ({
           </Text>
         </View>
         {(isImage && hasValidUrl) || isLocalImage ? (
-          <Image
-            source={{ uri: hasValidUrl ? fileUrl : `file://${filePath}` }}
-            style={styles.userImagePreview}
-            contentFit="cover"
-            placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
-            cachePolicy="memory-disk"
-          />
+          <TouchableOpacity onPress={() => {
+            console.log('FilePart user image clicked:', hasValidUrl ? fileUrl : `file://${filePath}`);
+            setImageViewerVisible(true);
+          }}>
+            <Image
+              source={{ uri: hasValidUrl ? fileUrl : `file://${filePath}` }}
+              style={styles.userImagePreview}
+              contentFit="cover"
+              placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
+              cachePolicy="memory-disk"
+            />
+          </TouchableOpacity>
         ) : null}
       </View>
     );
@@ -128,15 +139,20 @@ export const FilePart: React.FC<MessagePartProps> = ({
 
         {/* Image content */}
         {isImage && hasValidUrl && (
-          <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: fileUrl }}
-              style={styles.image}
-              contentFit="contain"
-              placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
-              cachePolicy="memory-disk"
-            />
-          </View>
+          <TouchableOpacity onPress={() => {
+            console.log('FilePart image clicked:', fileUrl);
+            setImageViewerVisible(true);
+          }}>
+            <View style={styles.imageContainer}>
+              <Image
+                source={{ uri: fileUrl }}
+                style={styles.image}
+                contentFit="contain"
+                placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
+                cachePolicy="memory-disk"
+              />
+            </View>
+          </TouchableOpacity>
         )}
 
         {/* File content */}
@@ -159,6 +175,12 @@ export const FilePart: React.FC<MessagePartProps> = ({
             )}
           </View>
         )}
+        
+        <FullScreenImageViewer
+          visible={imageViewerVisible}
+          imageUri={hasValidUrl ? fileUrl : `file://${filePath}`}
+          onClose={() => setImageViewerVisible(false)}
+        />
       </View>
     </MessagePartContainer>
   );
