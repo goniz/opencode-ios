@@ -68,7 +68,7 @@ export default function ChatScreen() {
     onSessionIdle
   } = useConnection();
   
-  const [inputText, setInputText] = useState('');
+   const [inputText, setInputText] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [currentProvider, setCurrentProvider] = useState<string | null>(null);
@@ -441,12 +441,12 @@ export default function ChatScreen() {
       currentModel
     });
 
-    if ((!inputText.trim() && selectedImages.length === 0) || !currentSession || isSending) {
+    if (((!inputText || !inputText.trim()) && selectedImages.length === 0) || !currentSession || isSending) {
       console.log('Early return due to validation');
       return;
     }
 
-    const messageText = inputText.trim();
+    const messageText = inputText?.trim() || '';
     
     // Check if this is a command
     if (messageText.startsWith('/')) {
