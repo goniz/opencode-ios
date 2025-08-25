@@ -19,6 +19,7 @@ import { filterMessageParts } from '../../src/utils/messageFiltering';
 import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
 import { MessageContent } from '../../src/components/chat/MessageContent';
 import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
+import { MessageStyles } from '../../src/styles/messageStyles';
 
 import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInput';
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
@@ -680,7 +681,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
 
     // Single unified rendering path for all messages
     return (
-      <View style={styles.messageContainer}>
+      <View style={MessageStyles.messageContainer}>
         {partsToRender.map((part, partIndex) => {
           const isFirstPart = partIndex === 0;
           const isLastPart = partIndex === partsToRender.length - 1;
@@ -1026,11 +1027,11 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
 
 // Helper functions for unified message rendering
 const getMessageRowStyle = (isUser: boolean) => {
-  return isUser ? styles.userMessageRow : styles.twoColumnLayout;
+  return isUser ? MessageStyles.userMessageRow : MessageStyles.twoColumnLayout;
 };
 
 const getContentColumnStyle = (isUser: boolean) => {
-  return isUser ? styles.userContentColumn : styles.contentColumn;
+  return isUser ? MessageStyles.userContentColumn : MessageStyles.assistantContentColumn;
 };
 
 const styles = StyleSheet.create({
@@ -1188,86 +1189,7 @@ title: {
     paddingTop: 16,
     paddingBottom: 8,
   },
-  messageContainer: {
-    marginBottom: 16,
-  },
-  twoColumnLayout: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-  },
-  userMessageContainer: {
-    backgroundColor: 'transparent',
-  },
-  contentColumn: {
-    flex: 1,
-    paddingLeft: 8,
-  },
-  userContentColumn: {
-    flex: 1,
-    paddingLeft: 0,
-    alignItems: 'flex-end',
-  },
-  userMessage: {
-    alignItems: 'flex-end',
-  },
-  assistantMessage: {
-    alignItems: 'flex-start',
-  },
-  messageBubble: {
-    maxWidth: '80%',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-  },
-  userBubble: {
-    backgroundColor: '#ffffff',
-  },
-  assistantBubble: {
-    backgroundColor: '#2a2a2a',
-  },
-  userMessageRow: {
-    alignItems: 'flex-end',
-    marginBottom: 2,
-    minHeight: 0,
-    flexShrink: 1,
-    alignSelf: 'flex-end',
-    width: '100%',
-  },
-  userMessageBubble: {
-    backgroundColor: '#2563eb',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    maxWidth: '80%',
-    alignSelf: 'flex-end',
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-    flexShrink: 1,
-    minHeight: 0,
-    maxHeight: 400,
-  },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  userText: {
-    color: '#0a0a0a',
-  },
-  userMessageText: {
-    color: '#ffffff',
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '400',
-    flexShrink: 1,
-    textAlign: 'left',
-  },
-  assistantText: {
-    color: '#ffffff',
-  },
+
 
   inputContainer: {
     flexDirection: 'row',

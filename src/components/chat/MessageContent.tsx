@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, Text } from 'react-native';
 import type { Part, ToolPart } from '../../api/types.gen';
 import type { Todo } from '../../types/todo';
 import { PartComponentSelector } from './parts';
 import { TodoTool } from './content/TodoTool';
+import { MessageStyles } from '../../styles/messageStyles';
 
 interface MessageContentProps {
   role: string;
@@ -39,12 +40,12 @@ export function MessageContent({
     if (specialState === 'error') {
       return (
         <View style={getContentContainerStyle(role, actualRenderMode)}>
-          <View style={styles.errorContainer}>
-            <View style={styles.errorHeader}>
-              <Text style={styles.errorIcon}>⚠️</Text>
-              <Text style={styles.errorTitle}>Error</Text>
+          <View style={MessageStyles.errorContainer}>
+            <View style={MessageStyles.errorHeader}>
+              <Text style={MessageStyles.errorIcon}>⚠️</Text>
+              <Text style={MessageStyles.errorTitle}>Error</Text>
             </View>
-            <Text style={styles.errorMessage}>{content}</Text>
+            <Text style={MessageStyles.errorMessage}>{content}</Text>
           </View>
         </View>
       );
@@ -53,8 +54,8 @@ export function MessageContent({
     if (specialState === 'queued') {
       return (
         <View style={getContentContainerStyle(role, actualRenderMode)}>
-          <View style={styles.queuedContainer}>
-            <Text style={styles.queuedText}>{content}</Text>
+          <View style={MessageStyles.queuedContainer}>
+            <Text style={MessageStyles.queuedText}>{content}</Text>
           </View>
         </View>
       );
@@ -63,8 +64,8 @@ export function MessageContent({
     if (specialState === 'streaming') {
       return (
         <View style={getContentContainerStyle(role, actualRenderMode)}>
-          <View style={styles.streamingContainer}>
-            <Text style={styles.streamingText}>{content}</Text>
+          <View style={MessageStyles.streamingContainer}>
+            <Text style={MessageStyles.streamingText}>{content}</Text>
           </View>
         </View>
       );
@@ -177,160 +178,9 @@ export function MessageContent({
 
 const getContentContainerStyle = (role: string, renderMode: string) => {
   if (role === 'user' && renderMode === 'bubble') {
-    return styles.userContentContainer;
+    return MessageStyles.userContentContainer;
   }
-  return styles.assistantContentContainer;
+  return MessageStyles.assistantContentContainer;
 };
 
-const styles = StyleSheet.create({
-  contentColumn: {
-    flexShrink: 1,
-    paddingLeft: 6,
-  },
-  userContentContainer: {
-    // User message styles (bubble mode) - no flex: 1 to prevent huge bubbles
-    flexShrink: 1,
-    alignSelf: 'flex-end',
-  },
-  assistantContentContainer: {
-    // Assistant message styles (expanded mode)
-    flex: 1,
-    paddingLeft: 6,
-  },
-  contentText: {
-    fontSize: 16,
-    lineHeight: 22,
-    color: '#ffffff',
-  },
-  userText: {
-    color: '#ffffff',
-  },
-  assistantText: {
-    color: '#e5e7eb',
-  },
-  reasoningContainer: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 8,
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#f59e0b',
-  },
-  reasoningLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#f59e0b',
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  reasoningText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#d1d5db',
-    fontStyle: 'italic',
-  },
-  toolContainer: {
-    backgroundColor: '#0f1419',
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-  },
-  toolHeader: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  toolTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#e5e7eb',
-    marginBottom: 4,
-  },
-  toolOutput: {
-    fontSize: 13,
-    fontFamily: 'monospace',
-    color: '#9ca3af',
-    backgroundColor: '#000000',
-    padding: 8,
-    borderRadius: 4,
-    marginTop: 4,
-  },
-  toolError: {
-    fontSize: 14,
-    color: '#ef4444',
-    backgroundColor: '#1f1416',
-    padding: 8,
-    borderRadius: 4,
-    borderLeftWidth: 3,
-    borderLeftColor: '#ef4444',
-  },
-  fileContainer: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 8,
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#8b5cf6',
-  },
-  fileText: {
-    fontSize: 14,
-    color: '#d1d5db',
-  },
-  stepText: {
-    fontSize: 14,
-    color: '#10b981',
-    fontWeight: '500',
-  },
-  agentText: {
-    fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '500',
-  },
-  errorContainer: {
-    backgroundColor: '#2a1a1a',
-    borderWidth: 1,
-    borderColor: '#ef4444',
-    borderRadius: 8,
-    padding: 12,
-  },
-  errorHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  errorIcon: {
-    fontSize: 16,
-    marginRight: 6,
-  },
-  errorTitle: {
-    color: '#ef4444',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  errorMessage: {
-    color: '#fca5a5',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  queuedContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  queuedText: {
-    color: '#9ca3af',
-    fontSize: 16,
-    lineHeight: 22,
-    fontStyle: 'italic',
-  },
-  streamingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  streamingText: {
-    color: '#ffffff',
-    fontSize: 16,
-    lineHeight: 22,
-    fontStyle: 'italic',
-    opacity: 0.8,
-  },
-});
+// MessageContent no longer needs local styles - all styles are in unified MessageStyles
