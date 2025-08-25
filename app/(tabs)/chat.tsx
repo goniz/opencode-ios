@@ -1273,6 +1273,7 @@ title: {
     paddingLeft: 8,
   },
   userContentColumn: {
+    flex: 1,
     paddingLeft: 0,
   },
   userMessage: {

@@ -86,14 +86,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   
-  // User message styles (bubble mode)
+// User message styles (bubble mode)
   userBubbleContainer: {
     backgroundColor: colors.primary[600],
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    maxWidth: '80%',
-    alignSelf: 'flex-end',
+    maxWidth: '95%',
     shadowColor: colors.primary[600],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
