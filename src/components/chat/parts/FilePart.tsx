@@ -45,8 +45,9 @@ export const FilePart: React.FC<MessagePartProps> = ({
     );
     
   // For user messages, we might have image data in different formats
-  // Check if we have a valid URL for rendering
-  const hasValidUrl = Boolean(fileUrl && fileUrl.trim() !== '');
+  // Check if we have a valid URL for rendering (including base64 data URLs)
+  const hasValidUrl = Boolean(fileUrl && fileUrl.trim() !== '') && 
+    (fileUrl.startsWith('http') || fileUrl.startsWith('file://') || fileUrl.startsWith('data:'));
   
   // For user messages with local files, check if we can render them directly
   const isLocalImage = messageRole === 'user' && 
@@ -91,6 +92,8 @@ export const FilePart: React.FC<MessagePartProps> = ({
             source={{ uri: hasValidUrl ? fileUrl : `file://${filePath}` }}
             style={styles.userImagePreview}
             contentFit="cover"
+            placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
+            cachePolicy="memory-disk"
           />
         ) : null}
       </View>
@@ -124,13 +127,14 @@ export const FilePart: React.FC<MessagePartProps> = ({
         </View>
 
         {/* Image content */}
-        {isImage && fileUrl && (
+        {isImage && hasValidUrl && (
           <View style={styles.imageContainer}>
             <Image
               source={{ uri: fileUrl }}
               style={styles.image}
               contentFit="contain"
               placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
+              cachePolicy="memory-disk"
             />
           </View>
         )}

@@ -60,6 +60,9 @@ export function MessageContent({
       case 'file':
         return {
           ...basePart,
+          filename: part.filename ?? 'Unknown file',
+          mime: part.mime ?? '',
+          url: part.url ?? '',
           file: {
             path: part.filename ?? 'Unknown file',
             content: '', // File content would come from another source

@@ -37,6 +37,7 @@ export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
               contentFit="cover"
               placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
               cachePolicy="memory-disk"
+              onError={() => console.warn('Failed to load image:', imageUri)}
             />
             <TouchableOpacity
               style={styles.removeButton}
