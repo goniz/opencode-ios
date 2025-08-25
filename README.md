@@ -22,6 +22,20 @@ A native iOS/Android mobile application for OpenCode built with Expo and React N
 - iOS Simulator (for iOS development)
 - Android Studio/Emulator (for Android development)
 
+### Dev Container Support
+This project includes a complete Dev Container configuration for consistent development environments:
+
+- **Pre-configured Environment**: Node.js 22, Expo CLI, EAS CLI, and opencode-ai
+- **VS Code Extensions**: React Native, TypeScript, ESLint, Prettier, and Expo tools
+- **Port Forwarding**: Automatic forwarding for Expo dev server (19000-19002, 8081) and OpenCode server (4096)
+- **Environment Variables**: Pre-configured for Expo development
+
+To use with VS Code:
+1. Install the "Dev Containers" extension
+2. Open the project in VS Code
+3. Click "Reopen in Container" when prompted
+4. The container will build and install all dependencies automatically
+
 ### Installation
 
 ```bash
