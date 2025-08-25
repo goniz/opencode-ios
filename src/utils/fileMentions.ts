@@ -222,23 +222,49 @@ export function formatFileSuggestions(suggestions: FileSuggestion[], maxResults:
  * @returns Promise resolving to the file content or null if error
  */
 export async function fetchFileContent(filePath: string, client: Client): Promise<string | null> {
+  console.log('🔍 [fetchFileContent] Starting file content fetch...');
+  console.log('🔍 [fetchFileContent] Input filePath:', JSON.stringify(filePath));
+  console.log('🔍 [fetchFileContent] Client available:', !!client);
+
   if (!filePath || !filePath.trim()) {
+    console.log('🔍 [fetchFileContent] Invalid filePath, returning null');
     return null;
   }
 
+  const trimmedPath = filePath.trim();
+  console.log('🔍 [fetchFileContent] Using trimmed path:', JSON.stringify(trimmedPath));
+
   try {
+    console.log('🔍 [fetchFileContent] Calling fileRead API...');
     const response = await fileRead({
       client,
-      query: { path: filePath.trim() }
+      query: { path: trimmedPath }
     });
 
+    console.log('🔍 [fetchFileContent] fileRead API response received');
+    console.log('🔍 [fetchFileContent] Response data exists:', !!response.data);
+    console.log('🔍 [fetchFileContent] Response data type:', typeof response.data);
+
+    if (response.data) {
+      console.log('🔍 [fetchFileContent] Response data keys:', Object.keys(response.data));
+      console.log('🔍 [fetchFileContent] Response data content type:', typeof response.data.content);
+      console.log('🔍 [fetchFileContent] Response data content length:', response.data.content?.length || 0);
+    }
+
     if (response.data && typeof response.data.content === 'string') {
+      console.log('✅ [fetchFileContent] Successfully retrieved file content, length:', response.data.content.length);
       return response.data.content;
     }
 
+    console.log('🔍 [fetchFileContent] Response data or content is invalid, returning null');
     return null;
   } catch (error) {
-    console.error(`Error reading file ${filePath}:`, error);
+    console.error(`❌ [fetchFileContent] Error reading file ${trimmedPath}:`, error);
+    console.error('❌ [fetchFileContent] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    });
     return null;
   }
 }
@@ -308,27 +334,56 @@ function getFilename(filePath: string): string {
  * @returns Promise resolving to FilePartInput or null if error
  */
 export async function createFilePartFromMention(
-  mention: FileMention, 
+  mention: FileMention,
   client: Client
 ): Promise<FilePartInput | null> {
+  console.log('🔍 [createFilePartFromMention] Starting FilePart creation for mention:', {
+    path: mention.path,
+    start: mention.start,
+    end: mention.end,
+    query: mention.query
+  });
+  console.log('🔍 [createFilePartFromMention] Client available:', !!client);
+
   if (!mention.path || !mention.path.trim()) {
+    console.log('🔍 [createFilePartFromMention] Invalid mention path, returning null');
     return null;
   }
 
   const filePath = mention.path.trim();
-  
+  console.log('🔍 [createFilePartFromMention] Processing file path:', JSON.stringify(filePath));
+
   try {
+    console.log('🔍 [createFilePartFromMention] Fetching file content...');
     // Fetch file content
     const content = await fetchFileContent(filePath, client);
+    console.log('🔍 [createFilePartFromMention] fetchFileContent returned:', {
+      contentLength: content?.length || 0,
+      contentType: typeof content,
+      isNull: content === null
+    });
+
     if (content === null) {
+      console.log('🔍 [createFilePartFromMention] File content is null, returning null');
       return null;
     }
+
+    console.log('🔍 [createFilePartFromMention] Creating FilePartInput object...');
+    const mimeType = getFileMimeType(filePath);
+    const filename = getFilename(filePath);
+
+    console.log('🔍 [createFilePartFromMention] File metadata:', {
+      mimeType,
+      filename,
+      filePath,
+      contentLength: content.length
+    });
 
     // Create the FilePartInput object
     const filePartInput: FilePartInput = {
       type: 'file',
-      mime: getFileMimeType(filePath),
-      filename: getFilename(filePath),
+      mime: mimeType,
+      filename: filename,
       url: filePath, // Use file path as URL
       source: {
         type: 'file',
@@ -341,9 +396,39 @@ export async function createFilePartFromMention(
       } as FilePartSource
     };
 
+    console.log('✅ [createFilePartFromMention] Successfully created FilePartInput:', {
+      type: filePartInput.type,
+      mime: filePartInput.mime,
+      filename: filePartInput.filename,
+      url: filePartInput.url,
+      sourceType: filePartInput.source?.type,
+      contentLength: content.length
+    });
+
+    // Validate the created FilePartInput
+    console.log('🔍 [createFilePartFromMention] Validating created FilePartInput:', {
+      hasType: !!filePartInput.type,
+      hasMime: !!filePartInput.mime,
+      hasFilename: !!filePartInput.filename,
+      hasUrl: !!filePartInput.url,
+      hasSource: !!filePartInput.source,
+      sourceType: filePartInput.source?.type,
+      isValid: !!(
+        filePartInput.type &&
+        filePartInput.mime &&
+        filePartInput.filename &&
+        filePartInput.url &&
+        filePartInput.source
+      )
+    });
+
     return filePartInput;
   } catch (error) {
-    console.error(`Error creating FilePart from mention for ${filePath}:`, error);
+    console.error(`❌ [createFilePartFromMention] Error creating FilePart from mention for ${filePath}:`, error);
+    console.error('❌ [createFilePartFromMention] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return null;
   }
 }
@@ -355,27 +440,72 @@ export async function createFilePartFromMention(
  * @returns Promise resolving to array of FilePartInput objects (excluding failures)
  */
 export async function createFilePartsFromMentions(
-  mentions: FileMention[], 
+  mentions: FileMention[],
   client: Client
 ): Promise<FilePartInput[]> {
+  console.log('🔍 [createFilePartsFromMentions] Starting batch FilePart creation...');
+  console.log('🔍 [createFilePartsFromMentions] Input mentions:', mentions.map(m => ({ path: m.path, start: m.start, end: m.end })));
+  console.log('🔍 [createFilePartsFromMentions] Client available:', !!client);
+
   if (!mentions || mentions.length === 0) {
+    console.log('🔍 [createFilePartsFromMentions] No mentions provided, returning empty array');
     return [];
   }
 
+  console.log('🔍 [createFilePartsFromMentions] Processing mentions concurrently...');
+
   // Process all mentions concurrently
-  const filePartPromises = mentions.map(mention => 
-    createFilePartFromMention(mention, client)
-  );
+  const filePartPromises = mentions.map((mention, index) => {
+    console.log(`🔍 [createFilePartsFromMentions] Processing mention ${index + 1}/${mentions.length}:`, mention.path);
+    return createFilePartFromMention(mention, client);
+  });
+
+  console.log('🔍 [createFilePartsFromMentions] Waiting for all promises to resolve...');
 
   try {
     const results = await Promise.allSettled(filePartPromises);
-    
+    console.log('🔍 [createFilePartsFromMentions] Promise.allSettled completed with', results.length, 'results');
+
+    // Analyze results
+    const fulfilledResults = results.filter(result => result.status === 'fulfilled');
+    const rejectedResults = results.filter(result => result.status === 'rejected');
+
+    console.log(`🔍 [createFilePartsFromMentions] Fulfilled: ${fulfilledResults.length}, Rejected: ${rejectedResults.length}`);
+
+    if (rejectedResults.length > 0) {
+      console.warn('⚠️ [createFilePartsFromMentions] Some FilePart creations failed:');
+      rejectedResults.forEach((result, index) => {
+        console.warn(`⚠️ [createFilePartsFromMentions] Failed mention ${index}:`, result.reason);
+      });
+    }
+
     // Filter out failed results and null values
-    return results
-      .map(result => result.status === 'fulfilled' ? result.value : null)
+    const fileParts = results
+      .map((result, index) => {
+        if (result.status === 'fulfilled') {
+          const filePart = result.value;
+          if (filePart) {
+            console.log(`🔍 [createFilePartsFromMentions] Success for mention ${index}:`, {
+              filename: filePart.filename,
+              mime: filePart.mime,
+              url: filePart.url
+            });
+            return filePart;
+          } else {
+            console.log(`🔍 [createFilePartsFromMentions] Null result for mention ${index}`);
+            return null;
+          }
+        } else {
+          console.log(`🔍 [createFilePartsFromMentions] Rejected result for mention ${index}:`, result.reason);
+          return null;
+        }
+      })
       .filter((filePart): filePart is FilePartInput => filePart !== null);
+
+    console.log(`✅ [createFilePartsFromMentions] Returning ${fileParts.length} successful FileParts`);
+    return fileParts;
   } catch (error) {
-    console.error('Error creating FileParts from mentions:', error);
+    console.error('❌ [createFilePartsFromMentions] Unexpected error in Promise.allSettled:', error);
     return [];
   }
 }

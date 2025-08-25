@@ -599,17 +599,31 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
   }, [state.client, state.connectionStatus]);
 
   const sendMessage = useCallback((sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]): void => {
+    console.log('🔍 [sendMessage] Function called with:', {
+      sessionId,
+      message: JSON.stringify(message),
+      messageLength: message.length,
+      providerID,
+      modelID,
+      imagesCount: images?.length || 0
+    });
+
     if (!state.client || state.connectionStatus !== 'connected') {
-      console.error('Cannot send message: not connected to server');
+      console.error('❌ [sendMessage] Cannot send message: not connected to server');
+      console.error('❌ [sendMessage] Client available:', !!state.client);
+      console.error('❌ [sendMessage] Connection status:', state.connectionStatus);
       return;
     }
 
     if (!providerID || !modelID) {
-      console.error('Cannot send message: provider and model must be selected');
+      console.error('❌ [sendMessage] Cannot send message: provider and model must be selected');
+      console.error('❌ [sendMessage] Provider ID:', providerID);
+      console.error('❌ [sendMessage] Model ID:', modelID);
       return;
     }
 
-    console.log('Sending message to session:', sessionId, 'message:', message, 'images:', images?.length || 0);
+    console.log('✅ [sendMessage] Validation passed, proceeding with message send');
+    console.log('📤 [sendMessage] Sending message to session:', sessionId, 'message:', message, 'images:', images?.length || 0);
 
     // Send message asynchronously without blocking the UI
     const sendAsync = async () => {
@@ -618,56 +632,86 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         console.log('   Current isGenerating state before send:', state.isGenerating);
 
         // Process the message for file mentions and create parts
-        console.log('📝 Processing message for file mentions...');
+        console.log('📝 [sendMessage] Processing message for file mentions...');
+        console.log('📝 [sendMessage] Message to process:', JSON.stringify(message));
+
         let processedMessage;
 
         try {
+          console.log('📝 [sendMessage] Calling processMessageForSending...');
           processedMessage = await processMessageForSending(message, state.client!, {
             keepMentionText: true, // Keep @filepath references for context
             maxFileParts: 10, // Reasonable limit to prevent abuse
             validateFiles: true
           });
 
-          console.log('📊 Message processing complete:', {
+          console.log('📊 [sendMessage] Message processing complete:', {
             textLength: processedMessage.textPart.text.length,
             filePartsCount: processedMessage.fileParts.length,
-            invalidMentionsCount: processedMessage.invalidMentions.length
+            invalidMentionsCount: processedMessage.invalidMentions.length,
+            textContent: JSON.stringify(processedMessage.textPart.text)
           });
+
+          if (processedMessage.invalidMentions.length > 0) {
+            console.warn('⚠️ [sendMessage] Some file mentions were invalid:', processedMessage.invalidMentions.map(m => m.path));
+          }
         } catch (error) {
-          console.error('❌ Failed to process message for file mentions:', error);
+          console.error('❌ [sendMessage] Failed to process message for file mentions:', error);
+          console.error('❌ [sendMessage] Error details:', {
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined
+          });
 
           // Fallback to original message processing if file processing fails
-          console.log('🔄 Falling back to original message processing...');
+          console.log('🔄 [sendMessage] Falling back to original message processing...');
           processedMessage = {
             textPart: { type: 'text' as const, text: message },
             fileParts: [],
             invalidMentions: []
           };
+          console.log('🔄 [sendMessage] Fallback processedMessage created:', {
+            textLength: processedMessage.textPart.text.length,
+            filePartsCount: processedMessage.fileParts.length
+          });
         }
 
         // Build the parts array
+        console.log('🔧 [sendMessage] Building parts array...');
         const parts: (TextPartInput | FilePartInput)[] = [];
+        console.log('🔧 [sendMessage] Initial parts array length:', parts.length);
 
         // Add text part if there's processed text
-        if (processedMessage.textPart.text.trim()) {
-          parts.push({
-            type: 'text',
+        const trimmedText = processedMessage.textPart.text.trim();
+        console.log('🔧 [sendMessage] Checking text part - original length:', processedMessage.textPart.text.length, 'trimmed length:', trimmedText.length);
+
+        if (trimmedText) {
+          console.log('🔧 [sendMessage] Adding text part to array');
+          const textPart = {
+            type: 'text' as const,
             text: processedMessage.textPart.text,
             id: undefined,
             synthetic: undefined,
             time: undefined
-          });
+          };
+          parts.push(textPart);
+          console.log('🔧 [sendMessage] Text part added, parts array length:', parts.length);
+        } else {
+          console.log('🔧 [sendMessage] No text content to add (empty after trimming)');
         }
 
         // Add file parts from message processing
+        console.log('🔧 [sendMessage] Checking file parts - count:', processedMessage.fileParts.length);
         if (processedMessage.fileParts.length > 0) {
-          console.log('📎 Adding file parts to message:', processedMessage.fileParts.map(fp => ({
+          console.log('📎 [sendMessage] Adding file parts to message:', processedMessage.fileParts.map(fp => ({
             filename: fp.filename,
             mime: fp.mime,
             url: fp.url.substring(0, 50) + '...' // Truncate for logging
           })));
 
           parts.push(...processedMessage.fileParts);
+          console.log('📎 [sendMessage] File parts added, total parts array length:', parts.length);
+        } else {
+          console.log('📎 [sendMessage] No file parts to add');
         }
 
         // Handle invalid mentions that couldn't be processed
@@ -679,58 +723,105 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         }
 
         // Validate that we have at least some content to send
+        console.log('🔍 [sendMessage] Validating parts array - length:', parts.length);
         if (parts.length === 0) {
-          console.error('❌ No content to send after processing');
+          console.error('❌ [sendMessage] No content to send after processing');
+          console.error('❌ [sendMessage] Processed message details:', {
+            textLength: processedMessage.textPart.text.length,
+            trimmedTextLength: trimmedText.length,
+            filePartsCount: processedMessage.fileParts.length
+          });
           throw new Error('Message has no content to send after processing file mentions');
         }
-        
-        // Add image parts if there are images (processed separately from file mentions)
-        if (images && images.length > 0) {
-          console.log('🖼️ Processing images for message...');
-          const processedImages = await processImageUris(images);
 
-          for (const processedImage of processedImages) {
-            // Create a proper data URI from the processed image data
-            const dataUri = `data:${processedImage.mime};base64,${processedImage.base64Data}`;
-
-            console.log('Creating file part for image:', {
-              filename: processedImage.filename,
-              mime: processedImage.mime,
-              dataUriLength: dataUri.length,
-              dataUriPrefix: dataUri.substring(0, 50)
-            });
-
-            parts.push({
-              type: 'file',
-              mime: processedImage.mime,
-              url: dataUri,
-              filename: processedImage.filename
-            });
-          }
-        }
-
-        console.log('Built parts array:', parts.map(part => ({
+        console.log('✅ [sendMessage] Parts array validation passed');
+        console.log('📋 [sendMessage] Built parts array:', parts.map((part, index) => ({
+          index,
           type: part.type,
-          ...(part.type === 'text' ? { textLength: part.text.length } : {
+          ...(part.type === 'text' ? {
+            text: part.text,
+            textLength: part.text.length,
+            hasText: !!part.text,
+            trimmedText: part.text.trim()
+          } : {
             filename: part.filename,
             mime: part.mime,
-            urlLength: part.url.length
+            url: part.url,
+            urlLength: part.url.length,
+            hasUrl: !!part.url,
+            hasFilename: !!part.filename,
+            hasMime: !!part.mime
           })
         })));
 
-        // Send the message - the response will come through the event stream
-        console.log('📤 Sending message to server...');
-        const response = await sessionChat({
-          client: state.client!,
-          path: { id: sessionId },
-          body: {
-            providerID,
-            modelID,
-            parts
+        // Validate each part individually
+        parts.forEach((part, index) => {
+          console.log(`🔍 [sendMessage] Validating part ${index}:`, {
+            type: part.type,
+            isValid: part.type === 'text' ?
+              (typeof part.text === 'string' && part.text.length > 0) :
+              (typeof part.filename === 'string' && typeof part.mime === 'string' && typeof part.url === 'string')
+          });
+
+          if (part.type === 'text') {
+            console.log(`🔍 [sendMessage] Part ${index} text details:`, {
+              textType: typeof part.text,
+              textLength: part.text.length,
+              textPreview: part.text.substring(0, 50) + (part.text.length > 50 ? '...' : ''),
+              hasContent: part.text.trim().length > 0
+            });
+          } else {
+            console.log(`🔍 [sendMessage] Part ${index} file details:`, {
+              filename: part.filename,
+              mime: part.mime,
+              url: part.url,
+              urlType: typeof part.url,
+              urlLength: part.url.length,
+              urlPreview: part.url.substring(0, 50) + (part.url.length > 50 ? '...' : '')
+            });
           }
         });
 
-        console.log('✅ Message sent successfully, waiting for response...');
+        // Send the message - the response will come through the event stream
+        console.log('📤 [sendMessage] Sending message to server...');
+        console.log('📤 [sendMessage] API call parameters:', {
+          sessionId,
+          providerID,
+          modelID,
+          partsCount: parts.length,
+          partsTypes: parts.map(p => p.type)
+        });
+
+        // Log the actual request body being sent
+        const requestBody = {
+          providerID,
+          modelID,
+          parts
+        };
+        console.log('📤 [sendMessage] Full request body:', JSON.stringify(requestBody, null, 2));
+
+        const response = await sessionChat({
+          client: state.client!,
+          path: { id: sessionId },
+          body: requestBody
+        });
+
+        console.log('✅ [sendMessage] Message sent successfully, waiting for response...');
+        console.log('✅ [sendMessage] API response received:', {
+          hasData: !!response.data,
+          dataKeys: response.data ? Object.keys(response.data) : [],
+          responseType: typeof response.data,
+          responseString: response.data ? JSON.stringify(response.data).substring(0, 200) + '...' : 'null'
+        });
+
+        // Log response data in detail if it exists
+        if (response.data) {
+          console.log('✅ [sendMessage] Response data details:', {
+            dataType: typeof response.data,
+            dataKeys: Object.keys(response.data),
+            dataString: JSON.stringify(response.data, null, 2)
+          });
+        }
 
         // Handle the immediate response (contains assistant message info and initial parts)
         if (response.data) {
