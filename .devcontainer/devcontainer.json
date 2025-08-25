@@ -1,0 +1,68 @@
+{
+	"name": "Expo React Native Development",
+	"image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+	
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {
+			"moby": false
+		}
+	},
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode.vscode-typescript-next",
+				"bradlc.vscode-tailwindcss",
+				"esbenp.prettier-vscode",
+				"ms-vscode.vscode-eslint",
+				"expo.vscode-expo-tools",
+				"ms-vscode.vscode-json",
+				"ms-vscode.vscode-react-native",
+				"formulahendry.auto-rename-tag",
+				"christian-kohler.path-intellisense"
+			],
+			"settings": {
+				"typescript.preferences.importModuleSpecifier": "relative",
+				"typescript.suggest.autoImports": true,
+				"editor.formatOnSave": true,
+				"editor.defaultFormatter": "esbenp.prettier-vscode",
+				"editor.codeActionsOnSave": {
+					"source.fixAll.eslint": "explicit"
+				}
+			}
+		}
+	},
+
+	"forwardPorts": [19000, 19001, 19002, 8081, 4096],
+	"portsAttributes": {
+		"19000": {
+			"label": "Expo Dev Server",
+			"onAutoForward": "notify"
+		},
+		"19001": {
+			"label": "Expo Metro Bundler",
+			"onAutoForward": "notify"
+		},
+		"19002": {
+			"label": "Expo Dev Tools",
+			"onAutoForward": "notify"
+		},
+		"8081": {
+			"label": "Metro Bundler",
+			"onAutoForward": "notify"
+		},
+		"4096": {
+			"label": "OpenCode Server",
+			"onAutoForward": "notify"
+		}
+	},
+
+	"postCreateCommand": "npm install && npm install -g @expo/cli opencode-ai eas-cli",
+
+	"containerEnv": {
+		"EXPO_DEVTOOLS_LISTEN_ADDRESS": "0.0.0.0",
+		"REACT_NATIVE_PACKAGER_HOSTNAME": "0.0.0.0"
+	}
+}
