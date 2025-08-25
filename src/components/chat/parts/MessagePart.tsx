@@ -112,13 +112,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[600],
     borderRadius: 12,
     padding: 12,
-    maxWidth: '80%',
-    alignSelf: 'flex-end',
     shadowColor: colors.primary[600],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
+    flexGrow: 1,
   },
   
   // Assistant message styles (expanded mode)
