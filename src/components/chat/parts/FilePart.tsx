@@ -32,6 +32,18 @@ export const FilePart: React.FC<MessagePartProps> = ({
   // Handle both the MessagePartProps interface and actual API FilePart type
   const filePart = part as FilePartData;
   
+  // Debug logging to see what data we're getting
+  if (messageRole === 'user') {
+    console.log('User FilePart data:', {
+      filePart,
+      hasUrl: Boolean(filePart.url),
+      url: filePart.url,
+      mime: filePart.mime,
+      filename: filePart.filename,
+      filePath: filePart.file?.path || filePart.source?.path || filePart.filename || 'Unknown file'
+    });
+  }
+  
   // Try to get file info from different possible sources
   const filePath = filePart.file?.path || filePart.source?.path || filePart.filename || 'Unknown file';
   const fileContent = filePart.file?.content || filePart.source?.text?.value || '';
@@ -43,6 +55,10 @@ export const FilePart: React.FC<MessagePartProps> = ({
     ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tiff', 'tif'].some(ext => 
       filePath.toLowerCase().endsWith(`.${ext}`)
     );
+    
+  // For user messages, we might have image data in different formats
+  // Check if we have a valid URL for rendering
+  const hasValidUrl = Boolean(fileUrl && fileUrl.trim() !== '');
   
   // Extract content for the expandable hook
   let extractedFileContent = '';
@@ -75,7 +91,7 @@ export const FilePart: React.FC<MessagePartProps> = ({
             {filePath.split('/').pop() || filePath}
           </Text>
         </View>
-        {isImage && fileUrl && (
+        {isImage && hasValidUrl && (
           <Image
             source={{ uri: fileUrl }}
             style={styles.userImagePreview}
