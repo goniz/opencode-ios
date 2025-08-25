@@ -21,17 +21,12 @@ const imageSize = Math.min(80, (screenWidth - 64) / 4); // 4 images per row with
 export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   
-  console.log('ImagePreview received images:', images);
-  
   if (images.length === 0) {
-    console.log('ImagePreview: No images to display');
     return null;
   }
-  
-  console.log('ImagePreview: Rendering with', images.length, 'images');
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="image-preview-container">
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
@@ -40,14 +35,15 @@ export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
         {images.map((imageUri, index) => (
           <View key={index} style={styles.imageContainer}>
             <TouchableOpacity 
+              testID="preview-image-touchable"
               onPress={() => {
-                console.log('Image clicked:', imageUri);
-                console.log('Setting selected image to:', imageUri);
+                console.log('IMAGEPREVIEW CLICKED');
                 setSelectedImage(imageUri);
               }}
               activeOpacity={0.7}
             >
               <Image
+                testID="preview-image"
                 source={{ uri: imageUri }}
                 style={styles.image}
                 contentFit="cover"
@@ -57,6 +53,7 @@ export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
               />
             </TouchableOpacity>
             <TouchableOpacity
+              testID="remove-image-button"
               style={styles.removeButton}
               onPress={() => onRemoveImage(index)}
             >
