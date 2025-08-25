@@ -619,141 +619,71 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
       };
     })();
     
-    const isAssistant = item.info.role === 'assistant';
     const isUser = item.info.role === 'user';
+    const isAssistant = item.info.role === 'assistant';
     const isStreaming = isAssistant && !hasContent && isStreamConnected;
     const hasError = isAssistant && 'error' in item.info && item.info.error;
-    // const isLastMessage = index === messages.length - 1;
+    const isQueued = isUser && isGenerating && index === messages.length - 1;
+    const isLastMessage = index === messages.length - 1;
+
+    // Create synthetic parts for special states using valid Part types
+    let partsToRender = filteredParts;
+    let specialState: 'error' | 'queued' | 'streaming' | null = null;
     
-    // Handle error state
     if (hasError && 'error' in item.info) {
       const assistantInfo = item.info as AssistantMessage;
       const error = assistantInfo.error!;
-      
-      return (
-        <View style={styles.messageContainer}>
-          <View style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
-            <MessageDecoration 
-              role={item.info.role} 
-              isFirstPart={true}
-              isLastPart={true}
-            />
-            <View style={styles.contentColumn}>
-              <View style={styles.errorContainer}>
-                <View style={styles.errorHeader}>
-                  <Ionicons name="warning-outline" size={20} color="#ef4444" />
-                  <Text style={styles.errorTitle}>
-                    {error.name === 'ProviderAuthError' ? 'Authentication Error' :
-                     error.name === 'MessageOutputLengthError' ? 'Output Length Error' :
-                     error.name === 'MessageAbortedError' ? 'Message Aborted' :
-                     'Unknown Error'}
-                  </Text>
-                </View>
-                <Text style={styles.errorMessage}>
-                  {error.name === 'ProviderAuthError' && 'data' in error ? error.data.message :
+      const errorTitle = error.name === 'ProviderAuthError' ? 'Authentication Error' :
+            error.name === 'MessageOutputLengthError' ? 'Output Length Error' :
+            error.name === 'MessageAbortedError' ? 'Message Aborted' :
+            'Unknown Error';
+      const errorMessage = error.name === 'ProviderAuthError' && 'data' in error ? error.data.message :
                    error.name === 'UnknownError' && 'data' in error ? error.data.message :
                    error.name === 'MessageAbortedError' ? 'The message was aborted before completion.' :
                    error.name === 'MessageOutputLengthError' ? 'The response exceeded the maximum length limit.' :
-                   'An unexpected error occurred.'}
-                </Text>
-              </View>
-              <MessageTimestamp 
-                timestamp={item.info.time.created}
-                compact={true}
-              />
-            </View>
-          </View>
-        </View>
-      );
+                   'An unexpected error occurred.';
+      partsToRender = [{
+        type: 'text',
+        text: `${errorTitle}: ${errorMessage}`,
+        id: `error-${item.info.id}`,
+        sessionID: currentSession?.id || '',
+        messageID: item.info.id
+      }];
+      specialState = 'error';
+    } else if (isQueued) {
+      partsToRender = [{
+        type: 'text',
+        text: 'Queued...',
+        id: `queued-${item.info.id}`,
+        sessionID: currentSession?.id || '',
+        messageID: item.info.id
+      }];
+      specialState = 'queued';
+    } else if (isStreaming) {
+      partsToRender = [{
+        type: 'text',
+        text: 'Generating...',
+        id: `streaming-${item.info.id}`,
+        sessionID: currentSession?.id || '',
+        messageID: item.info.id
+      }];
+      specialState = 'streaming';
+    } else if (filteredParts.length === 0 && isUser) {
+      partsToRender = [{
+        type: 'text',
+        text: 'User message',
+        id: `fallback-${item.info.id}`,
+        sessionID: currentSession?.id || '',
+        messageID: item.info.id
+      }];
     }
 
-    // Handle queued state (messages waiting to be processed)
-    const isQueued = isUser && isGenerating && index === messages.length - 1;
-    
-    if (isQueued) {
-      return (
-        <View style={styles.messageContainer}>
-          <View style={[styles.twoColumnLayout, styles.userMessageContainer]}>
-            <MessageDecoration 
-              role={item.info.role} 
-              isFirstPart={true}
-              isLastPart={true}
-            />
-            <View style={[styles.contentColumn, styles.userContentColumn]}>
-              <View style={styles.userMessageBubble}>
-                <View style={styles.queuedMessageContainer}>
-                  <ActivityIndicator size="small" color="#9ca3af" style={styles.queuedSpinner} />
-                  <Text style={styles.queuedMessageText}>
-                    Queued...
-                  </Text>
-                </View>
-              </View>
-              <MessageTimestamp 
-                timestamp={item.info.time.created}
-                compact={true}
-              />
-            </View>
-          </View>
-        </View>
-      );
-    }
-
-    // Handle streaming state
-    if (isStreaming) {
-      return (
-        <View style={styles.messageContainer}>
-          <View style={[styles.twoColumnLayout, isUser && styles.userMessageContainer]}>
-            <MessageDecoration 
-              role={item.info.role} 
-              isFirstPart={true}
-              isLastPart={true}
-            />
-            <View style={styles.contentColumn}>
-              <View style={styles.streamingContainer}>
-                <ActivityIndicator size="small" color="#9ca3af" />
-                <Text style={[styles.messageText, styles.assistantText, styles.streamingText]}>
-                  Generating...
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      );
-    }
-
-    // Handle empty content (fallback for user messages without parts)
-    if (filteredParts.length === 0 && item.info.role === 'user') {
-      return (
-        <View style={styles.messageContainer}>
-          <View style={[styles.twoColumnLayout, styles.userMessageContainer]}>
-            <MessageDecoration 
-              role={item.info.role} 
-              isFirstPart={true}
-              isLastPart={true}
-            />
-            <View style={[styles.contentColumn, styles.userContentColumn]}>
-              <View style={styles.userMessageBubble}>
-                <Text style={styles.userMessageText}>
-                  User message
-                </Text>
-              </View>
-              <MessageTimestamp 
-                timestamp={item.info.time.created}
-                compact={true}
-              />
-            </View>
-          </View>
-        </View>
-      );
-    }
-
-    // Render each part as a separate row in the two-column layout
+    // Single unified rendering path for all messages
     return (
       <View style={styles.messageContainer}>
-        {filteredParts.map((part, partIndex) => {
+        {partsToRender.map((part, partIndex) => {
           const isFirstPart = partIndex === 0;
-          const isLastPart = partIndex === filteredParts.length - 1;
-          const isLastMessage = index === messages.length - 1;
+          const isLastPart = partIndex === partsToRender.length - 1;
           
           return (
             <View key={`${item.info.id}-${index}-part-${partIndex}`} style={getMessageRowStyle(isUser)}>
@@ -773,9 +703,10 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
                   part={part}
                   isLast={isLastMessage}
                   partIndex={partIndex}
-                  totalParts={filteredParts.length}
+                  totalParts={partsToRender.length}
                   messageId={item.info.id}
                   renderMode={isUser ? 'bubble' : 'expanded'}
+                  specialState={specialState}
                 />
                 {isLastPart && (
                   <MessageTimestamp 
@@ -1337,15 +1268,7 @@ title: {
   assistantText: {
     color: '#ffffff',
   },
-  streamingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  streamingText: {
-    marginLeft: 8,
-    fontStyle: 'italic',
-    opacity: 0.8,
-  },
+
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -1385,29 +1308,7 @@ title: {
     marginBottom: 8,
     marginRight: 8,
   },
-  errorContainer: {
-    backgroundColor: '#2a1a1a',
-    borderWidth: 1,
-    borderColor: '#ef4444',
-    borderRadius: 8,
-    padding: 12,
-  },
-  errorHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  errorTitle: {
-    color: '#ef4444',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  errorMessage: {
-    color: '#fca5a5',
-    fontSize: 14,
-    lineHeight: 20,
-  },
+
   sessionErrorBanner: {
     backgroundColor: '#2a1a1a',
     borderWidth: 1,
@@ -1508,19 +1409,7 @@ tokenInfoInline: {
     color: '#ffffff',
     fontWeight: '600',
   },
-  queuedMessageContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  queuedSpinner: {
-    marginRight: 8,
-  },
-   queuedMessageText: {
-     color: '#9ca3af',
-     fontSize: 16,
-     lineHeight: 22,
-     fontStyle: 'italic',
-   },
+
    newMessagesIndicator: {
      position: 'absolute',
      bottom: 100,
@@ -1543,38 +1432,5 @@ tokenInfoInline: {
      fontWeight: '600',
      marginLeft: 4,
    },
-   // User file attachment styles
-   userFileContainer: {
-     backgroundColor: '#2563eb',
-     borderRadius: 12,
-     padding: 12,
-     maxWidth: '80%',
-     alignSelf: 'flex-end',
-     shadowColor: '#2563eb',
-     shadowOffset: { width: 0, height: 2 },
-     shadowOpacity: 0.3,
-     shadowRadius: 4,
-     elevation: 3,
-   },
-   userFileHeader: {
-     flexDirection: 'row',
-     alignItems: 'center',
-     marginBottom: 8,
-   },
-   userFileIcon: {
-     fontSize: 16,
-     marginRight: 8,
-   },
-   userFileName: {
-     color: '#ffffff',
-     fontSize: 14,
-     fontWeight: '500',
-     flex: 1,
-   },
-   userImagePreview: {
-     width: 200,
-     height: 150,
-     borderRadius: 8,
-     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-   },
+
  });

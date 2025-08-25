@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import type { Part, ToolPart } from '../../api/types.gen';
 import type { Todo } from '../../types/todo';
 import { PartComponentSelector } from './parts';
@@ -13,6 +13,7 @@ interface MessageContentProps {
   totalParts?: number;
   messageId?: string;
   renderMode?: 'bubble' | 'expanded' | 'auto';
+  specialState?: 'error' | 'queued' | 'streaming' | null;
 }
 
 export function MessageContent({ 
@@ -22,13 +23,53 @@ export function MessageContent({
   partIndex = 0, 
   totalParts = 1,
   messageId = '',
-  renderMode = 'auto'
+  renderMode = 'auto',
+  specialState = null
 }: MessageContentProps) {
   const actualRenderMode = renderMode === 'auto' 
     ? (role === 'user' ? 'bubble' : 'expanded')
     : renderMode;
     
   const isLastPart = isLast && partIndex === totalParts - 1;
+  
+  // Handle special states with styled containers
+  if (specialState) {
+    const content = 'text' in part ? part.text || '' : '';
+    
+    if (specialState === 'error') {
+      return (
+        <View style={getContentContainerStyle(role, actualRenderMode)}>
+          <View style={styles.errorContainer}>
+            <View style={styles.errorHeader}>
+              <Text style={styles.errorIcon}>⚠️</Text>
+              <Text style={styles.errorTitle}>Error</Text>
+            </View>
+            <Text style={styles.errorMessage}>{content}</Text>
+          </View>
+        </View>
+      );
+    }
+    
+    if (specialState === 'queued') {
+      return (
+        <View style={getContentContainerStyle(role, actualRenderMode)}>
+          <View style={styles.queuedContainer}>
+            <Text style={styles.queuedText}>{content}</Text>
+          </View>
+        </View>
+      );
+    }
+    
+    if (specialState === 'streaming') {
+      return (
+        <View style={getContentContainerStyle(role, actualRenderMode)}>
+          <View style={styles.streamingContainer}>
+            <Text style={styles.streamingText}>{content}</Text>
+          </View>
+        </View>
+      );
+    }
+  }
   
   // Convert API part format to component part format
   const getComponentPart = () => {
@@ -244,5 +285,52 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#3b82f6',
     fontWeight: '500',
+  },
+  errorContainer: {
+    backgroundColor: '#2a1a1a',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    borderRadius: 8,
+    padding: 12,
+  },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  errorIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  errorTitle: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  errorMessage: {
+    color: '#fca5a5',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  queuedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  queuedText: {
+    color: '#9ca3af',
+    fontSize: 16,
+    lineHeight: 22,
+    fontStyle: 'italic',
+  },
+  streamingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  streamingText: {
+    color: '#ffffff',
+    fontSize: 16,
+    lineHeight: 22,
+    fontStyle: 'italic',
+    opacity: 0.8,
   },
 });

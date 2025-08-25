@@ -383,10 +383,10 @@ export const MessageStyles = StyleSheet.create({
 - [x] Test that assistant messages still work correctly
 
 ### Step 4: Unify Chat Layout (Breaking Change)
-- [ ] Remove duplicate user rendering logic from chat.tsx
-- [ ] Update to use single rendering path
-- [ ] Update message row styling system
-- [ ] Test both user and assistant messages
+- [x] Remove duplicate user rendering logic from chat.tsx
+- [x] Update to use single rendering path
+- [x] Update message row styling system
+- [x] Test both user and assistant messages
 
 ### Step 5: Testing & Refinement
 - [ ] Test all message part types for both roles
