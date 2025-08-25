@@ -107,6 +107,13 @@ This plan outlines a comprehensive refactoring to properly implement file mentio
 - Supports both keeping and removing file mention text from messages
 - Includes protection against abuse with configurable limits
 
+**Post-Phase 2 Bug Fixes:**
+- ✅ Fixed TypeError: inputText.trim is not a function in chat.tsx
+- ✅ Added explicit string type annotation to useState hook
+- ✅ Added safety checks for undefined inputText values
+- ✅ Updated FileAwareTextInput to handle new replaceFileMention API
+- ✅ All tests passing (34/34 total across all test suites)
+
 ### Phase 3: Integration with Message Sending
 
 #### 3.1 Update ConnectionContext
