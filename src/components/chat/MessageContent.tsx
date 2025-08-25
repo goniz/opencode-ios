@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     // User message styles (bubble mode) - no flex: 1 to prevent huge bubbles
     flexShrink: 1,
     alignSelf: 'flex-end',
-    maxWidth: '90%',
+    flexGrow: 1,
   },
   assistantContentContainer: {
     // Assistant message styles (expanded mode)

@@ -68,23 +68,21 @@ export const FilePart: React.FC<MessagePartProps> = ({
   
   if (messageRole === 'user' && actualRenderMode === 'bubble') {
     return (
-      <MessagePartContainer>
-        <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).fileContainer}>
-          <View style={styles.userFileHeader}>
-            <Text style={styles.fileIcon}>{isImage ? '🖼️' : '📄'}</Text>
-            <Text style={styles.userFileName} numberOfLines={1}>
-              {filePath.split('/').pop() || filePath}
-            </Text>
-          </View>
-          {isImage && fileUrl && (
-            <Image
-              source={{ uri: fileUrl }}
-              style={styles.userImagePreview}
-              contentFit="cover"
-            />
-          )}
+      <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).fileContainer}>
+        <View style={styles.userFileHeader}>
+          <Text style={styles.fileIcon}>{isImage ? '🖼️' : '📄'}</Text>
+          <Text style={styles.userFileName} numberOfLines={1}>
+            {filePath.split('/').pop() || filePath}
+          </Text>
         </View>
-      </MessagePartContainer>
+        {isImage && fileUrl && (
+          <Image
+            source={{ uri: fileUrl }}
+            style={styles.userImagePreview}
+            contentFit="cover"
+          />
+        )}
+      </View>
     );
   }
 

@@ -16,13 +16,11 @@ export const TextPart: React.FC<MessagePartProps> = ({
   
   if (messageRole === 'user' && actualRenderMode === 'bubble') {
     return (
-      <MessagePartContainer>
-        <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).container}>
-          <Text style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).text}>
-            {content}
-          </Text>
-        </View>
-      </MessagePartContainer>
+      <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).container}>
+        <Text style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).text}>
+          {content}
+        </Text>
+      </View>
     );
   }
   

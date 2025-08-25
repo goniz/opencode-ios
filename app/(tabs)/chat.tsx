@@ -1275,6 +1275,7 @@ title: {
   userContentColumn: {
     flex: 1,
     paddingLeft: 0,
+    alignItems: 'flex-end',
   },
   userMessage: {
     alignItems: 'flex-end',
@@ -1299,6 +1300,8 @@ title: {
     marginBottom: 2,
     minHeight: 0,
     flexShrink: 1,
+    alignSelf: 'flex-end',
+    width: '100%',
   },
   userMessageBubble: {
     backgroundColor: '#2563eb',

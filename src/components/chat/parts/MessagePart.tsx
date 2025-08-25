@@ -92,13 +92,13 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    maxWidth: '95%',
     shadowColor: colors.primary[600],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
     flexShrink: 1,
+    flexGrow: 1,
   },
   
   userBubbleText: {
