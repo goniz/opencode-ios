@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { MessagePartProps, MessagePartContainer } from './MessagePart';
+import { MessagePartProps, MessagePartContainer, getRenderMode, getMessagePartStyles } from './MessagePart';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 import type { ToolPart as ToolPartType, ToolStateCompleted, ToolStateError } from '../../../api/types.gen';
@@ -35,12 +35,31 @@ function countLines(text: string): number {
   return text.split('\n').length;
 }
 
-export const ToolPart: React.FC<MessagePartProps> = ({ part, originalPart }) => {
+export const ToolPart: React.FC<MessagePartProps> = ({ 
+  part, 
+  originalPart,
+  messageRole = 'assistant',
+  renderMode = 'auto'
+}) => {
+  const actualRenderMode = getRenderMode(renderMode, messageRole);
+  
   // Type guard to check if part is a ToolPart
   const isToolPart = part.type === 'tool';
   
   // Return null for non-tool parts
   if (!isToolPart) {
+    // For user messages in bubble mode, show a simplified version
+    if (messageRole === 'user' && actualRenderMode === 'bubble') {
+      return (
+        <MessagePartContainer>
+          <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).container}>
+            <Text style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).text}>
+              Unknown tool
+            </Text>
+          </View>
+        </MessagePartContainer>
+      );
+    }
     return null;
   }
 
@@ -86,6 +105,19 @@ export const ToolPart: React.FC<MessagePartProps> = ({ part, originalPart }) => 
     filePath = extractFilePath(errorState.input);
   } else if (toolPart?.state?.status === 'running') {
     filePath = extractFilePath(toolPart.state.input);
+  }
+  
+  // For user messages in bubble mode, show a simplified version
+  if (messageRole === 'user' && actualRenderMode === 'bubble') {
+    return (
+      <MessagePartContainer>
+        <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).container}>
+          <Text style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).text}>
+            Used {toolName} tool
+          </Text>
+        </View>
+      </MessagePartContainer>
+    );
   }
 
   // Common props for all tool components

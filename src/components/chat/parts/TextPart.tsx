@@ -1,18 +1,32 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { MessagePartProps, MessagePartContainer } from './MessagePart';
+import { View, Text, StyleSheet } from 'react-native';
+import { MessagePartProps, MessagePartContainer, getRenderMode, getMessagePartStyles } from './MessagePart';
 import { TextContent } from '../content/TextContent';
 
 export const TextPart: React.FC<MessagePartProps> = ({ 
   part, 
   isLast = false, 
   messageRole = 'assistant',
+  renderMode = 'auto',
   messageId = '',
   partIndex = 0
 }) => {
-  // Type guard for text parts
+  const actualRenderMode = getRenderMode(renderMode, messageRole);
   const content = 'content' in part ? part.content || '' : '';
-
+  
+  if (messageRole === 'user' && actualRenderMode === 'bubble') {
+    return (
+      <MessagePartContainer>
+        <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).container}>
+          <Text style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).text}>
+            {content}
+          </Text>
+        </View>
+      </MessagePartContainer>
+    );
+  }
+  
+  // Existing complex rendering for assistant messages
   return (
     <MessagePartContainer>
       <View style={styles.container}>

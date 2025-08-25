@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import { MessagePartProps, MessagePartContainer } from './MessagePart';
+import { MessagePartProps, MessagePartContainer, getRenderMode, getMessagePartStyles } from './MessagePart';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 
@@ -21,7 +21,14 @@ interface FilePartData {
   url?: string;
 }
 
-export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) => {
+export const FilePart: React.FC<MessagePartProps> = ({ 
+  part, 
+  isLast = false,
+  messageRole = 'assistant',
+  renderMode = 'auto'
+}) => {
+  const actualRenderMode = getRenderMode(renderMode, messageRole);
+  
   // Handle both the MessagePartProps interface and actual API FilePart type
   const filePart = part as FilePartData;
   
@@ -37,10 +44,16 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
       filePath.toLowerCase().endsWith(`.${ext}`)
     );
   
+  // Extract content for the expandable hook
+  let extractedFileContent = '';
+  if ('content' in part && typeof part.content === 'string') {
+    extractedFileContent = part.content;
+  }
+  
   // Always call useExpandable hook to maintain hook order
   const expandableResult = useExpandable({
-    content: fileContent || '',
-    autoExpand: isLast || (fileContent ? fileContent.length < 500 : false),
+    content: extractedFileContent,
+    autoExpand: isLast || (extractedFileContent ? extractedFileContent.length < 500 : false),
     contentType: 'text',
     maxLines: 10,
     estimatedCharsPerLine: 60,
@@ -52,6 +65,28 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
     displayContent,
     toggleExpanded,
   } = expandableResult;
+  
+  if (messageRole === 'user' && actualRenderMode === 'bubble') {
+    return (
+      <MessagePartContainer>
+        <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).fileContainer}>
+          <View style={styles.userFileHeader}>
+            <Text style={styles.fileIcon}>{isImage ? '🖼️' : '📄'}</Text>
+            <Text style={styles.userFileName} numberOfLines={1}>
+              {filePath.split('/').pop() || filePath}
+            </Text>
+          </View>
+          {isImage && fileUrl && (
+            <Image
+              source={{ uri: fileUrl }}
+              style={styles.userImagePreview}
+              contentFit="cover"
+            />
+          )}
+        </View>
+      </MessagePartContainer>
+    );
+  }
 
   // Fallback if no content is available
   if (!filePath && !fileContent && !fileUrl) {
@@ -70,9 +105,9 @@ export const FilePart: React.FC<MessagePartProps> = ({ part, isLast = false }) =
       <View style={styles.container}>
         {/* File header */}
         <View style={styles.header}>
-          <View style={styles.fileIcon}>
-            <Text style={styles.fileIconText}>{isImage ? '🖼️' : '📄'}</Text>
-          </View>
+<View style={styles.fileIconContainer}>
+  <Text style={styles.fileIconText}>{isImage ? '🖼️' : '📄'}</Text>
+</View>
           <View style={styles.fileInfo}>
             <Text style={styles.fileName}>{fileName}</Text>
             <Text style={styles.filePath}>{filePath}</Text>
@@ -129,7 +164,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f2937',
     borderRadius: 8,
   },
-  fileIcon: {
+  fileIconContainer: {
     width: 28,
     height: 28,
     borderRadius: 6,
@@ -187,5 +222,26 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 12,
   },
-
+  
+  // User bubble mode styles
+  userFileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  fileIcon: {
+    marginRight: 8,
+    fontSize: 16,
+  },
+  userFileName: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '400',
+    flex: 1,
+  },
+  userImagePreview: {
+    width: 120,
+    height: 120,
+    borderRadius: 8,
+  },
 });

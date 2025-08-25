@@ -12,6 +12,7 @@ interface MessageContentProps {
   partIndex?: number;
   totalParts?: number;
   messageId?: string;
+  renderMode?: 'bubble' | 'expanded' | 'auto';
 }
 
 export function MessageContent({ 
@@ -20,7 +21,8 @@ export function MessageContent({
   isLast = false, 
   partIndex = 0, 
   totalParts = 1,
-  messageId = ''
+  messageId = '',
+  renderMode = 'auto'
 }: MessageContentProps) {
   // Determine if this is the last part of the last message
   const isLastPart = isLast && partIndex === totalParts - 1;
@@ -104,6 +106,7 @@ export function MessageContent({
         part={componentPart}
         isLast={isLastPart}
         messageRole={role as 'user' | 'assistant'}
+        renderMode={renderMode}
         messageId={messageId}
         partIndex={partIndex}
         originalPart={part}
