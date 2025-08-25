@@ -78,21 +78,34 @@ This plan outlines a comprehensive refactoring to properly implement file mentio
 - All tests updated and passing (13/13 tests pass)
 - Full TypeScript support with enhanced FileMention interface
 
-### Phase 2: Enhanced Message Composition
+### Phase 2: Enhanced Message Composition ✅ COMPLETED
 
-#### 2.1 File Mention Extraction
+#### 2.1 File Mention Extraction ✅
 - **File**: `src/utils/messageUtils.ts` (new file)
 - **Changes**:
-  - Add `extractFileMentionsFromText(text: string): FileMention[]`
-  - Add `createFilePartsFromMentions(mentions: FileMention[], client: Client): Promise<FilePartInput[]>`
-  - Add message validation and sanitization
+  - ✅ Add `extractFileMentionsFromText(text: string): FileMention[]`
+  - ✅ Add `createFilePartsFromMentionsInMessage(mentions: FileMention[], client: Client): Promise<FilePartInput[]>`
+  - ✅ Add message validation and sanitization
 
-#### 2.2 Smart Text Processing
+#### 2.2 Smart Text Processing ✅
 - **File**: `src/utils/messageUtils.ts`
 - **Changes**:
-  - Add `processMessageForSending(text: string, client: Client): Promise<{textPart: TextPartInput, fileParts: FilePartInput[]}>`
-  - Handle file mention detection and processing
-  - Clean up text by removing processed file mentions or keeping them as references
+  - ✅ Add `processMessageForSending(text: string, client: Client, options?: MessageProcessingOptions): Promise<ProcessedMessage>`
+  - ✅ Handle file mention detection and processing
+  - ✅ Clean up text by removing processed file mentions or keeping them as references
+  - ✅ Add configurable options for processing behavior
+  - ✅ Add utility functions for message analysis
+
+**Phase 2 Implementation Notes:**
+- Created comprehensive `messageUtils.ts` with full message processing pipeline
+- Added `ProcessedMessage` interface with textPart, fileParts, and invalidMentions
+- Implemented configurable `MessageProcessingOptions` for flexible behavior
+- Added text validation with length limits and sanitization
+- Implemented duplicate file mention detection and removal
+- Added utility functions: `hasFileMentions()`, `countFileMentions()`, `getFilePathsFromText()`
+- Created comprehensive test suite with 21 passing tests
+- Supports both keeping and removing file mention text from messages
+- Includes protection against abuse with configurable limits
 
 ### Phase 3: Integration with Message Sending
 
