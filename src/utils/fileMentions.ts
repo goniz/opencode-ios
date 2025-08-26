@@ -269,53 +269,7 @@ export async function fetchFileContent(filePath: string, client: Client): Promis
   }
 }
 
-/**
- * Detects file MIME type from file extension
- * @param filePath The file path
- * @returns MIME type string
- */
-function getFileMimeType(filePath: string): string {
-  const extension = filePath.split('.').pop()?.toLowerCase();
-  
-  switch (extension) {
-    case 'js':
-    case 'jsx':
-      return 'text/javascript';
-    case 'ts':
-    case 'tsx':
-      return 'text/typescript';
-    case 'json':
-      return 'application/json';
-    case 'html':
-    case 'htm':
-      return 'text/html';
-    case 'css':
-      return 'text/css';
-    case 'md':
-    case 'markdown':
-      return 'text/markdown';
-    case 'xml':
-      return 'text/xml';
-    case 'yaml':
-    case 'yml':
-      return 'text/yaml';
-    case 'py':
-      return 'text/x-python';
-    case 'java':
-      return 'text/x-java-source';
-    case 'c':
-      return 'text/x-c';
-    case 'cpp':
-    case 'cc':
-    case 'cxx':
-      return 'text/x-c++';
-    case 'sh':
-    case 'bash':
-      return 'text/x-shellscript';
-    default:
-      return 'text/plain';
-  }
-}
+
 
 /**
  * Extracts filename from file path
@@ -355,7 +309,7 @@ export async function createFilePartFromMention(
 
   try {
     console.log('🔍 [createFilePartFromMention] Creating FilePartInput object...');
-    const mimeType = getFileMimeType(filePath);
+    const mimeType = 'text/plain';
     const filename = getFilename(filePath);
 
     console.log('🔍 [createFilePartFromMention] File metadata:', {
@@ -380,7 +334,17 @@ export async function createFilePartFromMention(
 
     // Convert file content to data URI (like working pre-refactor version)
     console.log('🔧 [createFilePartFromMention] Converting file content to base64...');
-    const base64Content = Buffer.from(fileContent, 'utf-8').toString('base64');
+    
+    // Use TextEncoder for proper UTF-8 encoding in React Native
+    const encoder = new TextEncoder();
+    const uint8Array = encoder.encode(fileContent);
+    
+    // Convert Uint8Array to base64 string
+    let binaryString = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binaryString += String.fromCharCode(uint8Array[i]);
+    }
+    const base64Content = btoa(binaryString);
     const dataUri = `data:${mimeType};base64,${base64Content}`;
     
     console.log('🔧 [createFilePartFromMention] Data URI created:', {
