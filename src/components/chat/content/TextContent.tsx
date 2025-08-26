@@ -1,11 +1,15 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import Markdown from 'react-native-markdown-display';
+import Markdown, { MarkdownIt } from 'react-native-markdown-display';
 import SyntaxHighlighter from 'react-native-code-highlighter';
 import { atomOneDarkReasonable } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import * as WebBrowser from 'expo-web-browser';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 import { FileMentionContent } from './FileMentionContent';
+
+// Create a custom markdownit instance with linkify enabled
+const markdownItInstance = MarkdownIt({linkify: true, typographer: true});
 
 export interface TextContentProps {
   content: string;
@@ -253,6 +257,14 @@ export const TextContent: React.FC<TextContentProps> = ({
 
 
 
+  // Handle link press
+  const handleLinkPress = (url: string) => {
+    WebBrowser.openBrowserAsync(url).catch(error => {
+      console.error('Error opening link:', error);
+    });
+    return false;
+  };
+
   return (
     <View style={styles.container}>
       {isMarkdown ? (
@@ -260,6 +272,8 @@ export const TextContent: React.FC<TextContentProps> = ({
           style={markdownStyles}
           rules={renderRules}
           mergeStyle={true}
+          onLinkPress={handleLinkPress}
+          markdownit={markdownItInstance}
         >
           {displayContent}
         </Markdown>
