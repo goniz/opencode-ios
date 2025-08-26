@@ -284,7 +284,6 @@ export const TextContent: React.FC<TextContentProps> = ({
             console.log('File mention pressed:', filePath);
             // TODO: Handle file mention press (e.g., open file details)
           }}
-          selectable={true}
         />
       )}
 
