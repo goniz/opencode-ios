@@ -89,9 +89,9 @@ export function FileAwareTextInput({
 
   const handleSelectFile = useCallback((filePath: string) => {
     if (currentMention) {
-      const newText = replaceFileMention(value, currentMention, filePath);
-      onChangeText(newText);
-      
+      const result = replaceFileMention(value, currentMention, filePath);
+      onChangeText(result.text);
+
       // Clear suggestions
       setSuggestions([]);
       setShowSuggestions(false);

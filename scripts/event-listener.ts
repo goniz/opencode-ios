@@ -31,6 +31,7 @@ class EventListener {
     } else {
       console.error(`Appending to existing events file: ${this.outputFile}`);
     }
+    console.error(`To view captured events, check the output file: ${this.outputFile}`);
   }
 
   private writeEvent(event: Event): void {
@@ -42,7 +43,8 @@ class EventListener {
   async start(): Promise<void> {
     console.error('Starting event listener...');
     console.error(`Connecting to: ${this.serverUrl}`);
-    
+    console.log(`Events will be written to: ${this.outputFile}`);
+
     this.abortController = new AbortController();
     const eventUrl = `${this.serverUrl}/event`;
 

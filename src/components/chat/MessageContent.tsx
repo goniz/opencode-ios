@@ -109,17 +109,56 @@ export function MessageContent({
             ? part.state.input : undefined,
         };
         
-      case 'file':
-        return {
-          ...basePart,
-          filename: part.filename ?? 'Unknown file',
-          mime: part.mime ?? '',
-          url: part.url ?? '',
-          file: {
-            path: part.filename ?? 'Unknown file',
-            content: '', // File content would come from another source
-          },
-        };
+        case 'file':
+          // Extract file content from data URI (following pre-refactor working pattern)
+          const extractFileContent = () => {
+            // First try to get content from source if available (backward compatibility)
+            if (part.source?.text?.value) {
+              console.log('MessageContent - using source.text.value for file content');
+              return part.source.text.value;
+            }
+            
+            // Try to decode from data URI (like pre-refactor version)
+            if (part.url && part.url.startsWith('data:') && part.url.includes(';base64,')) {
+              try {
+                const base64Data = part.url.split(',')[1];
+                if (base64Data) {
+                  const decodedContent = Buffer.from(base64Data, 'base64').toString('utf-8');
+                  console.log('MessageContent - decoded content from data URI, length:', decodedContent.length);
+                  return decodedContent;
+                }
+              } catch (error) {
+                console.warn('MessageContent - failed to decode data URI:', error);
+              }
+            }
+            
+            console.log('MessageContent - no file content available');
+            return '';
+          };
+          
+          const fileContent = extractFileContent();
+          const filePath = part.source?.path || part.filename || 'Unknown file';
+          
+          console.log('MessageContent - processing file part:', {
+            hasSourceContent: !!part.source?.text?.value,
+            hasDataUri: !!(part.url && part.url.startsWith('data:')),
+            contentLength: fileContent.length,
+            filePath: filePath,
+            url: part.url?.substring(0, 50) + '...'
+          });
+          
+          return {
+            ...basePart,
+            filename: part.filename ?? 'Unknown file',
+            mime: part.mime ?? '',
+            url: part.url ?? '',
+            content: fileContent,
+            file: {
+              path: filePath,
+              content: fileContent,
+            },
+            source: part.source, // Preserve the source for FilePart component
+          };
         
       case 'step-start':
         return {

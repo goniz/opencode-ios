@@ -79,14 +79,38 @@ describe('fileMentions', () => {
   });
 
   describe('replaceFileMention', () => {
-    it('should replace mention with selected path', () => {
+    it('should replace mention with selected path and return cursor position', () => {
       const text = 'Check @src/utils/hel for details';
       const mention = { start: 6, end: 20 }; // "@src/utils/hel"
       const selectedPath = 'src/utils/helper.ts';
       
       const result = replaceFileMention(text, mention, selectedPath);
       
-      expect(result).toBe('Check @src/utils/helper.ts for details');
+      expect(result.text).toBe('Check @src/utils/helper.ts  for details');
+      expect(result.cursorPosition).toBe(27); // End of the replaced text + space
+    });
+
+    it('should handle edge cases gracefully', () => {
+      const text = 'Check @src for details';
+      const mention = { start: 6, end: 10 }; // "@src"
+      const selectedPath = '';
+      
+      const result = replaceFileMention(text, mention, selectedPath);
+      
+      // Should return original text when selectedPath is empty
+      expect(result.text).toBe(text);
+      expect(result.cursorPosition).toBe(mention.start);
+    });
+
+    it('should add space after file path for better UX', () => {
+      const text = 'Check @file.ts';
+      const mention = { start: 6, end: 14 }; // "@file.ts"
+      const selectedPath = 'src/file.ts';
+      
+      const result = replaceFileMention(text, mention, selectedPath);
+      
+      expect(result.text).toBe('Check @src/file.ts ');
+      expect(result.cursorPosition).toBe(19); // After the space
     });
   });
 

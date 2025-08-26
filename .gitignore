@@ -47,3 +47,6 @@ ios/
 
 app-example
 openapi-ts-error-*.log
+
+# Events
+events.jsonl

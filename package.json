@@ -22,12 +22,16 @@
     "ota-host:dev": "tsx scripts/ota-host.ts --dev --port 8443",
     "build:ota": "npm run build:ios:local && npm run ota-host -- --once",
     "build:ota:dev": "npm run build:ios:local && npm run ota-host:dev -- --once",
-    "opencode:start": "screen -dmS opencode opencode serve --hostname 0.0.0.0 --print-logs --port 4096",
+    "opencode:start": "screen -dmS opencode opencode serve --hostname 0.0.0.0 --print-logs --port 4096 --log-level DEBUG",
     "opencode:stop": "screen -S opencode -X quit",
     "expo:start-bg": "screen -dmS expo npx expo start -g --tunnel",
     "expo:stop": "screen -S expo -X quit",
-    "expo:logs": "screen -S expo -X hardcopy -h /tmp/expo.log && cat /tmp/expo.log",
-    "opencode:logs": "screen -S opencode -X hardcopy -h /tmp/opencode.log && cat /tmp/opencode.log"
+"expo:logs": "screen -S expo -X hardcopy /tmp/expo.log && cat /tmp/expo.log",
+    "opencode:logs": "screen -S opencode -X hardcopy /tmp/opencode.log && cat /tmp/opencode.log",
+    "events:start": "screen -dmS events npx tsx scripts/event-listener.ts --server http://localhost:4096 --output /tmp/events.jsonl",
+    "events:stop": "screen -S events -X quit",
+    "events:logs": "screen -S events -X hardcopy /tmp/events.log && cat /tmp/events.log",
+    "events:show": "cat /tmp/events.jsonl"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
