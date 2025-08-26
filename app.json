@@ -2,7 +2,7 @@
   "expo": {
     "name": "opencode-mobile",
     "slug": "opencode-mobile",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "opencodemobile",
