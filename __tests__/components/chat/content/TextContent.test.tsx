@@ -10,7 +10,16 @@ jest.mock('react-native-code-highlighter', () => ({
 
 // Mock the markdown display
 jest.mock('react-native-markdown-display', () => {
-  return ({ children }: { children: string }) => children;
+  const mockMarkdownIt = jest.fn(() => ({
+    use: jest.fn().mockReturnThis(),
+    disable: jest.fn().mockReturnThis(),
+  }));
+  
+  return {
+    __esModule: true,
+    default: ({ children }: { children: string }) => children,
+    MarkdownIt: mockMarkdownIt,
+  };
 });
 
 describe('TextContent', () => {
