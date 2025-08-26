@@ -490,7 +490,7 @@ export default function ChatScreen() {
     }
   };
 
-  const handleCommandExecution = useCallback(async (commandText: string) => {
+  const handleCommandExecution = useCallback((commandText: string) => {
     if (!currentSession || !client) {
       return;
     }
@@ -513,28 +513,30 @@ export default function ChatScreen() {
 
     console.log('Executing command:', { command: commandName, args });
 
+    // Clear input immediately like chat messages
     setInputText('');
-    setIsSending(true);
 
-    try {
-      await sessionCommand({
-        client,
-        path: { id: currentSession.id },
-        body: {
-          command: commandName,
-          arguments: args
-        }
-      });
-      console.log('Command executed successfully');
-    } catch (error) {
-      console.error('Failed to execute command:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Failed to execute command';
-      toast.showError('Command Failed', errorMsg);
-      // Restore the input text if command failed
-      setInputText(commandText);
-    } finally {
-      setIsSending(false);
-    }
+    // Execute command asynchronously without blocking the UI
+    const executeAsync = async () => {
+      try {
+        await sessionCommand({
+          client,
+          path: { id: currentSession.id },
+          body: {
+            command: commandName,
+            arguments: args
+          }
+        });
+        console.log('Command executed successfully');
+      } catch (error) {
+        console.error('Failed to execute command:', error);
+        const errorMsg = error instanceof Error ? error.message : 'Failed to execute command';
+        toast.showError('Command Failed', errorMsg);
+      }
+    };
+
+    // Start execution without awaiting - this makes it asynchronous
+    executeAsync();
   }, [client, currentSession]);
 
    const handleCommandSelect = useCallback((command: CommandSuggestion) => {
@@ -546,7 +548,7 @@ export default function ChatScreen() {
        console.log('Command requires arguments, inserting into input');
        setInputText(`/${command.name} `);
      } else {
-       // For commands without $ARGUMENTS, send immediately
+       // For commands without $ARGUMENTS, execute immediately (asynchronously)
        const commandText = `/${command.name}`;
        handleCommandExecution(commandText);
      }
