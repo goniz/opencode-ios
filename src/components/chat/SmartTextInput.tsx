@@ -161,8 +161,15 @@ export function SmartTextInput({
 
   const handleSelectFile = useCallback((filePath: string) => {
     if (currentFileMention) {
-      const newText = replaceFileMention(value, currentFileMention, filePath);
-      onChangeText(newText);
+      const result = replaceFileMention(value, currentFileMention, filePath);
+      onChangeText(result.text);
+      
+      // Update cursor position to end of the replaced text
+      setTimeout(() => {
+        if (textInputRef.current) {
+          textInputRef.current.setSelection(result.cursorPosition, result.cursorPosition);
+        }
+      }, 0);
       
       // Clear suggestions
       setFileSuggestions([]);

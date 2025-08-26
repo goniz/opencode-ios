@@ -134,7 +134,7 @@ export default function Index() {
   };
 
   const copyCommand = async () => {
-    await Clipboard.setStringAsync("opencode serve --hostname 0.0.0.0");
+    await Clipboard.setStringAsync("opencode serve --hostname 0.0.0.0 --port 4096 --print-logs");
     Alert.alert("Copied", "Command copied to clipboard");
   };
 
@@ -163,7 +163,7 @@ export default function Index() {
             <Text style={styles.stepDescription}>Run this command on your computer:</Text>
             <TouchableOpacity style={styles.codeBlock} onPress={copyCommand}>
               <Text style={styles.prompt}>$ </Text>
-              <Text style={styles.code}>opencode serve --hostname 0.0.0.0</Text>
+               <Text style={styles.code}>opencode serve --hostname 0.0.0.0 --port 4096 --print-logs</Text>
               <Text style={styles.copyHint}>📋</Text>
             </TouchableOpacity>
           </View>
@@ -178,7 +178,7 @@ export default function Index() {
               style={styles.input}
               value={serverUrl}
               onChangeText={setServerUrl}
-              placeholder="192.168.1.100:3000"
+              placeholder="192.168.1.100:4096"
               placeholderTextColor="#6b7280"
               autoCapitalize="none"
               autoCorrect={false}
@@ -330,22 +330,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#2a2a2a",
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    minHeight: 56,
   },
   copyHint: {
     fontSize: 16,
     opacity: 0.6,
+    alignSelf: "flex-start",
+    marginTop: 2,
+    marginLeft: 8,
   },
   prompt: {
     fontFamily: "monospace",
-    fontSize: 16,
+    fontSize: 14,
     color: "#6b7280",
+    alignSelf: "flex-start",
+    marginTop: 2,
   },
   code: {
     fontFamily: "monospace",
-    fontSize: 16,
+    fontSize: 14,
     color: "#e5e7eb",
     flex: 1,
+    lineHeight: 20,
+    flexWrap: "wrap",
   },
   inputContainer: {
     marginBottom: 16,

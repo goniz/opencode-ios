@@ -1,11 +1,14 @@
-import { findFiles } from '../api/sdk.gen';
+import { findFiles, fileRead } from '../api/sdk.gen';
 import type { Client } from '../api/client';
+import type { FilePartInput } from '../api/types.gen';
 
 export interface FileMention {
   path: string;
   start: number;
   end: number;
   query: string;
+  valid?: boolean; // Whether file exists
+  content?: string; // File content when loaded
 }
 
 export interface FileSuggestion {
@@ -76,50 +79,121 @@ export async function searchFiles(query: string, client: Client): Promise<FileSu
 
 /**
  * Gets the current file mention being typed based on cursor position
+ * Enhanced to handle edge cases like cursor at beginning/end and multiple @ symbols
  * @param text The full text
  * @param cursorPosition The current cursor position
  * @returns The current file mention or null if none found
  */
 export function getCurrentFileMention(text: string, cursorPosition: number): { start: number; end: number; query: string } | null {
-  // Look for @ symbol before cursor position
-  let start = cursorPosition - 1;
+  // Handle edge cases
+  if (!text || cursorPosition < 0 || cursorPosition > text.length) {
+    return null;
+  }
+
+  // Look backwards from cursor to find @ symbol
+  let start = -1;
   
-  // Find the start of the mention (@ symbol)
-  while (start >= 0 && text[start] !== '@') {
-    if (text[start] === ' ' || text[start] === '\n') {
-      return null; // Hit whitespace before finding @
+  // Check if cursor is right after @ symbol
+  if (cursorPosition > 0 && text[cursorPosition - 1] === '@') {
+    start = cursorPosition - 1;
+  } else {
+    // Search backwards for @ symbol
+    for (let i = cursorPosition - 1; i >= 0; i--) {
+      const char = text[i];
+      
+      // If we hit whitespace or newline, stop searching
+      if (char === ' ' || char === '\n' || char === '\t') {
+        break;
+      }
+      
+      // Found @ symbol
+      if (char === '@') {
+        start = i;
+        break;
+      }
     }
-    start--;
   }
   
-  if (start < 0 || text[start] !== '@') {
-    return null; // No @ found
+  // No @ symbol found
+  if (start === -1) {
+    return null;
   }
   
-  // Find the end of the mention (whitespace or end of string)
+  // Find the end of the mention
   let end = start + 1;
-  while (end < text.length && text[end] !== ' ' && text[end] !== '\n' && text[end] !== '@') {
+  while (end < text.length) {
+    const char = text[end];
+    
+    // Stop at whitespace, newline, or another @ symbol
+    if (char === ' ' || char === '\n' || char === '\t' || char === '@') {
+      break;
+    }
+    
     end++;
   }
   
-  // If cursor is not within the mention, return null
+  // Cursor must be within the mention range (including at the boundaries)
   if (cursorPosition < start || cursorPosition > end) {
     return null;
   }
   
+  // Extract the query (text after @)
   const query = text.slice(start + 1, end);
+  
+  // Ensure we have a valid query
+  if (query.length === 0) {
+    return { start, end, query: '' };
+  }
+  
   return { start, end, query };
 }
 
 /**
  * Replaces a file mention in text with the selected file path
+ * Enhanced to handle cursor position preservation and edge cases
  * @param text The original text
  * @param mention The mention to replace
  * @param selectedPath The selected file path
- * @returns The updated text with the mention replaced
+ * @returns Object with updated text and new cursor position
  */
-export function replaceFileMention(text: string, mention: { start: number; end: number }, selectedPath: string): string {
-  return text.slice(0, mention.start) + `@${selectedPath}` + text.slice(mention.end);
+export function replaceFileMention(
+  text: string, 
+  mention: { start: number; end: number }, 
+  selectedPath: string
+): { text: string; cursorPosition: number } {
+  // Validate inputs
+  if (!text || mention.start < 0 || mention.end < mention.start || mention.end > text.length) {
+    return { text, cursorPosition: mention.start };
+  }
+  
+  // Ensure selectedPath is valid
+  const sanitizedPath = selectedPath.trim();
+  if (!sanitizedPath) {
+    return { text, cursorPosition: mention.start };
+  }
+  
+  // Build the replacement text with @ prefix and add a space after for better UX
+  const replacement = `@${sanitizedPath} `;
+  
+  // Create the new text
+  const newText = text.slice(0, mention.start) + replacement + text.slice(mention.end);
+  
+  // Calculate new cursor position (end of the replaced text)
+  const newCursorPosition = mention.start + replacement.length;
+  
+  return {
+    text: newText,
+    cursorPosition: newCursorPosition
+  };
+}
+
+/**
+ * Legacy version for backward compatibility
+ * @deprecated Use the enhanced version that returns cursor position
+ */
+export function replaceFileMentionLegacy(text: string, mention: { start: number; end: number }, selectedPath: string): string {
+  const result = replaceFileMention(text, mention, selectedPath);
+  return result.text;
 }
 
 /**
@@ -139,4 +213,273 @@ export function formatFileSuggestions(suggestions: FileSuggestion[], maxResults:
       // Then sort alphabetically
       return a.fileName.localeCompare(b.fileName);
     });
+}
+
+/**
+ * Fetches file content using the OpenCode API
+ * @param filePath The path to the file to read
+ * @param client The API client
+ * @returns Promise resolving to the file content or null if error
+ */
+export async function fetchFileContent(filePath: string, client: Client): Promise<string | null> {
+  console.log('🔍 [fetchFileContent] Starting file content fetch...');
+  console.log('🔍 [fetchFileContent] Input filePath:', JSON.stringify(filePath));
+  console.log('🔍 [fetchFileContent] Client available:', !!client);
+
+  if (!filePath || !filePath.trim()) {
+    console.log('🔍 [fetchFileContent] Invalid filePath, returning null');
+    return null;
+  }
+
+  const trimmedPath = filePath.trim();
+  console.log('🔍 [fetchFileContent] Using trimmed path:', JSON.stringify(trimmedPath));
+
+  try {
+    console.log('🔍 [fetchFileContent] Calling fileRead API...');
+    const response = await fileRead({
+      client,
+      query: { path: trimmedPath }
+    });
+
+    console.log('🔍 [fetchFileContent] fileRead API response received');
+    console.log('🔍 [fetchFileContent] Response data exists:', !!response.data);
+    console.log('🔍 [fetchFileContent] Response data type:', typeof response.data);
+
+    if (response.data) {
+      console.log('🔍 [fetchFileContent] Response data keys:', Object.keys(response.data));
+      console.log('🔍 [fetchFileContent] Response data content type:', typeof response.data.content);
+      console.log('🔍 [fetchFileContent] Response data content length:', response.data.content?.length || 0);
+    }
+
+    if (response.data && typeof response.data.content === 'string') {
+      console.log('✅ [fetchFileContent] Successfully retrieved file content, length:', response.data.content.length);
+      return response.data.content;
+    }
+
+    console.log('🔍 [fetchFileContent] Response data or content is invalid, returning null');
+    return null;
+  } catch (error) {
+    console.error(`❌ [fetchFileContent] Error reading file ${trimmedPath}:`, error);
+    console.error('❌ [fetchFileContent] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    });
+    return null;
+  }
+}
+
+
+
+/**
+ * Extracts filename from file path
+ * @param filePath The file path
+ * @returns The filename
+ */
+function getFilename(filePath: string): string {
+  const parts = filePath.split('/');
+  return parts[parts.length - 1] || filePath;
+}
+
+/**
+ * Creates a FilePartInput object from a file mention
+ * @param mention The file mention containing path and query info
+ * @param client The API client for fetching file content
+ * @returns Promise resolving to FilePartInput or null if error
+ */
+export async function createFilePartFromMention(
+  mention: FileMention,
+  client: Client
+): Promise<FilePartInput | null> {
+  console.log('🔍 [createFilePartFromMention] Starting FilePart creation for mention:', {
+    path: mention.path,
+    start: mention.start,
+    end: mention.end,
+    query: mention.query
+  });
+  console.log('🔍 [createFilePartFromMention] Client available:', !!client);
+
+  if (!mention.path || !mention.path.trim()) {
+    console.log('🔍 [createFilePartFromMention] Invalid mention path, returning null');
+    return null;
+  }
+
+  const filePath = mention.path.trim();
+  console.log('🔍 [createFilePartFromMention] Processing file path:', JSON.stringify(filePath));
+
+  try {
+    console.log('🔍 [createFilePartFromMention] Creating FilePartInput object...');
+    const mimeType = 'text/plain';
+    const filename = getFilename(filePath);
+
+    console.log('🔍 [createFilePartFromMention] File metadata:', {
+      mimeType,
+      filename,
+      filePath
+    });
+
+    // Fetch file content using fileRead API
+    console.log('🔍 [createFilePartFromMention] Fetching file content...');
+    const fileContent = await fetchFileContent(filePath, client);
+    
+    if (!fileContent) {
+      console.error(`❌ [createFilePartFromMention] Failed to fetch content for ${filePath}`);
+      return null;
+    }
+
+    console.log('🔍 [createFilePartFromMention] File content fetched:', {
+      contentLength: fileContent.length,
+      contentPreview: fileContent.substring(0, 100) + (fileContent.length > 100 ? '...' : '')
+    });
+
+    // Convert file content to data URI (like working pre-refactor version)
+    console.log('🔧 [createFilePartFromMention] Converting file content to base64...');
+    
+    // Use TextEncoder for proper UTF-8 encoding in React Native
+    const encoder = new TextEncoder();
+    const uint8Array = encoder.encode(fileContent);
+    
+    // Convert Uint8Array to base64 string
+    let binaryString = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binaryString += String.fromCharCode(uint8Array[i]);
+    }
+    const base64Content = btoa(binaryString);
+    const dataUri = `data:${mimeType};base64,${base64Content}`;
+    
+    console.log('🔧 [createFilePartFromMention] Data URI created:', {
+      originalContentLength: fileContent.length,
+      base64Length: base64Content.length,
+      dataUriLength: dataUri.length,
+      mimeType: mimeType,
+      dataUriPrefix: dataUri.substring(0, 100) + '...'
+    });
+
+    // Create the FilePartInput object with data: URI (like pre-refactor images)
+    // Following the working pre-refactor pattern: data URI without source field
+    const filePartInput: FilePartInput = {
+      type: 'file',
+      mime: mimeType,
+      filename: filename,
+      url: dataUri, // Use data: URI like working pre-refactor version
+      // Don't include source field - follow pre-refactor pattern exactly
+    };
+
+    // Validate the file part before returning (following pre-refactor pattern)
+    console.log('🔍 [createFilePartFromMention] Validating file part:', {
+      hasType: !!filePartInput.type,
+      hasMime: !!filePartInput.mime,
+      hasFilename: !!filePartInput.filename,
+      hasUrl: !!filePartInput.url,
+      urlType: filePartInput.url.startsWith('data:') ? 'data URI' : 'other'
+    });
+
+    console.log('✅ [createFilePartFromMention] Successfully created FilePartInput:', {
+      type: filePartInput.type,
+      mime: filePartInput.mime,
+      filename: filePartInput.filename,
+      url: filePartInput.url.substring(0, 80) + '...',
+      urlLength: filePartInput.url.length
+    });
+
+    // Validate the created FilePartInput (simplified for data URI pattern)
+    console.log('🔍 [createFilePartFromMention] Validating created FilePartInput:', {
+      hasType: !!filePartInput.type,
+      hasMime: !!filePartInput.mime,
+      hasFilename: !!filePartInput.filename,
+      hasUrl: !!filePartInput.url,
+      isValid: !!(
+        filePartInput.type &&
+        filePartInput.mime &&
+        filePartInput.filename &&
+        filePartInput.url
+      )
+    });
+
+    return filePartInput;
+  } catch (error) {
+    console.error(`❌ [createFilePartFromMention] Error creating FilePart from mention for ${filePath}:`, error);
+    console.error('❌ [createFilePartFromMention] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    return null;
+  }
+}
+
+/**
+ * Creates multiple FilePartInput objects from an array of file mentions
+ * @param mentions Array of file mentions
+ * @param client The API client
+ * @returns Promise resolving to array of FilePartInput objects (excluding failures)
+ */
+export async function createFilePartsFromMentions(
+  mentions: FileMention[],
+  client: Client
+): Promise<FilePartInput[]> {
+  console.log('🔍 [createFilePartsFromMentions] Starting batch FilePart creation...');
+  console.log('🔍 [createFilePartsFromMentions] Input mentions:', mentions.map(m => ({ path: m.path, start: m.start, end: m.end })));
+  console.log('🔍 [createFilePartsFromMentions] Client available:', !!client);
+
+  if (!mentions || mentions.length === 0) {
+    console.log('🔍 [createFilePartsFromMentions] No mentions provided, returning empty array');
+    return [];
+  }
+
+  console.log('🔍 [createFilePartsFromMentions] Processing mentions concurrently...');
+
+  // Process all mentions concurrently
+  const filePartPromises = mentions.map((mention, index) => {
+    console.log(`🔍 [createFilePartsFromMentions] Processing mention ${index + 1}/${mentions.length}:`, mention.path);
+    return createFilePartFromMention(mention, client);
+  });
+
+  console.log('🔍 [createFilePartsFromMentions] Waiting for all promises to resolve...');
+
+  try {
+    const results = await Promise.allSettled(filePartPromises);
+    console.log('🔍 [createFilePartsFromMentions] Promise.allSettled completed with', results.length, 'results');
+
+    // Analyze results
+    const fulfilledResults = results.filter(result => result.status === 'fulfilled');
+    const rejectedResults = results.filter(result => result.status === 'rejected');
+
+    console.log(`🔍 [createFilePartsFromMentions] Fulfilled: ${fulfilledResults.length}, Rejected: ${rejectedResults.length}`);
+
+    if (rejectedResults.length > 0) {
+      console.warn('⚠️ [createFilePartsFromMentions] Some FilePart creations failed:');
+      rejectedResults.forEach((result, index) => {
+        console.warn(`⚠️ [createFilePartsFromMentions] Failed mention ${index}:`, result.reason);
+      });
+    }
+
+    // Filter out failed results and null values
+    const fileParts = results
+      .map((result, index) => {
+        if (result.status === 'fulfilled') {
+          const filePart = result.value;
+          if (filePart) {
+            console.log(`🔍 [createFilePartsFromMentions] Success for mention ${index}:`, {
+              filename: filePart.filename,
+              mime: filePart.mime,
+              url: filePart.url
+            });
+            return filePart;
+          } else {
+            console.log(`🔍 [createFilePartsFromMentions] Null result for mention ${index}`);
+            return null;
+          }
+        } else {
+          console.log(`🔍 [createFilePartsFromMentions] Rejected result for mention ${index}:`, result.reason);
+          return null;
+        }
+      })
+      .filter((filePart): filePart is FilePartInput => filePart !== null);
+
+    console.log(`✅ [createFilePartsFromMentions] Returning ${fileParts.length} successful FileParts`);
+    return fileParts;
+  } catch (error) {
+    console.error('❌ [createFilePartsFromMentions] Unexpected error in Promise.allSettled:', error);
+    return [];
+  }
 }
