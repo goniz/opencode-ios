@@ -710,11 +710,61 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
 
           parts.push(...processedMessage.fileParts);
           console.log('📎 [sendMessage] File parts added, total parts array length:', parts.length);
-        } else {
-          console.log('📎 [sendMessage] No file parts to add');
-        }
+         } else {
+           console.log('📎 [sendMessage] No file parts to add');
+         }
 
-        // Handle invalid mentions that couldn't be processed
+         // Add image parts if there are images
+         console.log('🖼️ [sendMessage] Checking image attachments - count:', images?.length || 0);
+         if (images && images.length > 0) {
+           console.log('🖼️ [sendMessage] Processing image attachments...');
+           try {
+             const processedImages = await processImageUris(images);
+             console.log('🖼️ [sendMessage] Images processed successfully:', {
+               originalCount: images.length,
+               processedCount: processedImages.length,
+               processedDetails: processedImages.map(img => ({
+                 filename: img.filename,
+                 mime: img.mime,
+                 base64Length: img.base64Data.length
+               }))
+             });
+
+             for (const processedImage of processedImages) {
+               // Create a proper data URI from the processed image data
+               const dataUri = `data:${processedImage.mime};base64,${processedImage.base64Data}`;
+               
+               console.log('🖼️ [sendMessage] Creating image part:', {
+                 filename: processedImage.filename,
+                 mime: processedImage.mime,
+                 dataUriLength: dataUri.length,
+                 dataUriPrefix: dataUri.substring(0, 50)
+               });
+               
+               // Add image as file part (same structure as file mentions but with data: URI)
+               parts.push({
+                 type: 'file',
+                 mime: processedImage.mime,
+                 filename: processedImage.filename,
+                 url: dataUri
+               });
+             }
+             console.log('🖼️ [sendMessage] Image parts added, total parts array length:', parts.length);
+           } catch (error) {
+             console.error('❌ [sendMessage] Failed to process image attachments:', error);
+             console.error('❌ [sendMessage] Image processing error details:', {
+               message: error instanceof Error ? error.message : String(error),
+               stack: error instanceof Error ? error.stack : undefined,
+               imagesCount: images.length,
+               imagesSample: images.slice(0, 2) // Sample for debugging
+             });
+             // Continue without images rather than failing the entire message
+           }
+         } else {
+           console.log('🖼️ [sendMessage] No image attachments to process');
+         }
+
+         // Handle invalid mentions that couldn't be processed
         if (processedMessage.invalidMentions.length > 0) {
           console.warn('⚠️ Some file mentions could not be processed:', processedMessage.invalidMentions.map(m => m.path));
 
@@ -806,22 +856,38 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
 
         // Log detailed parts structure
         parts.forEach((part, index) => {
-          if (part.type === 'file' && part.source) {
-            console.log(`📤 [sendMessage] Part ${index} source details:`, {
-              sourceType: part.source.type,
-              sourcePath: part.source.path,
-              contentLength: part.source.text?.value?.length || 0,
-              contentStart: part.source.text?.start || 0,
-              contentEnd: part.source.text?.end || 0,
-              contentPreview: part.source.text?.value?.substring(0, 200) + '...' || 'none'
-            });
-          }
+          console.log(`📤 [sendMessage] Part ${index} details:`, {
+            type: part.type,
+            ...(part.type === 'text' ? {
+              text: part.text,
+              textLength: part.text.length
+            } : {
+              filename: part.filename,
+              mime: part.mime,
+              url: part.url,
+              hasSource: !!part.source,
+              sourceType: part.source?.type,
+              sourcePath: part.source?.path,
+              contentLength: part.source?.text?.value?.length || 0,
+              contentStart: part.source?.text?.start || 0,
+              contentEnd: part.source?.text?.end || 0,
+              contentPreview: part.source?.text?.value?.substring(0, 200) + '...' || 'none'
+            })
+          });
         });
 
         const response = await sessionChat({
           client: state.client!,
           path: { id: sessionId },
           body: requestBody
+        }).catch(error => {
+          console.error('❌ [sendMessage] API call failed:', error);
+          console.error('❌ [sendMessage] Error details:', {
+            message: error.message,
+            status: error.status,
+            data: error.data
+          });
+          throw error;
         });
 
         console.log('✅ [sendMessage] Message sent successfully, waiting for response...');
@@ -839,11 +905,20 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
             dataKeys: Object.keys(response.data),
             dataString: JSON.stringify(response.data, null, 2)
           });
+        } else {
+          console.log('⚠️ [sendMessage] No response data received - this might indicate an issue');
         }
 
         // Handle the immediate response (contains assistant message info and initial parts)
         if (response.data) {
-          console.log('Received immediate response from chat:', response.data);
+          console.log('✅ [sendMessage] Received immediate response from chat:', response.data);
+          console.log('✅ [sendMessage] Response info:', {
+            role: response.data.info.role,
+            id: response.data.info.id,
+            sessionID: response.data.info.sessionID,
+            hasParts: !!response.data.parts,
+            partsCount: response.data.parts?.length || 0
+          });
           
           // Add the assistant message to the state
           const messageWithParts: MessageWithParts = {

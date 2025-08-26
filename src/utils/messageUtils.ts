@@ -73,24 +73,35 @@ export function extractFileMentionsFromText(text: string): FileMention[] {
  * @returns Promise resolving to array of FilePartInput objects
  */
 export async function createFilePartsFromMentionsInMessage(
-  mentions: FileMention[], 
+  mentions: FileMention[],
   client: Client,
   options: Pick<MessageProcessingOptions, 'maxFileParts'> = {}
 ): Promise<FilePartInput[]> {
+  console.log('🔍 [createFilePartsFromMentionsInMessage] Starting FilePart creation...');
+  console.log('🔍 [createFilePartsFromMentionsInMessage] Input mentions:', mentions.map(m => ({ path: m.path, start: m.start, end: m.end })));
+  console.log('🔍 [createFilePartsFromMentionsInMessage] Client available:', !!client);
+
   const { maxFileParts = DEFAULT_OPTIONS.maxFileParts } = options;
-  
+  console.log('🔍 [createFilePartsFromMentionsInMessage] maxFileParts limit:', maxFileParts);
+
   if (!mentions || mentions.length === 0) {
+    console.log('🔍 [createFilePartsFromMentionsInMessage] No mentions provided, returning empty array');
     return [];
   }
-  
+
   // Limit the number of file parts to process
   const limitedMentions = mentions.slice(0, maxFileParts);
-  
+  console.log('🔍 [createFilePartsFromMentionsInMessage] Limited mentions count:', limitedMentions.length);
+
   if (limitedMentions.length < mentions.length) {
-    console.warn(`Message processing limited to ${maxFileParts} file parts. ${mentions.length - maxFileParts} file mentions were skipped.`);
+    console.warn(`⚠️ [createFilePartsFromMentionsInMessage] Message processing limited to ${maxFileParts} file parts. ${mentions.length - maxFileParts} file mentions were skipped.`);
   }
-  
-  return createFilePartsFromMentions(limitedMentions, client);
+
+  console.log('🔍 [createFilePartsFromMentionsInMessage] Calling createFilePartsFromMentions...');
+  const result = await createFilePartsFromMentions(limitedMentions, client);
+  console.log('🔍 [createFilePartsFromMentionsInMessage] createFilePartsFromMentions returned:', result.length, 'FileParts');
+
+  return result;
 }
 
 /**
@@ -168,22 +179,38 @@ export async function processMessageForSending(
   client: Client,
   options: MessageProcessingOptions = {}
 ): Promise<ProcessedMessage> {
+  console.log('🔍 [processMessageForSending] Starting message processing...');
+  console.log('🔍 [processMessageForSending] Input text:', JSON.stringify(text));
+  console.log('🔍 [processMessageForSending] Client available:', !!client);
+
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  
+  console.log('🔍 [processMessageForSending] Options:', opts);
+
   // Validate input text
+  console.log('🔍 [processMessageForSending] Validating message text...');
   const validation = validateMessageText(text);
+  console.log('🔍 [processMessageForSending] Validation result:', {
+    isValid: validation.isValid,
+    errors: validation.errors,
+    cleanedTextLength: validation.cleanedText.length
+  });
+
   if (!validation.isValid) {
-    console.warn('Message validation failed:', validation.errors);
+    console.warn('⚠️ [processMessageForSending] Message validation failed:', validation.errors);
     // Return a basic text part even if validation fails, but log the issues
   }
-  
+
   const cleanedText = validation.cleanedText;
-  
+  console.log('🔍 [processMessageForSending] Using cleaned text:', JSON.stringify(cleanedText));
+
   // Extract file mentions from text
+  console.log('🔍 [processMessageForSending] Extracting file mentions...');
   const mentions = extractFileMentionsFromText(cleanedText);
-  console.log(`Found ${mentions.length} file mentions in message`);
-  
+  console.log(`🔍 [processMessageForSending] Found ${mentions.length} file mentions:`,
+    mentions.map(m => ({ path: m.path, start: m.start, end: m.end })));
+
   if (mentions.length === 0) {
+    console.log('🔍 [processMessageForSending] No file mentions found, returning simple text part');
     // No file mentions, return simple text part
     return {
       textPart: {
@@ -194,38 +221,69 @@ export async function processMessageForSending(
       invalidMentions: []
     };
   }
-  
+
   // Create FilePart objects from mentions
-  console.log('Creating FileParts from mentions...');
-  const fileParts = await createFilePartsFromMentionsInMessage(mentions, client, {
-    maxFileParts: opts.maxFileParts
-  });
-  
+  console.log('🔍 [processMessageForSending] Creating FileParts from mentions...');
+  console.log('🔍 [processMessageForSending] Calling createFilePartsFromMentionsInMessage...');
+
+  let fileParts: FilePartInput[] = [];
+  try {
+    fileParts = await createFilePartsFromMentionsInMessage(mentions, client, {
+      maxFileParts: opts.maxFileParts
+    });
+    console.log(`🔍 [processMessageForSending] Successfully created ${fileParts.length} FileParts:`,
+      fileParts.map(fp => ({ filename: fp.filename, mime: fp.mime, url: fp.url })));
+  } catch (error) {
+    console.error('❌ [processMessageForSending] Error creating FileParts:', error);
+    console.log('🔍 [processMessageForSending] Continuing with empty fileParts array');
+    fileParts = [];
+  }
+
   // Determine which mentions were successfully converted to FileParts
-  const successfulPaths = new Set(fileParts.map(fp => fp.url));
+  console.log('🔍 [processMessageForSending] Analyzing processing results...');
+  const successfulPaths = new Set(fileParts.map(fp => fp.source?.path || fp.url));
+  console.log('🔍 [processMessageForSending] Successful file paths:', Array.from(successfulPaths));
+
   const validMentions = mentions.filter(m => successfulPaths.has(m.path));
   const invalidMentions = mentions.filter(m => !successfulPaths.has(m.path));
-  
+
+  console.log(`🔍 [processMessageForSending] Valid mentions: ${validMentions.length}, Invalid mentions: ${invalidMentions.length}`);
+  console.log('🔍 [processMessageForSending] Invalid mentions:', invalidMentions.map(m => m.path));
+
   if (invalidMentions.length > 0) {
-    console.warn(`Failed to create FileParts for ${invalidMentions.length} mentions:`, 
+    console.warn(`⚠️ [processMessageForSending] Failed to create FileParts for ${invalidMentions.length} mentions:`,
       invalidMentions.map(m => m.path));
   }
-  
+
   // Determine final text content
+  console.log('🔍 [processMessageForSending] Determining final text content...');
   let finalText = cleanedText;
+  console.log('🔍 [processMessageForSending] keepMentionText option:', opts.keepMentionText);
+  console.log('🔍 [processMessageForSending] validMentions count:', validMentions.length);
+
   if (!opts.keepMentionText && validMentions.length > 0) {
+    console.log('🔍 [processMessageForSending] Removing file mentions from text...');
     // Remove file mentions from text since they're now FileParts
     finalText = removeMentionsFromText(cleanedText, validMentions);
-    
+    console.log('🔍 [processMessageForSending] Text after removing mentions:', JSON.stringify(finalText));
+
     // If removing mentions left us with empty text, keep original text
     if (!finalText.trim()) {
+      console.log('🔍 [processMessageForSending] Removing mentions left empty text, keeping original');
       finalText = cleanedText;
-      console.warn('Removing file mentions would leave empty text, keeping original text');
+      console.warn('⚠️ [processMessageForSending] Removing file mentions would leave empty text, keeping original text');
     }
+  } else {
+    console.log('🔍 [processMessageForSending] Keeping original text with mentions');
   }
-  
-  console.log(`Message processing complete: ${fileParts.length} FileParts created, ${invalidMentions.length} invalid mentions`);
-  
+
+  console.log(`✅ [processMessageForSending] Message processing complete: ${fileParts.length} FileParts created, ${invalidMentions.length} invalid mentions`);
+  console.log('✅ [processMessageForSending] Final result:', {
+    textPart: { type: 'text', text: finalText },
+    filePartsCount: fileParts.length,
+    invalidMentionsCount: invalidMentions.length
+  });
+
   return {
     textPart: {
       type: 'text',

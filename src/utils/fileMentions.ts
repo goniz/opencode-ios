@@ -1,6 +1,6 @@
 import { findFiles, fileRead } from '../api/sdk.gen';
 import type { Client } from '../api/client';
-import type { FilePartInput, FilePartSource } from '../api/types.gen';
+import type { FilePartInput } from '../api/types.gen';
 
 export interface FileMention {
   path: string;
@@ -354,20 +354,6 @@ export async function createFilePartFromMention(
   console.log('🔍 [createFilePartFromMention] Processing file path:', JSON.stringify(filePath));
 
   try {
-    console.log('🔍 [createFilePartFromMention] Fetching file content...');
-    // Fetch file content
-    const content = await fetchFileContent(filePath, client);
-    console.log('🔍 [createFilePartFromMention] fetchFileContent returned:', {
-      contentLength: content?.length || 0,
-      contentType: typeof content,
-      isNull: content === null
-    });
-
-    if (content === null) {
-      console.log('🔍 [createFilePartFromMention] File content is null, returning null');
-      return null;
-    }
-
     console.log('🔍 [createFilePartFromMention] Creating FilePartInput object...');
     const mimeType = getFileMimeType(filePath);
     const filename = getFilename(filePath);
@@ -375,52 +361,74 @@ export async function createFilePartFromMention(
     console.log('🔍 [createFilePartFromMention] File metadata:', {
       mimeType,
       filename,
-      filePath,
-      contentLength: content.length
+      filePath
     });
 
-    // Create the FilePartInput object
+    // Fetch file content using fileRead API
+    console.log('🔍 [createFilePartFromMention] Fetching file content...');
+    const fileContent = await fetchFileContent(filePath, client);
+    
+    if (!fileContent) {
+      console.error(`❌ [createFilePartFromMention] Failed to fetch content for ${filePath}`);
+      return null;
+    }
+
+    console.log('🔍 [createFilePartFromMention] File content fetched:', {
+      contentLength: fileContent.length,
+      contentPreview: fileContent.substring(0, 100) + (fileContent.length > 100 ? '...' : '')
+    });
+
+    // Convert file content to data URI (like working pre-refactor version)
+    console.log('🔧 [createFilePartFromMention] Converting file content to base64...');
+    const base64Content = Buffer.from(fileContent, 'utf-8').toString('base64');
+    const dataUri = `data:${mimeType};base64,${base64Content}`;
+    
+    console.log('🔧 [createFilePartFromMention] Data URI created:', {
+      originalContentLength: fileContent.length,
+      base64Length: base64Content.length,
+      dataUriLength: dataUri.length,
+      mimeType: mimeType,
+      dataUriPrefix: dataUri.substring(0, 100) + '...'
+    });
+
+    // Create the FilePartInput object with data: URI (like pre-refactor images)
+    // Following the working pre-refactor pattern: data URI without source field
     const filePartInput: FilePartInput = {
       type: 'file',
       mime: mimeType,
       filename: filename,
-      url: filePath, // Use file path as URL
-      source: {
-        type: 'file',
-        path: filePath,
-        text: {
-          value: content,
-          start: 0,
-          end: content.length
-        }
-      } as FilePartSource
+      url: dataUri, // Use data: URI like working pre-refactor version
+      // Don't include source field - follow pre-refactor pattern exactly
     };
+
+    // Validate the file part before returning (following pre-refactor pattern)
+    console.log('🔍 [createFilePartFromMention] Validating file part:', {
+      hasType: !!filePartInput.type,
+      hasMime: !!filePartInput.mime,
+      hasFilename: !!filePartInput.filename,
+      hasUrl: !!filePartInput.url,
+      urlType: filePartInput.url.startsWith('data:') ? 'data URI' : 'other'
+    });
 
     console.log('✅ [createFilePartFromMention] Successfully created FilePartInput:', {
       type: filePartInput.type,
       mime: filePartInput.mime,
       filename: filePartInput.filename,
-      url: filePartInput.url,
-      sourceType: filePartInput.source?.type,
-      contentLength: content.length,
-      sourceContentLength: filePartInput.source?.text?.value?.length || 0,
-      sourceTextPreview: filePartInput.source?.text?.value?.substring(0, 100) + '...' || 'none'
+      url: filePartInput.url.substring(0, 80) + '...',
+      urlLength: filePartInput.url.length
     });
 
-    // Validate the created FilePartInput
+    // Validate the created FilePartInput (simplified for data URI pattern)
     console.log('🔍 [createFilePartFromMention] Validating created FilePartInput:', {
       hasType: !!filePartInput.type,
       hasMime: !!filePartInput.mime,
       hasFilename: !!filePartInput.filename,
       hasUrl: !!filePartInput.url,
-      hasSource: !!filePartInput.source,
-      sourceType: filePartInput.source?.type,
       isValid: !!(
         filePartInput.type &&
         filePartInput.mime &&
         filePartInput.filename &&
-        filePartInput.url &&
-        filePartInput.source
+        filePartInput.url
       )
     });
 
