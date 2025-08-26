@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 import { getSavedServers, clearAllServers } from '../../src/utils/serverStorage';
 import { localStorage } from '../../src/utils/localStorage';
-import type { SavedServer } from '../../src/utils/serverStorage';
+
 
 // Import version from package.json
 const packageJson = require('../../package.json');

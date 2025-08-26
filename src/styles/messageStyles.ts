@@ -85,6 +85,10 @@ export const MessageStyles = StyleSheet.create({
     flex: 1,
     paddingLeft: 6,
   },
+
+  touchableContainer: {
+    flex: 1,
+  },
   
   userContentColumn: {
     flex: 1,

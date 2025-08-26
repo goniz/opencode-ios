@@ -1,11 +1,15 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import Markdown from 'react-native-markdown-display';
+import Markdown, { MarkdownIt } from 'react-native-markdown-display';
 import SyntaxHighlighter from 'react-native-code-highlighter';
 import { atomOneDarkReasonable } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import * as WebBrowser from 'expo-web-browser';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 import { FileMentionContent } from './FileMentionContent';
+
+// Create a custom markdownit instance with linkify enabled
+const markdownItInstance = MarkdownIt({linkify: true, typographer: true});
 
 export interface TextContentProps {
   content: string;
@@ -68,20 +72,23 @@ export const TextContent: React.FC<TextContentProps> = ({
     paragraph: {
       marginVertical: 4,
     },
+    text: {
+      ...variantStyles,
+    },
     heading1: {
-      color: '#e5e7eb',
+      ...variantStyles,
       fontSize: 24,
       fontWeight: '600' as '600',
       marginVertical: 12,
     },
     heading2: {
-      color: '#e5e7eb',
+      ...variantStyles,
       fontSize: 20,
       fontWeight: '600' as '600',
       marginVertical: 10,
     },
     heading3: {
-      color: '#e5e7eb',
+      ...variantStyles,
       fontSize: 18,
       fontWeight: '600' as '600',
       marginVertical: 8,
@@ -100,7 +107,7 @@ export const TextContent: React.FC<TextContentProps> = ({
       marginVertical: 4,
     },
     code_inline: {
-      color: '#d1d5db',
+      ...variantStyles,
       backgroundColor: '#374151',
       padding: 2,
       borderRadius: 4,
@@ -121,12 +128,12 @@ export const TextContent: React.FC<TextContentProps> = ({
       fontFamily: 'monospace',
     },
     blockquote: {
+      ...variantStyles,
       backgroundColor: '#374151',
       borderLeftColor: '#4b5563',
       borderLeftWidth: 4,
       padding: 8,
       marginVertical: 8,
-      color: '#d1d5db',
     },
     table: {
       borderWidth: 1,
@@ -135,27 +142,29 @@ export const TextContent: React.FC<TextContentProps> = ({
       marginVertical: 8,
     },
     th: {
+      ...variantStyles,
       backgroundColor: '#374151',
       padding: 8,
       fontWeight: '600' as '600',
-      color: '#e5e7eb',
     },
     td: {
+      ...variantStyles,
       padding: 8,
-      color: '#d1d5db',
     },
     tr: {
       borderBottomWidth: 1,
       borderBottomColor: '#4b5563',
     },
     s: {
+      ...variantStyles,
       textDecorationLine: 'line-through' as 'line-through',
-      color: '#9ca3af',
     },
     strong: {
+      ...variantStyles,
       fontWeight: '600' as '600',
     },
     em: {
+      ...variantStyles,
       fontStyle: 'italic' as 'italic',
     },
   };
@@ -246,6 +255,16 @@ export const TextContent: React.FC<TextContentProps> = ({
     },
   };
 
+
+
+  // Handle link press
+  const handleLinkPress = (url: string) => {
+    WebBrowser.openBrowserAsync(url).catch(error => {
+      console.error('Error opening link:', error);
+    });
+    return false;
+  };
+
   return (
     <View style={styles.container}>
       {isMarkdown ? (
@@ -253,11 +272,13 @@ export const TextContent: React.FC<TextContentProps> = ({
           style={markdownStyles}
           rules={renderRules}
           mergeStyle={true}
+          onLinkPress={handleLinkPress}
+          markdownit={markdownItInstance}
         >
           {displayContent}
         </Markdown>
       ) : (
-        <FileMentionContent 
+        <FileMentionContent
           content={displayContent}
           onFileMentionPress={(filePath) => {
             console.log('File mention pressed:', filePath);
@@ -265,7 +286,7 @@ export const TextContent: React.FC<TextContentProps> = ({
           }}
         />
       )}
-      
+
       {shouldShowExpandButton && (
         <ExpandButton
           isExpanded={isExpanded}

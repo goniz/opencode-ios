@@ -1,11 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { MessagePartProps, MessagePartContainer, getRenderMode, getMessagePartStyles } from './MessagePart';
 import { TextContent } from '../content/TextContent';
+import { toast } from '../../../utils/toast';
 
-export const TextPart: React.FC<MessagePartProps> = ({ 
-  part, 
-  isLast = false, 
+export const TextPart: React.FC<MessagePartProps> = ({
+  part,
+  isLast = false,
   messageRole = 'assistant',
   renderMode = 'auto',
   messageId = '',
@@ -13,14 +15,38 @@ export const TextPart: React.FC<MessagePartProps> = ({
 }) => {
   const actualRenderMode = getRenderMode(renderMode, messageRole);
   const content = 'content' in part ? part.content || '' : '';
-  
+
+  const handleCopyText = async () => {
+    try {
+      await Clipboard.setStringAsync(content);
+      toast.showSuccess('Text copied to clipboard');
+    } catch (error) {
+      console.error('Failed to copy text:', error);
+      toast.showError('Failed to copy text');
+    }
+  };
+
+  const handlePress = () => {
+    // Provide immediate feedback for regular press
+    toast.showInfo('Long press to copy full text');
+  };
+
   if (messageRole === 'user' && actualRenderMode === 'bubble') {
     return (
-      <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).container}>
-        <Text style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).text}>
+      <TouchableOpacity
+        onPress={handlePress}
+        onLongPress={handleCopyText}
+        delayLongPress={300}
+        style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).container}
+        activeOpacity={0.7}
+      >
+        <Text
+          style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).text}
+          selectable={true}
+        >
           {content}
         </Text>
-      </View>
+      </TouchableOpacity>
     );
   }
   

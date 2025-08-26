@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import type { Part, ToolPart } from '../../api/types.gen';
 import type { Todo } from '../../types/todo';
 import { PartComponentSelector } from './parts';
 import { TodoTool } from './content/TodoTool';
 import { MessageStyles } from '../../styles/messageStyles';
+import { toast } from '../../utils/toast';
 
 interface MessageContentProps {
   role: string;
@@ -17,21 +19,43 @@ interface MessageContentProps {
   specialState?: 'error' | 'queued' | 'streaming' | null;
 }
 
-export function MessageContent({ 
-  role, 
-  part, 
-  isLast = false, 
-  partIndex = 0, 
+export function MessageContent({
+  role,
+  part,
+  isLast = false,
+  partIndex = 0,
   totalParts = 1,
   messageId = '',
   renderMode = 'auto',
   specialState = null
 }: MessageContentProps) {
-  const actualRenderMode = renderMode === 'auto' 
+  const actualRenderMode = renderMode === 'auto'
     ? (role === 'user' ? 'bubble' : 'expanded')
     : renderMode;
-    
+
   const isLastPart = isLast && partIndex === totalParts - 1;
+
+  // Copy functionality for assistant messages
+  const handlePress = () => {
+    if (role === 'assistant') {
+      console.log('Assistant message pressed - long press to copy');
+      toast.showInfo('Long press to copy full text');
+    }
+  };
+
+  const handleCopyText = async () => {
+    if (role === 'assistant' && 'text' in part) {
+      const textToCopy = part.text || '';
+      console.log('Assistant message long press - copying text:', textToCopy.substring(0, 50) + '...');
+      try {
+        await Clipboard.setStringAsync(textToCopy);
+        toast.showSuccess('Text copied to clipboard');
+      } catch (error) {
+        console.error('Failed to copy text:', error);
+        toast.showError('Failed to copy text');
+      }
+    }
+  };
   
   // Handle special states with styled containers
   if (specialState) {
@@ -200,7 +224,7 @@ export function MessageContent({
     }
   }
 
-  return (
+  const content = (
     <View style={getContentContainerStyle(role, actualRenderMode)}>
       <PartComponentSelector
         part={componentPart}
@@ -213,6 +237,24 @@ export function MessageContent({
       />
     </View>
   );
+
+  // For assistant messages, wrap in TouchableOpacity for copy functionality
+  if (role === 'assistant') {
+    return (
+      <TouchableOpacity
+        onPress={handlePress}
+        onLongPress={handleCopyText}
+        delayLongPress={300}
+        style={MessageStyles.touchableContainer}
+        activeOpacity={0.7}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return content;
 }
 
 const getContentContainerStyle = (role: string, renderMode: string) => {

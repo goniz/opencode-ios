@@ -1,7 +1,7 @@
 {
   "name": "opencode-mobile",
   "main": "expo-router/entry",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "scripts": {
     "start": "expo start -g",
     "start:tunnel": "expo start -g --tunnel",
@@ -15,7 +15,7 @@
     "doctor": "npx expo-doctor",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:ci": "jest --no-watch --coverage --watchAll=false",
+    "test:ci": "jest --no-watch --watchAll=false --silent",
     "generate-api": "opencode generate > src/api/opencode_api.json && openapi-ts -i src/api/opencode_api.json -o src/api -c @hey-api/client-fetch",
     "events": "tsx scripts/event-listener.ts",
     "ota-host": "tsx scripts/ota-host.ts",
@@ -26,7 +26,7 @@
     "opencode:stop": "screen -S opencode -X quit",
     "expo:start-bg": "screen -dmS expo npx expo start -g --tunnel",
     "expo:stop": "screen -S expo -X quit",
-"expo:logs": "screen -S expo -X hardcopy /tmp/expo.log && cat /tmp/expo.log",
+    "expo:logs": "screen -S expo -X hardcopy /tmp/expo.log && cat /tmp/expo.log",
     "opencode:logs": "screen -S opencode -X hardcopy /tmp/opencode.log && cat /tmp/opencode.log",
     "events:start": "screen -dmS events npx tsx scripts/event-listener.ts --server http://localhost:4096 --output /tmp/events.jsonl",
     "events:stop": "screen -S events -X quit",
