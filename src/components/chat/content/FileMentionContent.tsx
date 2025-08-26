@@ -6,14 +6,16 @@ import { detectFileMentions } from '../../../utils/fileMentions';
 interface FileMentionContentProps {
   content: string;
   onFileMentionPress?: (filePath: string) => void;
+  selectable?: boolean;
+  disableFileMentionPress?: boolean;
 }
 
-export function FileMentionContent({ content, onFileMentionPress }: FileMentionContentProps) {
+export function FileMentionContent({ content, onFileMentionPress, selectable = false, disableFileMentionPress = false }: FileMentionContentProps) {
   const mentions = detectFileMentions(content);
   
   if (mentions.length === 0) {
     return (
-      <Text style={styles.content}>
+      <Text style={styles.content} selectable={selectable}>
         {content}
       </Text>
     );
@@ -28,7 +30,7 @@ export function FileMentionContent({ content, onFileMentionPress }: FileMentionC
       // Add text before mention
       if (mention.start > lastIndex) {
         parts.push(
-          <Text key={`text-${index}`} style={styles.content}>
+          <Text key={`text-${index}`} style={styles.content} selectable={selectable}>
             {content.slice(lastIndex, mention.start)}
           </Text>
         );
@@ -37,25 +39,35 @@ export function FileMentionContent({ content, onFileMentionPress }: FileMentionC
       // Add mention as styled component
       const filePath = mention.path;
       const fileName = filePath.split('/').pop() || filePath;
-      
-      parts.push(
-        <TouchableOpacity
-          key={`mention-${index}`}
-          style={styles.mentionContainer}
-          onPress={() => onFileMentionPress?.(filePath)}
-          activeOpacity={0.7}
-        >
-          <Ionicons 
-            name="document-text" 
-            size={14} 
-            color="#3b82f6" 
+
+      const mentionElement = (
+        <View key={`mention-${index}`} style={styles.mentionContainer}>
+          <Ionicons
+            name="document-text"
+            size={14}
+            color="#3b82f6"
             style={styles.mentionIcon}
           />
           <Text style={styles.mentionText}>
             {fileName}
           </Text>
-        </TouchableOpacity>
+        </View>
       );
+
+      if (disableFileMentionPress) {
+        parts.push(mentionElement);
+      } else {
+        parts.push(
+          <TouchableOpacity
+            key={`mention-${index}`}
+            style={styles.mentionContainer}
+            onPress={() => onFileMentionPress?.(filePath)}
+            activeOpacity={0.7}
+          >
+            {mentionElement}
+          </TouchableOpacity>
+        );
+      }
 
       lastIndex = mention.end;
     });
@@ -63,7 +75,7 @@ export function FileMentionContent({ content, onFileMentionPress }: FileMentionC
     // Add remaining text after last mention
     if (lastIndex < content.length) {
       parts.push(
-        <Text key="text-end" style={styles.content}>
+        <Text key="text-end" style={styles.content} selectable={selectable}>
           {content.slice(lastIndex)}
         </Text>
       );

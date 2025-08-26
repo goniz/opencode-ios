@@ -68,20 +68,23 @@ export const TextContent: React.FC<TextContentProps> = ({
     paragraph: {
       marginVertical: 4,
     },
+    text: {
+      ...variantStyles,
+    },
     heading1: {
-      color: '#e5e7eb',
+      ...variantStyles,
       fontSize: 24,
       fontWeight: '600' as '600',
       marginVertical: 12,
     },
     heading2: {
-      color: '#e5e7eb',
+      ...variantStyles,
       fontSize: 20,
       fontWeight: '600' as '600',
       marginVertical: 10,
     },
     heading3: {
-      color: '#e5e7eb',
+      ...variantStyles,
       fontSize: 18,
       fontWeight: '600' as '600',
       marginVertical: 8,
@@ -100,7 +103,7 @@ export const TextContent: React.FC<TextContentProps> = ({
       marginVertical: 4,
     },
     code_inline: {
-      color: '#d1d5db',
+      ...variantStyles,
       backgroundColor: '#374151',
       padding: 2,
       borderRadius: 4,
@@ -121,12 +124,12 @@ export const TextContent: React.FC<TextContentProps> = ({
       fontFamily: 'monospace',
     },
     blockquote: {
+      ...variantStyles,
       backgroundColor: '#374151',
       borderLeftColor: '#4b5563',
       borderLeftWidth: 4,
       padding: 8,
       marginVertical: 8,
-      color: '#d1d5db',
     },
     table: {
       borderWidth: 1,
@@ -135,27 +138,29 @@ export const TextContent: React.FC<TextContentProps> = ({
       marginVertical: 8,
     },
     th: {
+      ...variantStyles,
       backgroundColor: '#374151',
       padding: 8,
       fontWeight: '600' as '600',
-      color: '#e5e7eb',
     },
     td: {
+      ...variantStyles,
       padding: 8,
-      color: '#d1d5db',
     },
     tr: {
       borderBottomWidth: 1,
       borderBottomColor: '#4b5563',
     },
     s: {
+      ...variantStyles,
       textDecorationLine: 'line-through' as 'line-through',
-      color: '#9ca3af',
     },
     strong: {
+      ...variantStyles,
       fontWeight: '600' as '600',
     },
     em: {
+      ...variantStyles,
       fontStyle: 'italic' as 'italic',
     },
   };
@@ -246,6 +251,8 @@ export const TextContent: React.FC<TextContentProps> = ({
     },
   };
 
+
+
   return (
     <View style={styles.container}>
       {isMarkdown ? (
@@ -257,15 +264,16 @@ export const TextContent: React.FC<TextContentProps> = ({
           {displayContent}
         </Markdown>
       ) : (
-        <FileMentionContent 
+        <FileMentionContent
           content={displayContent}
           onFileMentionPress={(filePath) => {
             console.log('File mention pressed:', filePath);
             // TODO: Handle file mention press (e.g., open file details)
           }}
+          selectable={true}
         />
       )}
-      
+
       {shouldShowExpandButton && (
         <ExpandButton
           isExpanded={isExpanded}
