@@ -15,7 +15,7 @@
     "doctor": "npx expo-doctor",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:ci": "jest --no-watch --coverage --watchAll=false",
+    "test:ci": "jest --no-watch --watchAll=false --silent",
     "generate-api": "opencode generate > src/api/opencode_api.json && openapi-ts -i src/api/opencode_api.json -o src/api -c @hey-api/client-fetch",
     "events": "tsx scripts/event-listener.ts",
     "ota-host": "tsx scripts/ota-host.ts",
