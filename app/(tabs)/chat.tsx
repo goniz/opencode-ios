@@ -14,7 +14,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
-import { toast } from '../../src/utils/toast';
+
 import { filterMessageParts } from '../../src/utils/messageFiltering';
 import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
 import { MessageContent } from '../../src/components/chat/MessageContent';
@@ -25,29 +25,24 @@ import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInp
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
 import { CrutesApiKeyInput } from '../../src/components/chat/CrutesApiKeyInput';
 import type { Message, Part, AssistantMessage, Command } from '../../src/api/types.gen';
-import { 
-  configProviders, 
-  sessionCommand, 
-  sessionInit, 
-  sessionShare, 
-  sessionUnshare, 
-  sessionSummarize, 
-  sessionRevert, 
-  sessionUnrevert 
+import {
+  configProviders,
+  sessionCommand,
+  sessionInit,
+  sessionShare,
+  sessionUnshare,
+  sessionSummarize,
+  sessionRevert,
+  sessionUnrevert
 } from '../../src/api/sdk.gen';
 import type { CommandSuggestion } from '../../src/utils/commandMentions';
 import { ChutesApiKeyInvalidError, fetchChutesQuota } from '../../src/utils/chutes';
 import { localStorage } from '../../src/utils/localStorage';
+import type { BuiltInCommand } from '../../src/types/commands';
 
 interface MessageWithParts {
   info: Message;
   parts: Part[];
-}
-
-interface BuiltInCommand {
-  name: string;
-  description: string;
-  endpoint: 'init' | 'share' | 'unshare' | 'summarize' | 'revert' | 'unrevert';
 }
 
 // Helper function to format large numbers in human-readable form (matches official OpenCode TUI)
@@ -158,10 +153,9 @@ export default function ChatScreen() {
             setAvailableProviders(providers);
             setAvailableModels(models);
           }
-        } catch (error) {
-          console.error('Failed to load providers and models:', error);
-          toast.showError('Failed to load providers and models', error instanceof Error ? error.message : 'Unknown error');
-        }
+         } catch (error) {
+           console.error('Failed to load providers and models:', error);
+         }
       }
     };
 
@@ -321,10 +315,9 @@ export default function ChatScreen() {
     if (currentSession && currentSession.id !== loadedSessionId) {
       console.log('Loading messages for session:', currentSession.id, currentSession.title);
       setLoadedSessionId(currentSession.id);
-      loadMessages(currentSession.id).catch(error => {
-        console.error('Failed to load messages:', error);
-        toast.showError('Failed to load messages', error instanceof Error ? error.message : 'Unknown error');
-      });
+       loadMessages(currentSession.id).catch(error => {
+         console.error('Failed to load messages:', error);
+       });
     } else if (!currentSession) {
       console.log('No current session set');
       setLoadedSessionId(null);
@@ -469,11 +462,10 @@ export default function ChatScreen() {
       return;
     }
 
-    if (!currentModel?.providerID || !currentModel?.modelID) {
-      console.log('No model selected');
-      toast.showError('Select Model', 'Please select a provider and model before sending a message');
-      return;
-    }
+     if (!currentModel?.providerID || !currentModel?.modelID) {
+       console.log('No model selected');
+       return;
+     }
 
     const imagesToSend = [...selectedImages];
     
@@ -493,16 +485,12 @@ export default function ChatScreen() {
        );
        console.log('Message queued successfully');
        // Scroll to bottom after sending (will be handled by messages change effect)
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Failed to send message';
-      toast.showError('Failed to send message', errorMsg);
-      // Restore the input text and images if sending failed
-      setInputText(messageText);
-      setSelectedImages(imagesToSend);
-    } finally {
-      setIsSending(false);
-    }
+     } catch (error) {
+       console.error('Failed to send message:', error);
+       // Restore the input text and images if sending failed
+       setInputText(messageText);
+       setSelectedImages(imagesToSend);
+     }
   };
 
   const handleCommandExecution = useCallback((commandText: string) => {
@@ -543,11 +531,9 @@ export default function ChatScreen() {
           }
         });
         console.log('Command executed successfully');
-      } catch (error) {
-        console.error('Failed to execute command:', error);
-        const errorMsg = error instanceof Error ? error.message : 'Failed to execute command';
-        toast.showError('Command Failed', errorMsg);
-      }
+       } catch (error) {
+         console.error('Failed to execute command:', error);
+       }
     };
 
     // Start execution without awaiting - this makes it asynchronous
@@ -572,10 +558,9 @@ export default function ChatScreen() {
    const handleMenuCommandSelect = useCallback(async (command: BuiltInCommand | Command) => {
      console.log('Menu command selected:', command);
      
-     if (!currentSession || !client) {
-       toast.showError('No Session', 'No active session found');
-       return;
-     }
+      if (!currentSession || !client) {
+        return;
+      }
 
      // Check if it's a built-in command
      if ('endpoint' in command) {
@@ -583,11 +568,10 @@ export default function ChatScreen() {
        
        try {
          switch (builtInCommand.endpoint) {
-           case 'init':
-             if (!currentModel?.providerID || !currentModel?.modelID) {
-               toast.showError('No Model Selected', 'Please select a provider and model first');
-               return;
-             }
+            case 'init':
+              if (!currentModel?.providerID || !currentModel?.modelID) {
+                return;
+              }
              await sessionInit({
                client,
                path: { id: currentSession.id },
@@ -613,11 +597,10 @@ export default function ChatScreen() {
              });
              break;
              
-           case 'summarize':
-             if (!currentModel?.providerID || !currentModel?.modelID) {
-               toast.showError('No Model Selected', 'Please select a provider and model first');
-               return;
-             }
+            case 'summarize':
+              if (!currentModel?.providerID || !currentModel?.modelID) {
+                return;
+              }
              await sessionSummarize({
                client,
                path: { id: currentSession.id },
@@ -629,11 +612,10 @@ export default function ChatScreen() {
              break;
              
            case 'revert':
-             // For revert, we need the last message ID
-             if (messages.length === 0) {
-               toast.showError('No Messages', 'No messages to revert');
-               return;
-             }
+              // For revert, we need the last message ID
+              if (messages.length === 0) {
+                return;
+              }
              const lastMessage = messages[messages.length - 1];
              await sessionRevert({
                client,
@@ -656,14 +638,11 @@ export default function ChatScreen() {
              return;
          }
          
-         console.log(`Built-in command ${builtInCommand.name} executed successfully`);
-         toast.showSuccess('Command Executed', `${builtInCommand.name} command completed successfully`);
+          console.log(`Built-in command ${builtInCommand.name} executed successfully`);
          
-       } catch (error) {
-         console.error(`Failed to execute built-in command ${builtInCommand.name}:`, error);
-         const errorMsg = error instanceof Error ? error.message : 'Failed to execute command';
-         toast.showError('Command Failed', errorMsg);
-       }
+        } catch (error) {
+          console.error(`Failed to execute built-in command ${builtInCommand.name}:`, error);
+        }
      } else {
        // It's a user command, execute via the existing command system
        const userCommand = command as Command;

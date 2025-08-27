@@ -13,12 +13,7 @@ import { SmartTextInput } from './SmartTextInput';
 import { CommandMenuButton } from './CommandMenuButton';
 import type { CommandSuggestion } from '../../utils/commandMentions';
 import type { Command } from '../../api/types.gen';
-
-interface BuiltInCommand {
-  name: string;
-  description: string;
-  endpoint: 'init' | 'share' | 'unshare' | 'summarize' | 'revert' | 'unrevert';
-}
+import type { BuiltInCommand } from '../../types/commands';
 
 interface ImageAwareTextInputProps extends Omit<TextInputProps, 'onChangeText' | 'onSelectionChange'> {
   value: string;
