@@ -60,24 +60,25 @@ function formatTokenCount(count: number): string {
 
 export default function ChatScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
-  const { 
-    connectionStatus, 
-    sessions,
-    currentSession, 
-    messages,
-    isLoadingMessages,
-    isStreamConnected,
-    isGenerating,
-    lastError,
-    clearError,
-    loadMessages, 
-    sendMessage,
-    abortSession,
-    setCurrentSession,
-    client,
-    latestProviderModel,
-    onSessionIdle
-  } = useConnection();
+   const {
+     connectionStatus,
+     sessions,
+     currentSession,
+     messages,
+     isLoadingMessages,
+     isStreamConnected,
+     isGenerating,
+     lastError,
+     clearError,
+     loadMessages,
+     sendMessage,
+     abortSession,
+     setCurrentSession,
+     client,
+     latestProviderModel,
+     commands,
+     onSessionIdle
+   } = useConnection();
   
    const [inputText, setInputText] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
@@ -1175,21 +1176,21 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
            onCancel={handleApiKeyInputCancel}
          />
 
-         <View style={styles.inputContainer}>
-          <ImageAwareTextInput
-            style={styles.textInput}
-            value={inputText}
-            onChangeText={setInputText}
-            onImageSelected={handleImageSelected}
-            onCommandSelect={handleCommandSelect}
-            onMenuCommandSelect={handleMenuCommandSelect}
-            userCommands={[]} // TODO: Load user commands from API
-            disabled={isSending || isGenerating}
-            placeholder="Type a message..."
-            placeholderTextColor="#6b7280"
-            multiline
-            maxLength={4000}
-          />
+          <View style={styles.inputContainer}>
+           <ImageAwareTextInput
+             style={styles.textInput}
+             value={inputText}
+             onChangeText={setInputText}
+             onImageSelected={handleImageSelected}
+             onCommandSelect={handleCommandSelect}
+             onMenuCommandSelect={handleMenuCommandSelect}
+             userCommands={commands}
+             disabled={isSending || isGenerating}
+             placeholder="Type a message..."
+             placeholderTextColor="#6b7280"
+             multiline
+             maxLength={4000}
+           />
           {isGenerating && (
             <TouchableOpacity
               style={styles.interruptButton}
