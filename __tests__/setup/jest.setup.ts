@@ -6,6 +6,25 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
+// Mock Expo Vector Icons to prevent act() warnings from async state updates
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  
+  const createIconSet = () => {
+    // Return a simple mock component that doesn't have internal state
+    const MockIcon = ({ name, ...props }: { name: string; [key: string]: any }) => 
+      React.createElement(Text, props, name);
+    return MockIcon;
+  };
+
+  return new Proxy({}, {
+    get(_target, _prop) {
+      return createIconSet();
+    }
+  });
+});
+
 // Mock SDK functions that may not work in test environment
 jest.mock('../../src/api/sdk.gen', () => ({
   ...jest.requireActual('../../src/api/sdk.gen'),
@@ -17,6 +36,7 @@ jest.mock('../../src/api/sdk.gen', () => ({
       }
     }
   })),
+  commandList: jest.fn(() => Promise.resolve({ data: [] })),
   sessionList: jest.fn(() => Promise.resolve({ data: [] })),
   sessionMessages: jest.fn(() => Promise.resolve({ data: [] })),
   sessionChat: jest.fn(() => Promise.resolve({ data: {} })),
