@@ -275,11 +275,13 @@ const handleNewChat = async () => {
 };
 ```
 
-### Phase 4: Advanced State Management (Low Priority)
+### Phase 4: Advanced State Management (Low Priority) ✅ **COMPLETED**
 
-#### 4.1 Implement Per-Session Message Loading State
+#### 4.1 Implement Per-Session Message Loading State ✅ **COMPLETED**
 
 **File**: `src/contexts/ConnectionContext.tsx`
+
+**Status**: ✅ Implemented - Added per-session loading state tracking and updated loadMessages to use session-specific loading
 
 **Changes**:
 - Track loading state per session
@@ -302,9 +304,11 @@ case 'SET_LOADING_MESSAGES':
   };
 ```
 
-#### 4.2 Add Operation Cancellation
+#### 4.2 Add Operation Cancellation ✅ **COMPLETED**
 
 **File**: `src/contexts/ConnectionContext.tsx`
+
+**Status**: ✅ Implemented - Added AbortController tracking, operation cancellation, and cleanup
 
 **Changes**:
 - Implement AbortController for canceling operations
