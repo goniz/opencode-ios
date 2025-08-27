@@ -61,25 +61,26 @@ function formatTokenCount(count: number): string {
 
 export default function ChatScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
-   const {
-     connectionStatus,
-     sessions,
-     currentSession,
-     messages,
-     isLoadingMessages,
-     isStreamConnected,
-     isGenerating,
-     lastError,
-     clearError,
-     loadMessages,
-     sendMessage,
-     abortSession,
-     setCurrentSession,
-     client,
-     latestProviderModel,
-     commands,
-     onSessionIdle
-   } = useConnection();
+    const {
+      connectionStatus,
+      sessions,
+      currentSession,
+      messages,
+      isLoadingMessages,
+      isStreamConnected,
+      isGenerating,
+      lastError,
+      clearError,
+      loadMessages,
+      sendMessage,
+      abortSession,
+      setCurrentSession,
+      refreshSessions,
+      client,
+      latestProviderModel,
+      commands,
+      onSessionIdle
+    } = useConnection();
   
    const [inputText, setInputText] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
@@ -105,17 +106,30 @@ export default function ChatScreen() {
 
   // Handle session ID from navigation parameters
   useEffect(() => {
-    if (sessionId && sessions.length > 0) {
+    if (sessionId) {
       console.log('Chat screen - sessionId from params:', sessionId);
+
+      // Try to find session in current sessions
       const targetSession = sessions.find(s => s.id === sessionId);
+
       if (targetSession && (!currentSession || currentSession.id !== sessionId)) {
         console.log('Chat screen - Setting session from params:', targetSession.id, targetSession.title);
         setCurrentSession(targetSession);
-      } else if (!targetSession) {
-        console.warn('Chat screen - Session not found for ID:', sessionId);
+      } else if (!targetSession && sessions.length > 0) {
+        // If session not found but we have sessions, it might be a new session
+        // Wait a short time for sessions to refresh, then try again
+        console.warn('Session not found in current list, requesting refresh');
+        refreshSessions().then(() => {
+          const refreshedSession = sessions.find(s => s.id === sessionId);
+          if (refreshedSession) {
+            setCurrentSession(refreshedSession);
+          } else {
+            console.error('Session still not found after refresh:', sessionId);
+          }
+        });
       }
     }
-  }, [sessionId, sessions, currentSession, setCurrentSession]);
+  }, [sessionId, sessions, currentSession, setCurrentSession, refreshSessions]);
 
   // Debug logging
   useEffect(() => {

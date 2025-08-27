@@ -59,13 +59,13 @@ export interface ConnectionContextType extends ConnectionState {
 }
 
 type ConnectionAction =
-  | { type: 'SET_CONNECTING'; payload: { url: string } }
-  | { type: 'SET_CONNECTED'; payload: { client: Client } }
-  | { type: 'SET_ERROR'; payload: { error: string } }
-  | { type: 'SET_SESSIONS'; payload: { sessions: Session[] } }
-  | { type: 'SET_CURRENT_SESSION'; payload: { session: Session | null } }
-  | { type: 'SET_MESSAGES'; payload: { messages: MessageWithParts[] } }
-  | { type: 'SET_LOADING_MESSAGES'; payload: { isLoading: boolean } }
+   | { type: 'SET_CONNECTING'; payload: { url: string } }
+   | { type: 'SET_CONNECTED'; payload: { client: Client } }
+   | { type: 'SET_ERROR'; payload: { error: string } }
+   | { type: 'SET_SESSIONS'; payload: { sessions: Session[] } }
+   | { type: 'SET_CURRENT_SESSION'; payload: { session: Session | null } }
+   | { type: 'SET_MESSAGES'; payload: { messages: MessageWithParts[]; sessionId: string } }
+   | { type: 'SET_LOADING_MESSAGES'; payload: { isLoading: boolean } }
   | { type: 'ADD_MESSAGE'; payload: { message: MessageWithParts } }
   | { type: 'UPDATE_MESSAGE'; payload: { messageId: string; info: Message } }
   | { type: 'UPDATE_MESSAGE_PART'; payload: { messageId: string; partId: string; part: Part } }
@@ -130,6 +130,12 @@ case 'SET_CURRENT_SESSION':
         isGenerating: false, // Clear isGenerating when switching sessions
       };
     case 'SET_MESSAGES':
+      // Only set messages if they're for the current session
+      if (state.currentSession && action.payload.sessionId &&
+          state.currentSession.id !== action.payload.sessionId) {
+        console.log('Ignoring messages for wrong session:', action.payload.sessionId);
+        return { ...state, isLoadingMessages: false };
+      }
       return {
         ...state,
         messages: action.payload.messages,
@@ -579,24 +585,36 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       throw new Error('Not connected to server');
     }
 
+    // Early validation
+    if (state.currentSession?.id !== sessionId) {
+      console.log('Session changed before load started, aborting');
+      return;
+    }
+
     try {
       dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: true } });
-      
-      const response = await sessionMessages({ 
-        client: state.client, 
-        path: { id: sessionId } 
+
+      const response = await sessionMessages({
+        client: state.client,
+        path: { id: sessionId }
       });
-      
+
+      // Validate session hasn't changed during async operation
+      if (state.currentSession?.id !== sessionId) {
+        console.log('Session changed during load, aborting message set');
+        dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: false } });
+        return;
+      }
+
       if (response.data) {
-        // Store the full message objects with parts
-        dispatch({ type: 'SET_MESSAGES', payload: { messages: response.data } });
+        dispatch({ type: 'SET_MESSAGES', payload: { messages: response.data, sessionId } });
       }
     } catch (error) {
       console.error('Failed to load messages:', error);
       dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: false } });
       throw error;
     }
-  }, [state.client, state.connectionStatus]);
+  }, [state.client, state.connectionStatus, state.currentSession]);
 
   const sendMessage = useCallback((sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]): void => {
     console.log('🔍 [sendMessage] Function called with:', {
