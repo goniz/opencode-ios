@@ -679,32 +679,36 @@ export default function ChatScreen() {
               setTimeout(() => setCommandStatus(null), 3000);
               break;
              
-            case 'revert':
-               // For revert, we need the last message ID
-               if (messages.length === 0) {
-                 setCommandStatus(null);
-                 return;
-               }
-              const lastMessage = messages[messages.length - 1];
-              await sessionRevert({
-                client,
-                path: { id: currentSession.id },
-                body: {
-                  messageID: lastMessage.info.id,
+             case 'revert':
+                // For revert, we need the last message ID
+                if (messages.length === 0) {
+                  setCommandStatus(null);
+                  return;
                 }
-              });
-              setCommandStatus('Last message undone successfully');
-              setTimeout(() => setCommandStatus(null), 3000);
-              break;
+               const lastMessage = messages[messages.length - 1];
+               await sessionRevert({
+                 client,
+                 path: { id: currentSession.id },
+                 body: {
+                   messageID: lastMessage.info.id,
+                 }
+               });
+               // Reload messages since undo rewrites history
+               await loadMessages(currentSession.id);
+               setCommandStatus('Last message undone successfully');
+               setTimeout(() => setCommandStatus(null), 3000);
+               break;
              
-            case 'unrevert':
-              await sessionUnrevert({
-                client,
-                path: { id: currentSession.id }
-              });
-              setCommandStatus('Message restored successfully');
-              setTimeout(() => setCommandStatus(null), 3000);
-              break;
+             case 'unrevert':
+               await sessionUnrevert({
+                 client,
+                 path: { id: currentSession.id }
+               });
+               // Reload messages since redo rewrites history
+               await loadMessages(currentSession.id);
+               setCommandStatus('Message restored successfully');
+               setTimeout(() => setCommandStatus(null), 3000);
+               break;
              
            default:
              console.warn('Unknown built-in command endpoint:', builtInCommand.endpoint);
