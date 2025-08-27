@@ -536,22 +536,25 @@ export default function ChatScreen() {
     setSelectedImages([]);
     setIsSending(true);
 
-    try {
-       sendMessage(
-         currentSession.id,
-         messageText,
-         currentModel.providerID,
-         currentModel.modelID,
-         imagesToSend
-       );
-       console.log('Message queued successfully');
-       // Scroll to bottom after sending (will be handled by messages change effect)
-     } catch (error) {
-       console.error('Failed to send message:', error);
-       // Restore the input text and images if sending failed
-       setInputText(messageText);
-       setSelectedImages(imagesToSend);
-     }
+     try {
+        sendMessage(
+          currentSession.id,
+          messageText,
+          currentModel.providerID,
+          currentModel.modelID,
+          imagesToSend
+        );
+        console.log('Message queued successfully');
+        // Scroll to bottom after sending (will be handled by messages change effect)
+      } catch (error) {
+        console.error('Failed to send message:', error);
+        // Restore the input text and images if sending failed
+        setInputText(messageText);
+        setSelectedImages(imagesToSend);
+      } finally {
+        // Always reset isSending state regardless of success or failure
+        setIsSending(false);
+      }
   };
 
   const handleCommandExecution = useCallback((commandText: string) => {
