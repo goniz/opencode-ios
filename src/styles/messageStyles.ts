@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { colors } from './colors';
+import { colors, semanticColors } from './colors';
 
 export const MessageStyles = StyleSheet.create({
   // User message styles (bubble mode)
@@ -18,12 +18,12 @@ export const MessageStyles = StyleSheet.create({
     flexShrink: 1,
   },
   
-  userBubbleText: {
-    color: colors.white,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '400',
-  },
+   userBubbleText: {
+     color: semanticColors.textPrimary,
+     fontSize: 15,
+     lineHeight: 20,
+     fontWeight: '400',
+   },
   
   userFileContainer: {
     backgroundColor: colors.primary[600],
@@ -45,11 +45,11 @@ export const MessageStyles = StyleSheet.create({
     paddingLeft: 6,
   },
   
-  assistantText: {
-    color: colors.gray[200],
-    fontSize: 16,
-    lineHeight: 22,
-  },
+   assistantText: {
+     color: semanticColors.textSecondary,
+     fontSize: 16,
+     lineHeight: 22,
+   },
   
   assistantFileContainer: {
     // Keep existing assistant file styling
@@ -117,13 +117,13 @@ export const MessageStyles = StyleSheet.create({
   },
   
   // Special state styles
-  errorContainer: {
-    backgroundColor: '#2a1a1a',
-    borderWidth: 1,
-    borderColor: '#ef4444',
-    borderRadius: 8,
-    padding: 12,
-  },
+   errorContainer: {
+     backgroundColor: '#2a1a1a', // Keep custom error background
+     borderWidth: 1,
+     borderColor: semanticColors.error,
+     borderRadius: 8,
+     padding: 12,
+   },
   
   errorHeader: {
     flexDirection: 'row',
@@ -136,131 +136,131 @@ export const MessageStyles = StyleSheet.create({
     marginRight: 6,
   },
   
-  errorTitle: {
-    color: '#ef4444',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  
-  errorMessage: {
-    color: '#fca5a5',
-    fontSize: 14,
-    lineHeight: 20,
-  },
+   errorTitle: {
+     color: semanticColors.error,
+     fontSize: 14,
+     fontWeight: '600',
+   },
+
+   errorMessage: {
+     color: '#fca5a5', // Keep custom error text color
+     fontSize: 14,
+     lineHeight: 20,
+   },
   
   queuedContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   
-  queuedText: {
-    color: '#9ca3af',
-    fontSize: 16,
-    lineHeight: 22,
-    fontStyle: 'italic',
-  },
+   queuedText: {
+     color: semanticColors.textMuted,
+     fontSize: 16,
+     lineHeight: 22,
+     fontStyle: 'italic',
+   },
   
   streamingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   
-  streamingText: {
-    color: '#ffffff',
-    fontSize: 16,
-    lineHeight: 22,
-    fontStyle: 'italic',
-    opacity: 0.8,
-  },
+   streamingText: {
+     color: semanticColors.textPrimary,
+     fontSize: 16,
+     lineHeight: 22,
+     fontStyle: 'italic',
+     opacity: 0.8,
+   },
   
   // Tool and content styles
-  toolContainer: {
-    backgroundColor: '#0f1419',
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-  },
+   toolContainer: {
+     backgroundColor: '#0f1419', // Keep custom tool background
+     borderRadius: 8,
+     padding: 12,
+     borderWidth: 1,
+     borderColor: semanticColors.border,
+   },
   
-  toolHeader: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
-    marginBottom: 4,
-  },
+   toolHeader: {
+     fontSize: 14,
+     fontWeight: '600',
+     color: '#64748b', // Keep custom tool header color
+     marginBottom: 4,
+   },
+
+   toolTitle: {
+     fontSize: 14,
+     fontWeight: '500',
+     color: semanticColors.textSecondary,
+     marginBottom: 4,
+   },
   
-  toolTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#e5e7eb',
-    marginBottom: 4,
-  },
+   toolOutput: {
+     fontSize: 13,
+     fontFamily: 'monospace',
+     color: semanticColors.textMuted,
+     backgroundColor: '#000000', // Keep custom tool output background
+     padding: 8,
+     borderRadius: 4,
+     marginTop: 4,
+   },
   
-  toolOutput: {
-    fontSize: 13,
-    fontFamily: 'monospace',
-    color: '#9ca3af',
-    backgroundColor: '#000000',
-    padding: 8,
-    borderRadius: 4,
-    marginTop: 4,
-  },
+   toolError: {
+     fontSize: 14,
+     color: semanticColors.error,
+     backgroundColor: '#1f1416', // Keep custom tool error background
+     padding: 8,
+     borderRadius: 4,
+     borderLeftWidth: 3,
+     borderLeftColor: semanticColors.error,
+   },
   
-  toolError: {
-    fontSize: 14,
-    color: '#ef4444',
-    backgroundColor: '#1f1416',
-    padding: 8,
-    borderRadius: 4,
-    borderLeftWidth: 3,
-    borderLeftColor: '#ef4444',
-  },
+   reasoningContainer: {
+     backgroundColor: '#1a1a2e', // Keep custom reasoning background
+     borderRadius: 8,
+     padding: 12,
+     borderLeftWidth: 3,
+     borderLeftColor: semanticColors.warning,
+   },
+
+   reasoningLabel: {
+     fontSize: 12,
+     fontWeight: '600',
+     color: semanticColors.warning,
+     textTransform: 'uppercase',
+     marginBottom: 4,
+   },
+
+   reasoningText: {
+     fontSize: 14,
+     lineHeight: 20,
+     color: '#d1d5db', // Keep custom reasoning text color
+     fontStyle: 'italic',
+   },
   
-  reasoningContainer: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 8,
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#f59e0b',
-  },
+   fileContainer: {
+     backgroundColor: '#1a1a2e', // Keep custom file background
+     borderRadius: 8,
+     padding: 12,
+     borderLeftWidth: 3,
+     borderLeftColor: semanticColors.secondary,
+   },
+
+   fileText: {
+     fontSize: 14,
+     color: '#d1d5db', // Keep custom file text color
+   },
   
-  reasoningLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#f59e0b',
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  
-  reasoningText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#d1d5db',
-    fontStyle: 'italic',
-  },
-  
-  fileContainer: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 8,
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#8b5cf6',
-  },
-  
-  fileText: {
-    fontSize: 14,
-    color: '#d1d5db',
-  },
-  
-  stepText: {
-    fontSize: 14,
-    color: '#10b981',
-    fontWeight: '500',
-  },
-  
-  agentText: {
-    fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '500',
-  },
+   stepText: {
+     fontSize: 14,
+     color: semanticColors.success,
+     fontWeight: '500',
+   },
+
+   agentText: {
+     fontSize: 14,
+     color: semanticColors.textLink,
+     fontWeight: '500',
+   },
 });

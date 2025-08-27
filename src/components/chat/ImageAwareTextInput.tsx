@@ -10,7 +10,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { SmartTextInput } from './SmartTextInput';
+import { CommandMenuButton } from './CommandMenuButton';
 import type { CommandSuggestion } from '../../utils/commandMentions';
+import type { Command } from '../../api/types.gen';
+import type { BuiltInCommand } from '../../types/commands';
 
 interface ImageAwareTextInputProps extends Omit<TextInputProps, 'onChangeText' | 'onSelectionChange'> {
   value: string;
@@ -18,6 +21,9 @@ interface ImageAwareTextInputProps extends Omit<TextInputProps, 'onChangeText' |
   onImageSelected?: (imageUri: string) => void;
   onSelectionChange?: (selection: { start: number; end: number }) => void;
   onCommandSelect?: (command: CommandSuggestion) => void;
+  onMenuCommandSelect?: (command: BuiltInCommand | Command) => void;
+  userCommands?: Command[];
+  disabled?: boolean;
 }
 
 export function ImageAwareTextInput({ 
@@ -26,6 +32,9 @@ export function ImageAwareTextInput({
   onImageSelected,
   onSelectionChange,
   onCommandSelect,
+  onMenuCommandSelect,
+  userCommands = [],
+  disabled = false,
   ...textInputProps 
 }: ImageAwareTextInputProps) {
   const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
@@ -211,6 +220,12 @@ export function ImageAwareTextInput({
         onSelectionChange={onSelectionChange}
         onCommandSelect={onCommandSelect}
         style={[{ marginRight: 0 }, textInputProps.style]}
+      />
+      
+      <CommandMenuButton
+        onCommandSelect={onMenuCommandSelect || (() => {})}
+        userCommands={userCommands}
+        disabled={disabled}
       />
       
       <TouchableOpacity
