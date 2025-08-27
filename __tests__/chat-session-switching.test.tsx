@@ -16,7 +16,16 @@ jest.mock('../src/api/client', () => ({
 jest.mock('../src/api/sdk.gen', () => ({
   sessionList: jest.fn(),
   sessionMessages: jest.fn(),
-  sessionChat: jest.fn()
+  sessionChat: jest.fn(),
+  appGet: jest.fn(() => Promise.resolve({
+    data: {
+      path: {
+        root: '/test/root',
+        cwd: '/test/cwd'
+      }
+    }
+  })),
+  commandList: jest.fn(() => Promise.resolve({ data: [] }))
 }));
 
 jest.mock('../src/utils/serverStorage', () => ({
@@ -169,10 +178,18 @@ describe('Chat Session Switching Bug', () => {
         await result.current.loadMessages(session1.id);
       });
 
+      // Wait for session transition to complete and verify session is set
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      // Ensure currentSession is properly set before continuing
+      expect(result.current.currentSession?.id).toBe('session-1');
+      
       const initialMessageCount = result.current.messages.length;
 
       // Simulate events for different sessions
-      act(() => {
+      await act(async () => {
         // Event for session 1 (should be processed since it's the current session)
         simulateStreamEvent('message.updated', {
           info: {
@@ -196,6 +213,9 @@ describe('Chat Session Switching Bug', () => {
             modelID: 'test-model'
           }
         });
+
+        // Allow events to be processed
+        await new Promise(resolve => setTimeout(resolve, 10));
       });
 
       // Only the session 1 message should be added (since session-1 is current)
@@ -220,11 +240,26 @@ describe('Chat Session Switching Bug', () => {
       const session1 = result.current.sessions.find(s => s.id === 'session-1')!;
       await act(async () => {
         result.current.setCurrentSession(session1);
+      });
+
+      // Wait for session to be set
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      // Ensure currentSession is properly set before continuing
+      expect(result.current.currentSession?.id).toBe('session-1');
+
+      // Now load messages after session is set
+      await act(async () => {
         await result.current.loadMessages(session1.id);
       });
 
+      // Verify messages were loaded
+      expect(result.current.messages.length).toBeGreaterThan(0);
+
       // Simulate message parts for different sessions
-      act(() => {
+      await act(async () => {
         // Part for session 2 (should be ignored)
         simulateStreamEvent('message.part.updated', {
           part: {
@@ -248,6 +283,9 @@ describe('Chat Session Switching Bug', () => {
             time: { start: Date.now() }
           }
         });
+
+        // Allow events to be processed
+        await new Promise(resolve => setTimeout(resolve, 10));
       });
 
       // Verify the wrong session part was not added

@@ -12,13 +12,14 @@ type ListItem =
   | { type: 'date'; date: string; displayDate: string };
 
 export default function SessionsScreen() {
-  const { 
-    connectionStatus, 
-    sessions, 
-    client, 
-    refreshSessions, 
-    lastError
-  } = useConnection();
+   const {
+     connectionStatus,
+     sessions,
+     client,
+     refreshSessions,
+     addSessionOptimistically,
+     lastError
+   } = useConnection();
   const [listItems, setListItems] = useState<ListItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -93,21 +94,32 @@ export default function SessionsScreen() {
     try {
       console.log('Creating new session...');
       const response = await sessionCreate({ client });
-      
+
       if (response.error) {
         console.error('Session creation error:', response.error);
         throw new Error(`Failed to create session: ${JSON.stringify(response.error)}`);
       }
 
       if (response.data) {
-        console.log('New session created:', response.data.id, response.data.title);
-        
-        // Refresh sessions list to show the new session
+        const newSession = response.data;
+        console.log('New session created:', newSession.id, newSession.title);
+
+        // Optimistically add the session to local state
+        addSessionOptimistically(newSession);
+
+        // Refresh sessions list to ensure consistency
         await loadSessions();
-        
-        // Navigate directly to chat with the new session ID - no need to set current session manually
-        console.log('Navigating to chat with session:', response.data.id);
-        router.push(`/(tabs)/chat?sessionId=${response.data.id}`);
+
+        // Verify session exists before navigation
+        const verifiedSession = sessions.find(s => s.id === newSession.id);
+        if (verifiedSession) {
+          console.log('Navigating to verified session:', verifiedSession.id);
+          router.push(`/(tabs)/chat?sessionId=${verifiedSession.id}`);
+        } else {
+          // Fallback: navigate anyway and let chat screen handle the wait
+          console.log('Session not yet in list, navigating anyway');
+          router.push(`/(tabs)/chat?sessionId=${newSession.id}`);
+        }
       }
     } catch (error) {
       console.error('Error creating session:', error);

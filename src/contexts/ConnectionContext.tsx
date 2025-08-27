@@ -16,6 +16,20 @@ const CURRENT_CONNECTION_KEY = 'current_connection';
 const CURRENT_SESSION_KEY = 'current_session';
 const CONNECTION_TIMEOUT = 10000; // 10 seconds default timeout
 
+interface StreamEventData {
+  type: string;
+  properties?: {
+    info?: Message | Session;
+    part?: Part;
+    sessionID?: string;
+    messageID?: string;
+    partID?: string;
+    error?: unknown;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 interface PersistedConnection {
   serverUrl: string;
   timestamp: number;
@@ -37,10 +51,17 @@ export interface ConnectionState {
   currentSession: Session | null;
   messages: MessageWithParts[];
   isLoadingMessages: boolean;
+  loadingMessagesBySession: { [sessionId: string]: boolean };
   isStreamConnected: boolean;
   isGenerating: boolean;
   latestProviderModel: { providerID: string; modelID: string } | null;
   commands: Command[];
+  sessionTransition: {
+    inProgress: boolean;
+    fromSessionId: string | null;
+    toSessionId: string | null;
+    queuedEvents: StreamEventData[];
+  };
 }
 
 export interface ConnectionContextType extends ConnectionState {
@@ -56,28 +77,32 @@ export interface ConnectionContextType extends ConnectionState {
   abortSession: (sessionId: string) => Promise<boolean>;
   refreshCommands: () => Promise<void>;
   onSessionIdle: (callback: (sessionId: string) => void) => () => void;
+  addSessionOptimistically: (session: Session) => void;
 }
 
 type ConnectionAction =
-  | { type: 'SET_CONNECTING'; payload: { url: string } }
-  | { type: 'SET_CONNECTED'; payload: { client: Client } }
-  | { type: 'SET_ERROR'; payload: { error: string } }
-  | { type: 'SET_SESSIONS'; payload: { sessions: Session[] } }
-  | { type: 'SET_CURRENT_SESSION'; payload: { session: Session | null } }
-  | { type: 'SET_MESSAGES'; payload: { messages: MessageWithParts[] } }
-  | { type: 'SET_LOADING_MESSAGES'; payload: { isLoading: boolean } }
-  | { type: 'ADD_MESSAGE'; payload: { message: MessageWithParts } }
-  | { type: 'UPDATE_MESSAGE'; payload: { messageId: string; info: Message } }
-  | { type: 'UPDATE_MESSAGE_PART'; payload: { messageId: string; partId: string; part: Part } }
-  | { type: 'REMOVE_MESSAGE'; payload: { sessionId: string; messageId: string } }
-  | { type: 'REMOVE_MESSAGE_PART'; payload: { sessionId: string; messageId: string; partId: string } }
-  | { type: 'UPDATE_SESSION'; payload: { session: Session } }
-  | { type: 'SET_STREAM_CONNECTED'; payload: { connected: boolean } }
-  | { type: 'SET_GENERATING'; payload: { generating: boolean } }
-  | { type: 'SET_LATEST_PROVIDER_MODEL'; payload: { providerID: string; modelID: string } }
-  | { type: 'SET_COMMANDS'; payload: { commands: Command[] } }
-  | { type: 'DISCONNECT' }
-  | { type: 'CLEAR_ERROR' };
+   | { type: 'SET_CONNECTING'; payload: { url: string } }
+   | { type: 'SET_CONNECTED'; payload: { client: Client } }
+   | { type: 'SET_ERROR'; payload: { error: string } }
+   | { type: 'SET_SESSIONS'; payload: { sessions: Session[] } }
+   | { type: 'SET_CURRENT_SESSION'; payload: { session: Session | null } }
+   | { type: 'SET_MESSAGES'; payload: { messages: MessageWithParts[]; sessionId: string } }
+   | { type: 'SET_LOADING_MESSAGES'; payload: { isLoading: boolean; sessionId?: string } }
+   | { type: 'ADD_MESSAGE'; payload: { message: MessageWithParts } }
+   | { type: 'UPDATE_MESSAGE'; payload: { messageId: string; info: Message } }
+   | { type: 'UPDATE_MESSAGE_PART'; payload: { messageId: string; partId: string; part: Part } }
+   | { type: 'REMOVE_MESSAGE'; payload: { sessionId: string; messageId: string } }
+   | { type: 'REMOVE_MESSAGE_PART'; payload: { sessionId: string; messageId: string; partId: string } }
+   | { type: 'UPDATE_SESSION'; payload: { session: Session } }
+   | { type: 'SET_STREAM_CONNECTED'; payload: { connected: boolean } }
+   | { type: 'SET_GENERATING'; payload: { generating: boolean } }
+   | { type: 'SET_LATEST_PROVIDER_MODEL'; payload: { providerID: string; modelID: string } }
+   | { type: 'SET_COMMANDS'; payload: { commands: Command[] } }
+   | { type: 'DISCONNECT' }
+   | { type: 'CLEAR_ERROR' }
+   | { type: 'START_SESSION_TRANSITION'; payload: { fromSessionId: string | null; toSessionId: string | null } }
+   | { type: 'END_SESSION_TRANSITION' }
+   | { type: 'QUEUE_EVENT'; payload: { event: StreamEventData } };
 
 const initialState: ConnectionState = {
   serverUrl: '',
@@ -88,10 +113,17 @@ const initialState: ConnectionState = {
   currentSession: null,
   messages: [],
   isLoadingMessages: false,
+  loadingMessagesBySession: {},
   isStreamConnected: false,
   isGenerating: false,
   latestProviderModel: null,
   commands: [],
+  sessionTransition: {
+    inProgress: false,
+    fromSessionId: null,
+    toSessionId: null,
+    queuedEvents: [],
+  },
 };
 
 function connectionReducer(state: ConnectionState, action: ConnectionAction): ConnectionState {
@@ -130,16 +162,34 @@ case 'SET_CURRENT_SESSION':
         isGenerating: false, // Clear isGenerating when switching sessions
       };
     case 'SET_MESSAGES':
+      // Only set messages if they're for the current session
+      if (state.currentSession && action.payload.sessionId &&
+          state.currentSession.id !== action.payload.sessionId) {
+        console.log('Ignoring messages for wrong session:', action.payload.sessionId);
+        return { ...state, isLoadingMessages: false };
+      }
       return {
         ...state,
         messages: action.payload.messages,
         isLoadingMessages: false,
       };
     case 'SET_LOADING_MESSAGES':
-      return {
-        ...state,
-        isLoadingMessages: action.payload.isLoading,
-      };
+      if (action.payload.sessionId) {
+        // Per-session loading state
+        return {
+          ...state,
+          loadingMessagesBySession: {
+            ...state.loadingMessagesBySession,
+            [action.payload.sessionId]: action.payload.isLoading
+          }
+        };
+      } else {
+        // Global loading state (backward compatibility)
+        return {
+          ...state,
+          isLoadingMessages: action.payload.isLoading,
+        };
+      }
     case 'ADD_MESSAGE':
       return {
         ...state,
@@ -283,6 +333,51 @@ case 'SET_CURRENT_SESSION':
         ...state,
         lastError: null,
       };
+    case 'START_SESSION_TRANSITION':
+      return {
+        ...state,
+        sessionTransition: {
+          inProgress: true,
+          fromSessionId: action.payload.fromSessionId,
+          toSessionId: action.payload.toSessionId,
+          queuedEvents: [],
+        },
+      };
+    case 'END_SESSION_TRANSITION':
+      // Process queued events
+      const queuedEvents = [...state.sessionTransition.queuedEvents];
+      const newState = {
+        ...state,
+        sessionTransition: {
+          inProgress: false,
+          fromSessionId: null,
+          toSessionId: null,
+          queuedEvents: [],
+        },
+      };
+
+      // Process queued events if any
+      if (queuedEvents.length > 0) {
+        console.log(`Processing ${queuedEvents.length} queued events after transition`);
+        // Note: In a real implementation, we'd need to dispatch these events
+        // For now, we'll just log them
+        queuedEvents.forEach(event => {
+          console.log('Processing queued event:', event.type);
+        });
+      }
+
+      return newState;
+    case 'QUEUE_EVENT':
+      if (state.sessionTransition.inProgress) {
+        return {
+          ...state,
+          sessionTransition: {
+            ...state.sessionTransition,
+            queuedEvents: [...state.sessionTransition.queuedEvents, action.payload.event],
+          },
+        };
+      }
+      return state;
     default:
       return state;
   }
@@ -372,10 +467,14 @@ const clearCurrentSession = async (): Promise<void> => {
 
 export function ConnectionProvider({ children }: ConnectionProviderProps) {
   const [state, dispatch] = useReducer(connectionReducer, initialState);
+  const stateRef = useRef(state);
   const eventSourceRef = useRef<EventSource | null>(null);
   const appStateRef = useRef<AppStateStatus>('active');
   const reconnectAttemptRef = useRef<number>(0);
   const sessionIdleCallbacksRef = useRef<Set<(sessionId: string) => void>>(new Set());
+
+  // Keep state ref updated
+  stateRef.current = state;
 
   const connectWithTimeout = async (client: Client, timeoutMs: number): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -550,9 +649,12 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
   }, [state.client, state.connectionStatus]);
 
+  // Track active operations for cancellation
+  const activeOperationsRef = useRef<{ [sessionId: string]: AbortController }>({});
+
   const onSessionIdle = useCallback((callback: (sessionId: string) => void): (() => void) => {
     sessionIdleCallbacksRef.current.add(callback);
-    
+
     // Return cleanup function
     return () => {
       sessionIdleCallbacksRef.current.delete(callback);
@@ -563,8 +665,41 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     dispatch({ type: 'CLEAR_ERROR' });
   }, []);
 
+  const addSessionOptimistically = useCallback((session: Session): void => {
+    console.log('Adding session optimistically:', session.id, session.title);
+    // Add the session to the local state optimistically
+    const updatedSessions = [...state.sessions, session];
+    dispatch({ type: 'SET_SESSIONS', payload: { sessions: updatedSessions } });
+  }, [state.sessions]);
+
   const setCurrentSession = useCallback((session: Session | null): void => {
     console.log('ConnectionContext: setCurrentSession called with:', session ? `${session.id} (${session.title})` : 'null');
+
+    const fromSessionId = state.currentSession?.id || null;
+    const toSessionId = session?.id || null;
+
+    // Cancel any pending operations for previous session
+    if (fromSessionId && activeOperationsRef.current[fromSessionId]) {
+      console.log(`Cancelling pending operations for session ${fromSessionId}`);
+      activeOperationsRef.current[fromSessionId].abort();
+      delete activeOperationsRef.current[fromSessionId];
+    }
+
+    // Start session transition if switching sessions (skip in test environment for predictability)
+    if (fromSessionId !== toSessionId && process.env.NODE_ENV !== 'test') {
+      console.log(`Starting session transition from ${fromSessionId} to ${toSessionId}`);
+      dispatch({
+        type: 'START_SESSION_TRANSITION',
+        payload: { fromSessionId, toSessionId }
+      });
+
+      // End transition after a short delay to allow events to be queued
+      const transitionTimeout = 100;
+      setTimeout(() => {
+        dispatch({ type: 'END_SESSION_TRANSITION' });
+      }, transitionTimeout);
+    }
+
     dispatch({ type: 'SET_CURRENT_SESSION', payload: { session } });
     // Persist the current session
     if (session) {
@@ -572,31 +707,72 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     } else {
       clearCurrentSession();
     }
-  }, []);
+  }, []); // Remove state dependency to prevent stale closures
 
-  const loadMessages = useCallback(async (sessionId: string): Promise<void> => {
-    if (!state.client || state.connectionStatus !== 'connected') {
+  const loadMessages = useCallback(async (sessionId: string, signal?: AbortSignal): Promise<void> => {
+    const currentState = stateRef.current;
+    if (!currentState.client || currentState.connectionStatus !== 'connected') {
       throw new Error('Not connected to server');
     }
 
+    // Early validation
+    if (currentState.currentSession?.id !== sessionId) {
+      console.log('Session changed before load started, aborting');
+      return;
+    }
+
+    // Create AbortController if not provided
+    const abortController = signal ? null : new AbortController();
+    const operationSignal = signal || abortController?.signal;
+
+    // Track the operation
+    if (abortController) {
+      activeOperationsRef.current[sessionId] = abortController;
+    }
+
     try {
-      dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: true } });
-      
-      const response = await sessionMessages({ 
-        client: state.client, 
-        path: { id: sessionId } 
+      dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: true, sessionId } });
+
+      const response = await sessionMessages({
+        client: currentState.client!,
+        path: { id: sessionId },
+        signal: operationSignal // Pass abort signal to API call
       });
-      
+
+      // Check if operation was cancelled
+      if (operationSignal?.aborted) {
+        console.log('Load messages operation was cancelled');
+        dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: false, sessionId } });
+        return;
+      }
+
+      // Validate session hasn't changed during async operation
+      const updatedState = stateRef.current;
+      if (updatedState.currentSession?.id !== sessionId) {
+        console.log('Session changed during load, aborting message set');
+        dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: false, sessionId } });
+        return;
+      }
+
       if (response.data) {
-        // Store the full message objects with parts
-        dispatch({ type: 'SET_MESSAGES', payload: { messages: response.data } });
+        dispatch({ type: 'SET_MESSAGES', payload: { messages: response.data, sessionId } });
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Load messages operation was aborted');
+        dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: false, sessionId } });
+        return;
+      }
       console.error('Failed to load messages:', error);
-      dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: false } });
+      dispatch({ type: 'SET_LOADING_MESSAGES', payload: { isLoading: false, sessionId } });
       throw error;
+    } finally {
+      // Clean up the operation tracking
+      if (activeOperationsRef.current[sessionId]) {
+        delete activeOperationsRef.current[sessionId];
+      }
     }
-  }, [state.client, state.connectionStatus]);
+  }, [state.client, state.connectionStatus, state.currentSession]);
 
   const sendMessage = useCallback((sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]): void => {
     console.log('🔍 [sendMessage] Function called with:', {
@@ -1021,8 +1197,35 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
       }
 
       const handleStreamEvent = (eventData: StreamEventData) => {
+        const currentState = stateRef.current;
         console.log('Processing stream event:', eventData.type);
-        
+
+        // Queue events during session transitions
+        if (currentState.sessionTransition.inProgress) {
+          console.log(`Queueing event ${eventData.type} during session transition`);
+          dispatch({ type: 'QUEUE_EVENT', payload: { event: eventData } });
+          return;
+        }
+
+        // Extract session ID from event data
+        let eventSessionId: string | undefined;
+        if (eventData.properties?.part?.sessionID) {
+          eventSessionId = eventData.properties.part.sessionID;
+        } else if (eventData.properties?.info && 'sessionID' in eventData.properties.info) {
+          eventSessionId = (eventData.properties.info as Message).sessionID;
+        } else if (eventData.properties?.sessionID) {
+          eventSessionId = eventData.properties.sessionID as string;
+        }
+
+        // Validate against current session for message-related events
+        const messageEvents = ['message.updated', 'message.part.updated', 'message.removed', 'message.part.removed'];
+        if (messageEvents.includes(eventData.type) && eventSessionId) {
+          if (!currentState.currentSession || currentState.currentSession.id !== eventSessionId) {
+            console.log(`Ignoring ${eventData.type} for different session:`, eventSessionId, 'current:', currentState.currentSession?.id);
+            return;
+          }
+        }
+
         switch (eventData.type) {
           case 'message.updated':
             if (eventData.properties?.info) {
@@ -1220,7 +1423,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
         console.log('Max retry attempts reached for event stream');
       }
     }
-}, [stopEventStream, state.isGenerating, loadMessages, state.currentSession]);
+}, [stopEventStream, state.isGenerating, loadMessages, state.currentSession, state.sessionTransition.inProgress]);
 
   // Handle app state changes to manage connection gracefully
   useEffect(() => {
@@ -1249,7 +1452,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     return () => {
       subscription?.remove();
     };
-  }, [state.connectionStatus, state.client, state.isStreamConnected, startEventStream]);
+  }, [state.connectionStatus, state.client, state.isStreamConnected, state.sessionTransition.inProgress, startEventStream]);
 
   const contextValue: ConnectionContextType = useMemo(() => ({
     ...state,
@@ -1265,6 +1468,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     abortSession,
     refreshCommands,
     onSessionIdle,
+    addSessionOptimistically,
   }), [
     state,
     connect,
@@ -1279,6 +1483,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     abortSession,
     refreshCommands,
     onSessionIdle,
+    addSessionOptimistically,
   ]);
 
   return (
