@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { semanticColors } from '../../styles/colors';
 import type { Command } from '../../api/types.gen';
 import type { BuiltInCommand } from '../../types/commands';
 import { BUILT_IN_COMMANDS } from '../../types/commands';
@@ -44,10 +45,10 @@ export function CommandMenuButton({ onCommandSelect, userCommands = [], disabled
     >
       <View style={styles.commandContent}>
         <Text style={styles.commandName}>/{item.name}</Text>
-        <Text style={styles.commandDescription}>{item.description}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={16} color="#6b7280" />
-    </TouchableOpacity>
+         <Text style={styles.commandDescription}>{item.description}</Text>
+       </View>
+       <Ionicons name="chevron-forward" size={16} color={semanticColors.icon} />
+     </TouchableOpacity>
   ), [handleCommandSelect]);
 
   const renderUserCommand = useCallback(({ item }: { item: Command }) => (
@@ -85,7 +86,7 @@ export function CommandMenuButton({ onCommandSelect, userCommands = [], disabled
         <Ionicons 
           name="menu" 
           size={20} 
-          color={disabled ? "#6b7280" : "#ffffff"} 
+           color={disabled ? semanticColors.icon : semanticColors.textPrimary}
         />
       </TouchableOpacity>
 
@@ -102,7 +103,7 @@ export function CommandMenuButton({ onCommandSelect, userCommands = [], disabled
               style={styles.closeButton}
               onPress={handleCloseMenu}
             >
-              <Ionicons name="close" size={24} color="#ffffff" />
+               <Ionicons name="close" size={24} color={semanticColors.textPrimary} />
             </TouchableOpacity>
           </View>
 
@@ -143,85 +144,85 @@ export function CommandMenuButton({ onCommandSelect, userCommands = [], disabled
 }
 
 const styles = StyleSheet.create({
-  menuButton: {
-    backgroundColor: '#2a2a2a',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-    borderWidth: 1,
-    borderColor: '#3a3a3a',
-  },
-  menuButtonDisabled: {
-    backgroundColor: '#1a1a1a',
-    borderColor: '#2a2a2a',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
+   menuButton: {
+     backgroundColor: semanticColors.cardBackground,
+     width: 40,
+     height: 40,
+     borderRadius: 20,
+     justifyContent: 'center',
+     alignItems: 'center',
+     marginLeft: 8,
+     borderWidth: 1,
+     borderColor: '#3a3a3a', // Keep custom border color
+   },
+   menuButtonDisabled: {
+     backgroundColor: semanticColors.background,
+     borderColor: semanticColors.border,
+   },
+   modalContainer: {
+     flex: 1,
+     backgroundColor: semanticColors.background,
+   },
+   modalHeader: {
+     flexDirection: 'row',
+     justifyContent: 'space-between',
+     alignItems: 'center',
+     paddingHorizontal: 20,
+     paddingVertical: 16,
+     borderBottomWidth: 1,
+     borderBottomColor: semanticColors.border,
+   },
+   modalTitle: {
+     fontSize: 20,
+     fontWeight: '600',
+     color: semanticColors.textPrimary,
+   },
   closeButton: {
     padding: 4,
   },
   commandList: {
     flex: 1,
   },
-  sectionHeader: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: '#0f0f0f',
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  commandItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
-  },
-  commandContent: {
-    flex: 1,
-  },
-  commandName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  commandDescription: {
-    fontSize: 14,
-    color: '#9ca3af',
-    lineHeight: 20,
-  },
-  commandMeta: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
+   sectionHeader: {
+     paddingHorizontal: 20,
+     paddingVertical: 12,
+     backgroundColor: '#0f0f0f', // Keep custom section header background
+     borderBottomWidth: 1,
+     borderBottomColor: semanticColors.border,
+   },
+   sectionTitle: {
+     fontSize: 16,
+     fontWeight: '600',
+     color: semanticColors.textPrimary,
+     textTransform: 'uppercase',
+     letterSpacing: 0.5,
+   },
+   commandItem: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     paddingHorizontal: 20,
+     paddingVertical: 16,
+     borderBottomWidth: 1,
+     borderBottomColor: semanticColors.border,
+   },
+   commandContent: {
+     flex: 1,
+   },
+   commandName: {
+     fontSize: 16,
+     fontWeight: '500',
+     color: semanticColors.textPrimary,
+     marginBottom: 4,
+   },
+   commandDescription: {
+     fontSize: 14,
+     color: semanticColors.textMuted,
+     lineHeight: 20,
+   },
+   commandMeta: {
+     fontSize: 12,
+     color: '#6b7280', // Keep custom meta color
+     marginTop: 4,
+     fontStyle: 'italic',
+   },
 });

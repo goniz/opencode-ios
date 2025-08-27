@@ -15,6 +15,7 @@ import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection, type ConnectionStatus } from '../../src/contexts/ConnectionContext';
+import { semanticColors } from '../../src/styles/colors';
 
 import { filterMessageParts } from '../../src/utils/messageFiltering';
 import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
@@ -413,7 +414,7 @@ export default function ChatScreen() {
          setHasNewMessages(true);
        }
      }
-   }, [messages, shouldAutoScroll, scrollToBottom]);
+   }, [messages, shouldAutoScroll, scrollToBottom, loadMessages]);
 
   // Generation state is now tracked by step-start/step-end SSE events in ConnectionContext
 
@@ -728,7 +729,7 @@ export default function ChatScreen() {
        const commandText = `/${userCommand.name}`;
        handleCommandExecution(commandText);
      }
-   }, [currentSession, client, currentModel, messages, handleCommandExecution]);
+   }, [currentSession, client, currentModel, messages, handleCommandExecution, loadMessages]);
 
    const handleApiKeyProvided = useCallback(async (apiKey: string) => {
      console.log('[Chutes] API key provided, retrying quota fetch');
@@ -1200,7 +1201,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
               style={styles.interruptButton}
               onPress={handleInterrupt}
             >
-              <Ionicons name="stop" size={18} color="#ffffff" />
+              <Ionicons name="stop" size={18} color={semanticColors.textPrimary} />
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -1217,9 +1218,9 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
             disabled={(!inputText.trim() && selectedImages.length === 0) || isSending}
           >
             {isSending ? (
-              <ActivityIndicator size="small" color="#0a0a0a" />
+              <ActivityIndicator size="small" color={semanticColors.background} />
             ) : (
-              <Ionicons name="send" size={20} color="#0a0a0a" />
+              <Ionicons name="send" size={20} color={semanticColors.background} />
             )}
           </TouchableOpacity>
         </View>
@@ -1238,23 +1239,23 @@ const getContentColumnStyle = (isUser: boolean) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-  },
+   container: {
+     flex: 1,
+     backgroundColor: semanticColors.background,
+   },
   emptyStateContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
-  },
+   header: {
+     paddingHorizontal: 16,
+     paddingTop: 12,
+     paddingBottom: 12,
+     borderBottomWidth: 1,
+     borderBottomColor: semanticColors.border,
+   },
   headerBottom: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1270,120 +1271,120 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  headerButton: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    maxWidth: 150,
-  },
-  headerButtonText: {
-    fontSize: 12,
-    color: '#ffffff',
-    fontWeight: '500',
-  },
-  streamStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    backgroundColor: '#1a2e1a',
-    borderRadius: 8,
-  },
-  streamStatusOffline: {
-    backgroundColor: '#2a1a1a',
-  },
-  streamIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10b981',
-    marginRight: 4,
-  },
-  streamIndicatorOffline: {
-    backgroundColor: '#ef4444',
-  },
-  streamText: {
-    fontSize: 10,
-    color: '#10b981',
-    fontWeight: '500',
-  },
-  streamTextOffline: {
-    color: '#ef4444',
-  },
-  providerSelector: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    marginLeft: 12,
-    maxWidth: 100,
-  },
-  providerSelectorText: {
-    fontSize: 11,
-    color: '#ffffff',
-    fontWeight: '500',
-  },
-  modelSelector: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    marginLeft: 8,
-    maxWidth: 120,
-  },
-  modelSelectorText: {
-    fontSize: 11,
-    color: '#ffffff',
-    fontWeight: '500',
-  },
-title: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#9ca3af',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
+   headerButton: {
+     backgroundColor: semanticColors.cardBackground,
+     paddingHorizontal: 12,
+     paddingVertical: 6,
+     borderRadius: 8,
+     borderWidth: 1,
+     borderColor: semanticColors.border,
+     maxWidth: 150,
+   },
+   headerButtonText: {
+     fontSize: 12,
+     color: semanticColors.textPrimary,
+     fontWeight: '500',
+   },
+   streamStatus: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     paddingHorizontal: 6,
+     paddingVertical: 2,
+     backgroundColor: '#1a2e1a', // Keep custom for online status
+     borderRadius: 8,
+   },
+   streamStatusOffline: {
+     backgroundColor: '#2a1a1a', // Keep custom for offline status
+   },
+   streamIndicator: {
+     width: 6,
+     height: 6,
+     borderRadius: 3,
+     backgroundColor: semanticColors.success,
+     marginRight: 4,
+   },
+   streamIndicatorOffline: {
+     backgroundColor: semanticColors.error,
+   },
+   streamText: {
+     fontSize: 10,
+     color: semanticColors.success,
+     fontWeight: '500',
+   },
+   streamTextOffline: {
+     color: semanticColors.error,
+   },
+   providerSelector: {
+     backgroundColor: semanticColors.cardBackground,
+     paddingHorizontal: 8,
+     paddingVertical: 4,
+     borderRadius: 6,
+     borderWidth: 1,
+     borderColor: semanticColors.border,
+     marginLeft: 12,
+     maxWidth: 100,
+   },
+   providerSelectorText: {
+     fontSize: 11,
+     color: semanticColors.textPrimary,
+     fontWeight: '500',
+   },
+   modelSelector: {
+     backgroundColor: semanticColors.cardBackground,
+     paddingHorizontal: 8,
+     paddingVertical: 4,
+     borderRadius: 6,
+     borderWidth: 1,
+     borderColor: semanticColors.border,
+     marginLeft: 8,
+     maxWidth: 120,
+   },
+   modelSelectorText: {
+     fontSize: 11,
+     color: semanticColors.textPrimary,
+     fontWeight: '500',
+   },
+ title: {
+     fontSize: 17,
+     fontWeight: '600',
+     color: semanticColors.textPrimary,
+     marginBottom: 4,
+   },
+   titleRow: {
+     flexDirection: 'row',
+     alignItems: 'center',
+   },
+   subtitle: {
+     fontSize: 16,
+     color: semanticColors.textMuted,
+     textAlign: 'center',
+     marginBottom: 20,
+   },
   icon: {
     marginBottom: 16,
   },
-  connectButton: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 20,
-  },
-  connectButtonText: {
-    color: '#0a0a0a',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+   connectButton: {
+     backgroundColor: semanticColors.textPrimary,
+     paddingHorizontal: 24,
+     paddingVertical: 12,
+     borderRadius: 8,
+     marginTop: 20,
+   },
+   connectButtonText: {
+     color: semanticColors.background,
+     fontSize: 16,
+     fontWeight: '600',
+   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
-    fontSize: 16,
-    color: '#9ca3af',
-    marginTop: 12,
-  },
+   loadingText: {
+     fontSize: 16,
+     color: semanticColors.textMuted,
+     marginTop: 12,
+   },
   messagesList: {
     flex: 1,
   },
@@ -1394,38 +1395,38 @@ title: {
   },
 
 
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#2a2a2a',
-    backgroundColor: '#0a0a0a',
-  },
-  textInput: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    color: '#ffffff',
-    fontSize: 16,
-    maxHeight: 100,
-  },
-  sendButton: {
-    backgroundColor: '#ffffff',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#4a4a4a',
-  },
+   inputContainer: {
+     flexDirection: 'row',
+     alignItems: 'flex-end',
+     paddingHorizontal: 12,
+     paddingTop: 8,
+     paddingBottom: 8,
+     borderTopWidth: 1,
+     borderTopColor: semanticColors.border,
+     backgroundColor: semanticColors.background,
+   },
+   textInput: {
+     flex: 1,
+     backgroundColor: semanticColors.cardBackground,
+     borderRadius: 20,
+     paddingHorizontal: 12,
+     paddingVertical: 8,
+     marginRight: 8,
+     color: semanticColors.textPrimary,
+     fontSize: 16,
+     maxHeight: 100,
+   },
+   sendButton: {
+     backgroundColor: semanticColors.textPrimary,
+     width: 36,
+     height: 36,
+     borderRadius: 18,
+     justifyContent: 'center',
+     alignItems: 'center',
+   },
+   sendButtonDisabled: {
+     backgroundColor: '#4a4a4a', // Keep custom disabled color
+   },
   timestampContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -1434,140 +1435,140 @@ title: {
     marginRight: 8,
   },
 
-  sessionErrorBanner: {
-    backgroundColor: '#2a1a1a',
-    borderWidth: 1,
-    borderColor: '#ef4444',
-    borderRadius: 8,
-    padding: 12,
-    margin: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sessionErrorContent: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  sessionErrorTitle: {
-    color: '#ef4444',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  sessionErrorText: {
-    color: '#fca5a5',
-    fontSize: 13,
-  },
+   sessionErrorBanner: {
+     backgroundColor: '#2a1a1a', // Keep custom error background
+     borderWidth: 1,
+     borderColor: semanticColors.error,
+     borderRadius: 8,
+     padding: 12,
+     margin: 16,
+     flexDirection: 'row',
+     alignItems: 'center',
+   },
+   sessionErrorContent: {
+     flex: 1,
+     marginLeft: 8,
+   },
+   sessionErrorTitle: {
+     color: semanticColors.error,
+     fontSize: 14,
+     fontWeight: '600',
+     marginBottom: 2,
+   },
+   sessionErrorText: {
+     color: '#fca5a5', // Keep custom error text color
+     fontSize: 13,
+   },
   sessionErrorDismiss: {
     marginLeft: 12,
     padding: 4,
   },
-  tokenInfoContainer: {
-    marginTop: 4,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#2a2a2a',
-  },
-  tokenInfoRow: {
-    flexDirection: 'row',
-    marginRight: 16,
-    marginBottom: 4,
-  },
-  tokenInfoLabel: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginRight: 4,
-  },
-  tokenInfoValue: {
-    fontSize: 12,
-    color: '#9ca3af',
-    fontWeight: '400',
-  },
-   tokenInfoCompact: {
-     fontSize: 11,
-     color: '#9ca3af',
+   tokenInfoContainer: {
+     marginTop: 4,
+     paddingTop: 4,
+     borderTopWidth: 1,
+     borderTopColor: semanticColors.border,
+   },
+   tokenInfoRow: {
+     flexDirection: 'row',
+     marginRight: 16,
+     marginBottom: 4,
+   },
+   tokenInfoLabel: {
+     fontSize: 12,
+     color: semanticColors.textMuted,
+     marginRight: 4,
+   },
+   tokenInfoValue: {
+     fontSize: 12,
+     color: semanticColors.textMuted,
      fontWeight: '400',
    },
-   commandStatusText: {
-     fontSize: 11,
-     color: '#f59e0b',
-     fontWeight: '500',
-     fontStyle: 'italic',
-   },
-   sessionUrlText: {
-     fontSize: 11,
-     color: '#3b82f6',
-     fontWeight: '500',
-     textDecorationLine: 'underline',
-   },
+    tokenInfoCompact: {
+      fontSize: 11,
+      color: semanticColors.textMuted,
+      fontWeight: '400',
+    },
+    commandStatusText: {
+      fontSize: 11,
+      color: semanticColors.warning,
+      fontWeight: '500',
+      fontStyle: 'italic',
+    },
+    sessionUrlText: {
+      fontSize: 11,
+      color: semanticColors.textLink,
+      fontWeight: '500',
+      textDecorationLine: 'underline',
+    },
 tokenInfoInline: {
      marginLeft: 'auto',
      paddingLeft: 8,
    },
-   chutesQuotaContainer: {
-     marginLeft: 8,
-     paddingLeft: 8,
-     borderLeftWidth: 1,
-     borderLeftColor: '#2a2a2a',
-   },
-   chutesQuotaText: {
-     fontSize: 12,
-     color: '#9ca3af',
-     fontWeight: '400',
-   },
-  generatingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  generatingSpinner: {
-    marginRight: 4,
-  },
-  generatingText: {
-    fontSize: 11,
-    color: '#f59e0b',
-    fontWeight: '500',
-  },
-  interruptButton: {
-    backgroundColor: '#dc2626',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  interruptButtonText: {
-    fontSize: 11,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-
-   newMessagesIndicator: {
-     position: 'absolute',
-     bottom: 100,
-     right: 20,
-     backgroundColor: '#f59e0b',
+    chutesQuotaContainer: {
+      marginLeft: 8,
+      paddingLeft: 8,
+      borderLeftWidth: 1,
+      borderLeftColor: semanticColors.border,
+    },
+    chutesQuotaText: {
+      fontSize: 12,
+      color: semanticColors.textMuted,
+      fontWeight: '400',
+    },
+   generatingContainer: {
      flexDirection: 'row',
      alignItems: 'center',
-     paddingHorizontal: 12,
-     paddingVertical: 8,
-     borderRadius: 20,
-     shadowColor: '#000',
-     shadowOffset: { width: 0, height: 2 },
-     shadowOpacity: 0.25,
-     shadowRadius: 4,
-     elevation: 5,
+     backgroundColor: 'rgba(245, 158, 11, 0.1)', // Keep custom generating background
+     paddingHorizontal: 8,
+     paddingVertical: 3,
+     borderRadius: 6,
+     marginLeft: 8,
    },
-   newMessagesText: {
-     color: '#ffffff',
-     fontSize: 12,
+   generatingSpinner: {
+     marginRight: 4,
+   },
+   generatingText: {
+     fontSize: 11,
+     color: semanticColors.warning,
+     fontWeight: '500',
+   },
+   interruptButton: {
+     backgroundColor: semanticColors.error,
+     width: 36,
+     height: 36,
+     borderRadius: 18,
+     justifyContent: 'center',
+     alignItems: 'center',
+     marginRight: 8,
+   },
+   interruptButtonText: {
+     fontSize: 11,
+     color: semanticColors.textPrimary,
      fontWeight: '600',
-     marginLeft: 4,
    },
+
+    newMessagesIndicator: {
+      position: 'absolute',
+      bottom: 100,
+      right: 20,
+      backgroundColor: semanticColors.warning,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 5,
+    },
+    newMessagesText: {
+      color: semanticColors.textPrimary,
+      fontSize: 12,
+      fontWeight: '600',
+      marginLeft: 4,
+    },
 
  });
