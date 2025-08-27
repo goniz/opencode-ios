@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useConnection } from '../../src/contexts/ConnectionContext';
+import { useConnection, type ConnectionStatus } from '../../src/contexts/ConnectionContext';
 
 import { filterMessageParts } from '../../src/utils/messageFiltering';
 import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
@@ -86,16 +86,17 @@ export default function ChatScreen() {
   const [availableProviders, setAvailableProviders] = useState<{id: string, name: string}[]>([]);
   const [availableModels, setAvailableModels] = useState<{providerID: string, modelID: string, displayName: string, contextLimit: number}[]>([]);
   const [currentProviderModels, setCurrentProviderModels] = useState<{modelID: string, name: string}[]>([]);
-   const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
-   const [loadedSessionId, setLoadedSessionId] = useState<string | null>(null);
-   const [isUserAtBottom, setIsUserAtBottom] = useState(true);
-   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
-   const [hasNewMessages, setHasNewMessages] = useState(false);
-   const [chutesQuota, setChutesQuota] = useState<{used: number, quota: number} | null>(null);
-   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
-   const [pendingApiKeyRequest, setPendingApiKeyRequest] = useState<{providerID: string, modelID: string} | null>(null);
-   const flatListRef = useRef<FlatList>(null);
-   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
+  const [loadedSessionId, setLoadedSessionId] = useState<string | null>(null);
+  const [previousConnectionStatus, setPreviousConnectionStatus] = useState<ConnectionStatus>('idle');
+  const [isUserAtBottom, setIsUserAtBottom] = useState(true);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [chutesQuota, setChutesQuota] = useState<{used: number, quota: number} | null>(null);
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [pendingApiKeyRequest, setPendingApiKeyRequest] = useState<{providerID: string, modelID: string} | null>(null);
+  const flatListRef = useRef<FlatList>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Handle session ID from navigation parameters
   useEffect(() => {
@@ -323,6 +324,36 @@ export default function ChatScreen() {
       setLoadedSessionId(null);
     }
    }, [currentSession, currentSession?.id, loadMessages, loadedSessionId]);
+
+  // Reload messages when transitioning from offline to online
+  useEffect(() => {
+    const isNowOnline = previousConnectionStatus === 'error' && connectionStatus === 'connected';
+
+    if (isNowOnline && currentSession) {
+      console.log('🔄 Connection restored - reloading messages for session:', currentSession.id);
+      loadMessages(currentSession.id).catch(error => {
+        console.error('Failed to reload messages after reconnection:', error);
+      });
+    }
+
+    setPreviousConnectionStatus(connectionStatus);
+  }, [connectionStatus, previousConnectionStatus, currentSession, loadMessages]);
+
+  // Also reload messages when stream reconnects (additional safety net)
+  const [previousStreamConnected, setPreviousStreamConnected] = useState(isStreamConnected);
+
+  useEffect(() => {
+    const streamJustReconnected = !previousStreamConnected && isStreamConnected;
+
+    if (streamJustReconnected && currentSession && connectionStatus === 'connected') {
+      console.log('🔄 Stream reconnected - reloading messages for session:', currentSession.id);
+      loadMessages(currentSession.id).catch(error => {
+        console.error('Failed to reload messages after stream reconnection:', error);
+      });
+    }
+
+    setPreviousStreamConnected(isStreamConnected);
+  }, [isStreamConnected, previousStreamConnected, currentSession, connectionStatus, loadMessages]);
 
    // Unified scrolling function with improved reliability
    const scrollToBottom = useCallback((animated = true, immediate = false) => {
