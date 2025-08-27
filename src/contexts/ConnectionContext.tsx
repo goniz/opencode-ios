@@ -76,6 +76,7 @@ export interface ConnectionContextType extends ConnectionState {
   abortSession: (sessionId: string) => Promise<boolean>;
   refreshCommands: () => Promise<void>;
   onSessionIdle: (callback: (sessionId: string) => void) => () => void;
+  addSessionOptimistically: (session: Session) => void;
 }
 
 type ConnectionAction =
@@ -642,6 +643,13 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
   const clearError = useCallback((): void => {
     dispatch({ type: 'CLEAR_ERROR' });
   }, []);
+
+  const addSessionOptimistically = useCallback((session: Session): void => {
+    console.log('Adding session optimistically:', session.id, session.title);
+    // Add the session to the local state optimistically
+    const updatedSessions = [...state.sessions, session];
+    dispatch({ type: 'SET_SESSIONS', payload: { sessions: updatedSessions } });
+  }, [state.sessions]);
 
   const setCurrentSession = useCallback((session: Session | null): void => {
     console.log('ConnectionContext: setCurrentSession called with:', session ? `${session.id} (${session.title})` : 'null');
@@ -1401,6 +1409,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     abortSession,
     refreshCommands,
     onSessionIdle,
+    addSessionOptimistically,
   }), [
     state,
     connect,
@@ -1415,6 +1424,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
     abortSession,
     refreshCommands,
     onSessionIdle,
+    addSessionOptimistically,
   ]);
 
   return (
