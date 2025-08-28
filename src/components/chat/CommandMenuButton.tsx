@@ -111,33 +111,25 @@ export function CommandMenuButton({ onCommandSelect, userCommands = [], disabled
 
           <FlatList
             style={styles.commandList}
-            data={[]}
-            renderItem={() => null}
-            ListHeaderComponent={() => (
-              <View>
-                {/* Built-in Commands Section */}
-                {renderSectionHeader({ title: 'Built-in Commands' })}
-                <FlatList
-                  data={BUILT_IN_COMMANDS}
-                  renderItem={renderBuiltInCommand}
-                  keyExtractor={(item) => item.name}
-                  scrollEnabled={false}
-                />
-
-                {/* User Commands Section */}
-                {userCommands.length > 0 && (
-                  <>
-                    {renderSectionHeader({ title: 'User-Added Commands' })}
-                    <FlatList
-                      data={userCommands}
-                      renderItem={renderUserCommand}
-                      keyExtractor={(item) => item.name}
-                      scrollEnabled={false}
-                    />
-                  </>
-                )}
-              </View>
-            )}
+            data={[
+              ...BUILT_IN_COMMANDS.map(cmd => ({ type: 'builtin' as const, command: cmd })),
+              ...(userCommands.length > 0 ? userCommands.map(cmd => ({ type: 'user' as const, command: cmd })) : [])
+            ]}
+            renderItem={({ item, index }) => {
+              const isFirstBuiltIn = index === 0;
+              const isFirstUserCommand = item.type === 'user' && index === BUILT_IN_COMMANDS.length;
+              
+              return (
+                <View>
+                  {isFirstBuiltIn && renderSectionHeader({ title: 'Built-in Commands' })}
+                  {isFirstUserCommand && renderSectionHeader({ title: 'User-Added Commands' })}
+                  {item.type === 'builtin' 
+                    ? renderBuiltInCommand({ item: item.command }) 
+                    : renderUserCommand({ item: item.command })}
+                </View>
+              );
+            }}
+            keyExtractor={(item, index) => `${item.type}-${item.command.name}-${index}`}
           />
         </SafeAreaView>
       </Modal>
