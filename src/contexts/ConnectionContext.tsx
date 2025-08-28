@@ -64,6 +64,13 @@ export interface ConnectionState {
   };
 }
 
+interface MessageWithParts {
+  info: Message;
+  parts: Part[];
+}
+
+export type { MessageWithParts };
+
 export interface ConnectionContextType extends ConnectionState {
   connect: (url: string, timeout?: number) => Promise<void>;
   disconnect: () => Promise<void>;
