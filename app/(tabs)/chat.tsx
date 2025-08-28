@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Text,
   View,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -20,16 +19,13 @@ import { spacing } from '../../src/styles/spacing';
 import { layout } from '../../src/styles/layout';
 import { typography } from '../../src/styles/typography';
 
-import { filterMessageParts } from '../../src/utils/messageFiltering';
-import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
-import { MessageContent } from '../../src/components/chat/MessageContent';
-import { MessageTimestamp } from '../../src/components/chat/MessageTimestamp';
-import { MessageStyles } from '../../src/styles/messageStyles';
+// Message components are now handled by ChatFlashList and MessageRow
+import { ChatFlashList } from '../../src/components/chat/ChatFlashList';
 
 import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInput';
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
 import { CrutesApiKeyInput } from '../../src/components/chat/CrutesApiKeyInput';
-import type { Message, Part, AssistantMessage, Command } from '../../src/api/types.gen';
+import type { AssistantMessage, Command } from '../../src/api/types.gen';
 import {
   configProviders,
   sessionCommand,
@@ -46,10 +42,7 @@ import { ChutesApiKeyInvalidError, fetchChutesQuota } from '../../src/utils/chut
 import { localStorage } from '../../src/utils/localStorage';
 import type { BuiltInCommand } from '../../src/types/commands';
 
-interface MessageWithParts {
-  info: Message;
-  parts: Part[];
-}
+// MessageWithParts type is now exported from MessageRow component
 
 // Helper function to format large numbers in human-readable form (matches official OpenCode TUI)
 function formatTokenCount(count: number): string {
@@ -98,16 +91,14 @@ export default function ChatScreen() {
   const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
   const [loadedSessionId, setLoadedSessionId] = useState<string | null>(null);
   const [previousConnectionStatus, setPreviousConnectionStatus] = useState<ConnectionStatus>('idle');
-  const [isUserAtBottom, setIsUserAtBottom] = useState(true);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
-  const [hasNewMessages, setHasNewMessages] = useState(false);
+  // Note: Scroll state is now managed by ChatFlashList component
    const [chutesQuota, setChutesQuota] = useState<{used: number, quota: number} | null>(null);
    const [showApiKeyInput, setShowApiKeyInput] = useState(false);
    const [pendingApiKeyRequest, setPendingApiKeyRequest] = useState<{providerID: string, modelID: string} | null>(null);
    const [commandStatus, setCommandStatus] = useState<string | null>(null);
    const [sessionUrl, setSessionUrl] = useState<string | null>(null);
-   const flatListRef = useRef<FlatList>(null);
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   // FlashList ref will be handled inside ChatFlashList component
+   // Scroll timeout ref removed - handled by ChatFlashList
 
   // Handle session ID from navigation parameters
   useEffect(() => {
@@ -379,71 +370,13 @@ export default function ChatScreen() {
     setPreviousStreamConnected(isStreamConnected);
   }, [isStreamConnected, previousStreamConnected, currentSession, connectionStatus, loadMessages]);
 
-   // Unified scrolling function with improved reliability
-   const scrollToBottom = useCallback((animated = true, immediate = false) => {
-     if (!flatListRef.current || !shouldAutoScroll) return;
+   // Note: Scrolling logic is now handled inside ChatFlashList component
 
-     // Clear any existing timeout
-     if (scrollTimeoutRef.current) {
-       clearTimeout(scrollTimeoutRef.current);
-     }
-
-     const performScroll = () => {
-       try {
-         flatListRef.current?.scrollToEnd({ animated });
-         setIsUserAtBottom(true);
-       } catch (error) {
-         console.warn('Failed to scroll to bottom:', error);
-       }
-     };
-
-     if (immediate) {
-       performScroll();
-     } else {
-       // Use a consistent delay for better reliability
-       // Slightly longer delay for content changes to ensure rendering is complete
-       scrollTimeoutRef.current = setTimeout(performScroll, 150);
-     }
-   }, [shouldAutoScroll]);
-
-   // Handle scroll events to track user position
-   const handleScroll = useCallback((event: { nativeEvent: { layoutMeasurement: { height: number }; contentOffset: { y: number }; contentSize: { height: number } } }) => {
-     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-     const isAtBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 20; // 20px threshold
-
-     setIsUserAtBottom(isAtBottom);
-     setShouldAutoScroll(isAtBottom);
-   }, []);
-
-   // Manual scroll to bottom (for when user wants to return to latest messages)
-   const scrollToBottomManual = useCallback(() => {
-     setShouldAutoScroll(true);
-     setHasNewMessages(false);
-     scrollToBottom(true, true);
-   }, [scrollToBottom]);
-
-   // Auto-scroll to bottom when messages change
-   useEffect(() => {
-     if (messages.length > 0) {
-       if (shouldAutoScroll) {
-         scrollToBottom(true, false);
-         setHasNewMessages(false);
-       } else {
-         // User is not at bottom, show new messages indicator
-         setHasNewMessages(true);
-       }
-     }
-   }, [messages, shouldAutoScroll, scrollToBottom, loadMessages]);
+   // Note: Scroll handling is now managed by ChatFlashList component
 
   // Generation state is now tracked by step-start/step-end SSE events in ConnectionContext
 
-   // Scroll to newest message on session load
-   useEffect(() => {
-     if (currentSession && !isLoadingMessages && messages.length > 0 && shouldAutoScroll) {
-       // Use immediate scroll for session load, then auto-scroll for new messages
-       scrollToBottom(false, true);
-     }
-   }, [currentSession, isLoadingMessages, messages.length, shouldAutoScroll, scrollToBottom]);
+   // Note: Initial scroll behavior is handled by ChatFlashList component
 
    // Debug logging for selected images
    useEffect(() => {
@@ -461,14 +394,7 @@ export default function ChatScreen() {
      setCommandStatus(null);
    }, [currentSession]);
 
-   // Cleanup scroll timeout on unmount
-   useEffect(() => {
-     return () => {
-       if (scrollTimeoutRef.current) {
-         clearTimeout(scrollTimeoutRef.current);
-       }
-     };
-   }, []);
+   // Cleanup handled by ChatFlashList component
 
   const handleImageSelected = useCallback((imageUri: string) => {
     console.log('Image selected:', imageUri);
@@ -864,118 +790,7 @@ const commandBody: {
 
 
 
-const renderMessage = ({ item, index }: { item: MessageWithParts; index: number }) => {
-    // Filter parts using the existing filtering logic
-    const { filteredParts, hasContent } = (() => {
-      const filtered = filterMessageParts(item.parts);
-      return {
-        filteredParts: filtered,
-        hasContent: filtered.length > 0
-      };
-    })();
-    
-    const isUser = item.info.role === 'user';
-    const isAssistant = item.info.role === 'assistant';
-    const isStreaming = isAssistant && !hasContent && isStreamConnected;
-    const hasError = isAssistant && 'error' in item.info && item.info.error;
-    const isQueued = isUser && isGenerating && index === messages.length - 1;
-    const isLastMessage = index === messages.length - 1;
-
-    // Create synthetic parts for special states using valid Part types
-    let partsToRender = filteredParts;
-    let specialState: 'error' | 'queued' | 'streaming' | null = null;
-    
-    if (hasError && 'error' in item.info) {
-      const assistantInfo = item.info as AssistantMessage;
-      const error = assistantInfo.error!;
-      const errorTitle = error.name === 'ProviderAuthError' ? 'Authentication Error' :
-            error.name === 'MessageOutputLengthError' ? 'Output Length Error' :
-            error.name === 'MessageAbortedError' ? 'Message Aborted' :
-            'Unknown Error';
-      const errorMessage = error.name === 'ProviderAuthError' && 'data' in error ? error.data.message :
-                   error.name === 'UnknownError' && 'data' in error ? error.data.message :
-                   error.name === 'MessageAbortedError' ? 'The message was aborted before completion.' :
-                   error.name === 'MessageOutputLengthError' ? 'The response exceeded the maximum length limit.' :
-                   'An unexpected error occurred.';
-      partsToRender = [{
-        type: 'text',
-        text: `${errorTitle}: ${errorMessage}`,
-        id: `error-${item.info.id}`,
-        sessionID: currentSession?.id || '',
-        messageID: item.info.id
-      }];
-      specialState = 'error';
-    } else if (isQueued) {
-      partsToRender = [{
-        type: 'text',
-        text: 'Queued...',
-        id: `queued-${item.info.id}`,
-        sessionID: currentSession?.id || '',
-        messageID: item.info.id
-      }];
-      specialState = 'queued';
-    } else if (isStreaming) {
-      partsToRender = [{
-        type: 'text',
-        text: 'Generating...',
-        id: `streaming-${item.info.id}`,
-        sessionID: currentSession?.id || '',
-        messageID: item.info.id
-      }];
-      specialState = 'streaming';
-    } else if (filteredParts.length === 0 && isUser) {
-      partsToRender = [{
-        type: 'text',
-        text: 'User message',
-        id: `fallback-${item.info.id}`,
-        sessionID: currentSession?.id || '',
-        messageID: item.info.id
-      }];
-    }
-
-    // Single unified rendering path for all messages
-    return (
-      <View style={MessageStyles.messageContainer}>
-        {partsToRender.map((part, partIndex) => {
-          const isFirstPart = partIndex === 0;
-          const isLastPart = partIndex === partsToRender.length - 1;
-          
-          return (
-            <View key={`${item.info.id}-${index}-part-${partIndex}`} style={getMessageRowStyle(isUser)}>
-              {!isUser && (
-                <MessageDecoration 
-                  role={item.info.role}
-                  part={part}
-                  isFirstPart={isFirstPart}
-                  isLastPart={isLastPart}
-                  providerID={item.info.role === 'assistant' ? (item.info as AssistantMessage).providerID : undefined}
-                  modelID={item.info.role === 'assistant' ? (item.info as AssistantMessage).modelID : undefined}
-                />
-              )}
-              <View style={getContentColumnStyle(isUser)}>
-                <MessageContent 
-                  role={item.info.role}
-                  part={part}
-                  isLast={isLastMessage}
-                  partIndex={partIndex}
-                  totalParts={partsToRender.length}
-                  messageId={item.info.id}
-                  renderMode={isUser ? 'bubble' : 'expanded'}
-                  specialState={specialState}
-                />
-                {isLastPart && (
-                  <MessageTimestamp 
-                    timestamp={item.info.time.created}
-                    compact={true}
-                  />
-                )}
-              </View>
-            </View>
-          );
-        })}
-      </View>
-    );
-  };
+// Note: Message rendering is now handled by MessageRow component
 
   if (connectionStatus !== 'connected') {
     return (
@@ -1074,12 +889,12 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
   }
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
-    >
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
+      >
           <View style={styles.header}>
             <View style={styles.headerTop}>
               <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">{currentSession.title}</Text>
@@ -1210,41 +1025,22 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
           </View>
         )}
 
-        {isLoadingMessages ? (
+         {isLoadingMessages ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#ffffff" />
             <Text style={styles.loadingText}>Loading messages...</Text>
           </View>
          ) : (
-           <>
-             <FlatList
-               ref={flatListRef}
-               data={messages}
-               renderItem={renderMessage}
-               keyExtractor={(item, index) => `${item.info.id}-${index}`}
-               style={styles.messagesList}
-               contentContainerStyle={styles.messagesContent}
-               showsVerticalScrollIndicator={false}
-               onScroll={handleScroll}
-               scrollEventThrottle={16}
-               onContentSizeChange={() => {
-                 // Auto-scroll when content size changes (new messages)
-                 if (shouldAutoScroll) {
-                   scrollToBottom(true, false);
-                 }
-               }}
-             />
-             {/* New messages indicator */}
-             {hasNewMessages && !isUserAtBottom && (
-               <TouchableOpacity
-                 style={styles.newMessagesIndicator}
-                 onPress={scrollToBottomManual}
-               >
-                 <Ionicons name="chevron-down" size={16} color="#ffffff" />
-                 <Text style={styles.newMessagesText}>New messages</Text>
-               </TouchableOpacity>
-             )}
-           </>
+           <ChatFlashList
+             messages={messages}
+             currentSessionId={currentSession?.id}
+             isStreamConnected={isStreamConnected}
+             isGenerating={isGenerating}
+             // TODO: Implement pagination when API supports it
+             onLoadOlder={undefined}
+             hasMoreOlder={false}
+             isLoadingOlder={false}
+           />
          )}
 
          <ImagePreview 
@@ -1300,20 +1096,13 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
               <Ionicons name="send" size={20} color={semanticColors.background} />
             )}
           </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+         </View>
+       </KeyboardAvoidingView>
+     </SafeAreaView>
   );
 }
 
-// Helper functions for unified message rendering
-const getMessageRowStyle = (isUser: boolean) => {
-  return isUser ? MessageStyles.userMessageRow : MessageStyles.twoColumnLayout;
-};
-
-const getContentColumnStyle = (isUser: boolean) => {
-  return isUser ? MessageStyles.userContentColumn : MessageStyles.assistantContentColumn;
-};
+// Helper functions moved to MessageRow component
 
 const styles = StyleSheet.create({
    container: {
@@ -1627,28 +1416,5 @@ tokenInfoInline: {
      color: semanticColors.textPrimary,
      fontWeight: '600',
    },
-
-    newMessagesIndicator: {
-      position: 'absolute',
-      bottom: 100,
-      right: 20,
-      backgroundColor: semanticColors.warning,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 20,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 5,
-    },
-    newMessagesText: {
-      color: semanticColors.textPrimary,
-      fontSize: 12,
-      fontWeight: '600',
-      marginLeft: 4,
-    },
 
  });
