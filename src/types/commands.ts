@@ -1,10 +1,15 @@
 export interface BuiltInCommand {
   name: string;
   description: string;
-  endpoint: 'init' | 'share' | 'unshare' | 'summarize' | 'revert' | 'unrevert';
+  endpoint: 'init' | 'share' | 'unshare' | 'summarize' | 'revert' | 'unrevert' | 'new';
 }
 
 export const BUILT_IN_COMMANDS: BuiltInCommand[] = [
+  {
+    name: 'new',
+    description: 'Create a new chat session',
+    endpoint: 'new',
+  },
   {
     name: 'init',
     description: 'Create/update AGENTS.md for the project',

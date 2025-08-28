@@ -16,6 +16,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection, type ConnectionStatus } from '../../src/contexts/ConnectionContext';
 import { semanticColors } from '../../src/styles/colors';
+import { spacing } from '../../src/styles/spacing';
+import { layout } from '../../src/styles/layout';
+import { typography } from '../../src/styles/typography';
 
 import { filterMessageParts } from '../../src/utils/messageFiltering';
 import { MessageDecoration } from '../../src/components/chat/MessageDecoration';
@@ -30,6 +33,7 @@ import type { Message, Part, AssistantMessage, Command } from '../../src/api/typ
 import {
   configProviders,
   sessionCommand,
+  sessionCreate,
   sessionInit,
   sessionShare,
   sessionUnshare,
@@ -76,6 +80,7 @@ export default function ChatScreen() {
       abortSession,
       setCurrentSession,
       refreshSessions,
+      addSessionOptimistically,
       client,
       latestProviderModel,
       commands,
@@ -730,18 +735,56 @@ const commandBody: {
                setTimeout(() => setCommandStatus(null), 3000);
                break;
              
-             case 'unrevert':
-               await sessionUnrevert({
-                 client,
-                 path: { id: currentSession.id }
-               });
-               // Reload messages since redo rewrites history
-               await loadMessages(currentSession.id);
-               setCommandStatus('Message restored successfully');
-               setTimeout(() => setCommandStatus(null), 3000);
-               break;
-             
-           default:
+              case 'unrevert':
+                await sessionUnrevert({
+                  client,
+                  path: { id: currentSession.id }
+                });
+                // Reload messages since redo rewrites history
+                await loadMessages(currentSession.id);
+                setCommandStatus('Message restored successfully');
+                setTimeout(() => setCommandStatus(null), 3000);
+                break;
+              
+              case 'new':
+                // Create a new chat session
+                if (connectionStatus !== 'connected' || !client) {
+                  setCommandStatus('No connection available');
+                  setTimeout(() => setCommandStatus(null), 3000);
+                  return;
+                }
+                
+                try {
+                  console.log('Creating new session from command menu...');
+                  const response = await sessionCreate({ client });
+
+                  if (response.error) {
+                    console.error('Session creation error:', response.error);
+                    throw new Error(`Failed to create session: ${JSON.stringify(response.error)}`);
+                  }
+
+                  if (response.data) {
+                    const newSession = response.data;
+                    console.log('New session created:', newSession.id, newSession.title);
+
+                    // Optimistically add the session to local state
+                    addSessionOptimistically(newSession);
+
+                    // Navigate to the new chat session
+                    console.log('Navigating to new session:', newSession.id);
+                    router.push(`/(tabs)/chat?sessionId=${newSession.id}`);
+                    
+                    setCommandStatus('New chat created successfully');
+                    setTimeout(() => setCommandStatus(null), 3000);
+                  }
+                } catch (error) {
+                  console.error('Error creating session:', error);
+                  setCommandStatus('Failed to create new chat');
+                  setTimeout(() => setCommandStatus(null), 3000);
+                }
+                break;
+              
+            default:
              console.warn('Unknown built-in command endpoint:', builtInCommand.endpoint);
              return;
          }
@@ -759,7 +802,7 @@ const commandBody: {
        const commandText = `/${userCommand.name}`;
        handleCommandExecution(commandText);
      }
-   }, [currentSession, client, currentModel, messages, handleCommandExecution, loadMessages]);
+    }, [currentSession, client, currentModel, messages, handleCommandExecution, loadMessages, connectionStatus, addSessionOptimistically]);
 
    const handleApiKeyProvided = useCallback(async (apiKey: string) => {
      console.log('[Chutes] API key provided, retrying quota fetch');
@@ -813,11 +856,13 @@ const commandBody: {
      setPendingApiKeyRequest(null);
    }, [pendingApiKeyRequest, client]);
 
-   const handleApiKeyInputCancel = useCallback(() => {
-     console.log('[Chutes] API key input cancelled');
-     setShowApiKeyInput(false);
-     setPendingApiKeyRequest(null);
-   }, []);
+    const handleApiKeyInputCancel = useCallback(() => {
+      console.log('[Chutes] API key input cancelled');
+      setShowApiKeyInput(false);
+      setPendingApiKeyRequest(null);
+    }, []);
+
+
 
 const renderMessage = ({ item, index }: { item: MessageWithParts; index: number }) => {
     // Filter parts using the existing filtering logic
@@ -954,8 +999,8 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
           <Ionicons name="chatbubbles-outline" size={64} color="#6b7280" style={styles.icon} />
           <Text style={styles.title}>No Session Selected</Text>
           <Text style={styles.subtitle}>
-            {sessions.length === 0 
-              ? "Create your first chat session to get started" 
+            {sessions.length === 0
+              ? "Create your first chat session to get started"
               : "Select a session from the Sessions tab to continue chatting"
             }
           </Text>
@@ -1036,8 +1081,10 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
     >
       <SafeAreaView style={styles.container}>
           <View style={styles.header}>
-           <Text style={styles.title}>{currentSession.title}</Text>
-           <View style={styles.headerBottom}>
+            <View style={styles.headerTop}>
+              <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">{currentSession.title}</Text>
+            </View>
+            <View style={styles.headerBottom}>
              {connectionStatus === 'connected' && (
                <View style={[styles.streamStatus, !isStreamConnected && styles.streamStatusOffline]}>
                  <View style={[styles.streamIndicator, !isStreamConnected && styles.streamIndicatorOffline]} />
@@ -1231,7 +1278,7 @@ const renderMessage = ({ item, index }: { item: MessageWithParts; index: number 
               style={styles.interruptButton}
               onPress={handleInterrupt}
             >
-              <Ionicons name="stop" size={18} color={semanticColors.textPrimary} />
+               <Ionicons name="stop" size={20} color={semanticColors.textPrimary} />
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -1277,25 +1324,29 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.xxl,
   },
-   header: {
-     paddingHorizontal: 16,
-     paddingTop: 12,
-     paddingBottom: 12,
-     borderBottomWidth: 1,
-     borderBottomColor: semanticColors.border,
-   },
+
+  header: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.sm,
+      borderBottomWidth: layout.borderWidth.DEFAULT,
+      borderBottomColor: semanticColors.border,
+    },
+  headerTop: {
+    marginBottom: spacing.xs,
+  },
   headerBottom: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   headerInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
-    gap: 12,
+    marginTop: spacing.xs,
+    gap: spacing.md,
   },
   headerRight: {
     flexDirection: 'row',
@@ -1374,12 +1425,11 @@ const styles = StyleSheet.create({
      color: semanticColors.textPrimary,
      fontWeight: '500',
    },
- title: {
-     fontSize: 17,
-     fontWeight: '600',
-     color: semanticColors.textPrimary,
-     marginBottom: 4,
-   },
+  title: {
+      fontSize: 17,
+      fontWeight: '600',
+      color: semanticColors.textPrimary,
+    },
    titleRow: {
      flexDirection: 'row',
      alignItems: 'center',
@@ -1419,41 +1469,41 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
   },
 
 
-   inputContainer: {
-     flexDirection: 'row',
-     alignItems: 'flex-end',
-     paddingHorizontal: 12,
-     paddingTop: 8,
-     paddingBottom: 8,
-     borderTopWidth: 1,
-     borderTopColor: semanticColors.border,
-     backgroundColor: semanticColors.background,
-   },
-   textInput: {
-     flex: 1,
-     backgroundColor: semanticColors.cardBackground,
-     borderRadius: 20,
-     paddingHorizontal: 12,
-     paddingVertical: 8,
-     marginRight: 8,
-     color: semanticColors.textPrimary,
-     fontSize: 16,
-     maxHeight: 100,
-   },
-   sendButton: {
-     backgroundColor: semanticColors.textPrimary,
-     width: 36,
-     height: 36,
-     borderRadius: 18,
-     justifyContent: 'center',
-     alignItems: 'center',
-   },
+    inputContainer: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      paddingHorizontal: spacing.sm,
+      paddingTop: spacing.xs,
+      paddingBottom: spacing.xs,
+      borderTopWidth: layout.borderWidth.DEFAULT,
+      borderTopColor: semanticColors.border,
+      backgroundColor: semanticColors.background,
+    },
+    textInput: {
+      flex: 1,
+      backgroundColor: semanticColors.cardBackground,
+      borderRadius: layout.borderRadius.xl,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      marginRight: spacing.xs,
+      color: semanticColors.textPrimary,
+      fontSize: typography.fontSize.base,
+      maxHeight: 100,
+    },
+    sendButton: {
+      backgroundColor: semanticColors.textPrimary,
+      width: spacing.xl,
+      height: spacing.xl,
+      borderRadius: layout.borderRadius.xl,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
    sendButtonDisabled: {
      backgroundColor: '#4a4a4a', // Keep custom disabled color
    },
@@ -1563,15 +1613,15 @@ tokenInfoInline: {
      color: semanticColors.warning,
      fontWeight: '500',
    },
-   interruptButton: {
-     backgroundColor: semanticColors.error,
-     width: 36,
-     height: 36,
-     borderRadius: 18,
-     justifyContent: 'center',
-     alignItems: 'center',
-     marginRight: 8,
-   },
+    interruptButton: {
+      backgroundColor: semanticColors.error,
+      width: spacing.xl,
+      height: spacing.xl,
+      borderRadius: layout.borderRadius.xl,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.xs,
+    },
    interruptButtonText: {
      fontSize: 11,
      color: semanticColors.textPrimary,
