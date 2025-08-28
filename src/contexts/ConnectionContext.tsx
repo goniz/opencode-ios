@@ -707,7 +707,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     } else {
       clearCurrentSession();
     }
-  }, []); // Remove state dependency to prevent stale closures
+  }, [state.currentSession?.id]);
 
   const loadMessages = useCallback(async (sessionId: string, signal?: AbortSignal): Promise<void> => {
     const currentState = stateRef.current;
@@ -772,7 +772,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         delete activeOperationsRef.current[sessionId];
       }
     }
-  }, [state.client, state.connectionStatus, state.currentSession]);
+  }, []);
 
   const sendMessage = useCallback((sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]): void => {
     console.log('🔍 [sendMessage] Function called with:', {
@@ -1423,7 +1423,7 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
         console.log('Max retry attempts reached for event stream');
       }
     }
-}, [stopEventStream, state.isGenerating, loadMessages, state.currentSession, state.sessionTransition.inProgress]);
+ }, [stopEventStream, loadMessages, state.currentSession, state.isGenerating]);
 
   // Handle app state changes to manage connection gracefully
   useEffect(() => {
