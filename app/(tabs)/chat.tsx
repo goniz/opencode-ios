@@ -578,7 +578,7 @@ export default function ChatScreen() {
       args = trimmedCommandText.slice(spaceIndex + 1); // Get everything after the space
     }
 
-    console.log('Executing command:', { command: commandName, args });
+    console.log('Executing command:', { command: commandName, args, currentModel });
 
     // Clear input immediately like chat messages
     setInputText('');
@@ -586,23 +586,36 @@ export default function ChatScreen() {
     // Execute command asynchronously without blocking the UI
     const executeAsync = async () => {
       try {
-        await sessionCommand({
-          client,
-          path: { id: currentSession.id },
-          body: {
+const commandBody: {
+            messageID?: string;
+            agent?: string;
+            model?: string;
+            arguments: string;
+            command: string;
+          } = {
             command: commandName,
             arguments: args
-          }
-        });
-        console.log('Command executed successfully');
-       } catch (error) {
-         console.error('Failed to execute command:', error);
-       }
+          };
+
+         // Include current model information if available
+         if (currentModel?.providerID && currentModel?.modelID) {
+           commandBody.model = `${currentModel.providerID}/${currentModel.modelID}`;
+         }
+
+         await sessionCommand({
+           client,
+           path: { id: currentSession.id },
+           body: commandBody
+         });
+         console.log('Command executed successfully');
+        } catch (error) {
+          console.error('Failed to execute command:', error);
+        }
     };
 
     // Start execution without awaiting - this makes it asynchronous
     executeAsync();
-  }, [client, currentSession]);
+  }, [client, currentSession, currentModel]);
 
    const handleCommandSelect = useCallback((command: CommandSuggestion) => {
      console.log('Command selected:', command);
