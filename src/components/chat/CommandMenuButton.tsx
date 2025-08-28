@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { semanticColors } from '../../styles/colors';
+import { spacing } from '../../styles/spacing';
+import { layout } from '../../styles/layout';
 import type { Command } from '../../api/types.gen';
 import type { BuiltInCommand } from '../../types/commands';
 import { BUILT_IN_COMMANDS } from '../../types/commands';
@@ -65,7 +67,7 @@ export function CommandMenuButton({ onCommandSelect, userCommands = [], disabled
           <Text style={styles.commandMeta}>Agent: {item.agent}</Text>
         )}
       </View>
-      <Ionicons name="chevron-forward" size={16} color="#6b7280" />
+       <Ionicons name="chevron-forward" size={16} color={semanticColors.textMuted} />
     </TouchableOpacity>
   ), [handleCommandSelect]);
 
@@ -146,14 +148,14 @@ export function CommandMenuButton({ onCommandSelect, userCommands = [], disabled
 const styles = StyleSheet.create({
    menuButton: {
      backgroundColor: semanticColors.cardBackground,
-     width: 40,
-     height: 40,
-     borderRadius: 20,
+     width: spacing.xl,
+     height: spacing.xl,
+     borderRadius: layout.borderRadius.xl,
      justifyContent: 'center',
      alignItems: 'center',
-     marginLeft: 8,
-     borderWidth: 1,
-     borderColor: '#3a3a3a', // Keep custom border color
+     marginLeft: spacing.xs,
+     borderWidth: layout.borderWidth.DEFAULT,
+     borderColor: semanticColors.border,
    },
    menuButtonDisabled: {
      backgroundColor: semanticColors.background,
@@ -219,10 +221,10 @@ const styles = StyleSheet.create({
      color: semanticColors.textMuted,
      lineHeight: 20,
    },
-   commandMeta: {
-     fontSize: 12,
-     color: '#6b7280', // Keep custom meta color
-     marginTop: 4,
-     fontStyle: 'italic',
-   },
+    commandMeta: {
+      fontSize: 12,
+      color: semanticColors.textMuted,
+      marginTop: 4,
+      fontStyle: 'italic',
+    },
 });

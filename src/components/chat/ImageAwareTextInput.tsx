@@ -9,6 +9,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
+import { semanticColors } from '../../styles/colors';
+import { spacing } from '../../styles/spacing';
+import { layout } from '../../styles/layout';
 import { SmartTextInput } from './SmartTextInput';
 import { CommandMenuButton } from './CommandMenuButton';
 import type { CommandSuggestion } from '../../utils/commandMentions';
@@ -240,7 +243,7 @@ export function ImageAwareTextInput({
         <Ionicons 
           name="image-outline" 
           size={20} 
-          color={isImagePickerOpen ? "#6b7280" : "#ffffff"} 
+          color={isImagePickerOpen ? semanticColors.textMuted : semanticColors.textPrimary} 
         />
       </TouchableOpacity>
     </View>
@@ -254,15 +257,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   imageButton: {
-    backgroundColor: '#2a2a2a',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    backgroundColor: semanticColors.cardBackground,
+    width: spacing.xl,
+    height: spacing.xl,
+    borderRadius: layout.borderRadius.xl,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#3a3a3a',
+    marginLeft: spacing.xs,
+    marginRight: spacing.xs,
+    borderWidth: layout.borderWidth.DEFAULT,
+    borderColor: semanticColors.border,
   },
 });

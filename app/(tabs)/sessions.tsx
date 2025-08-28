@@ -5,6 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { sessionCreate } from '../../src/api/sdk.gen';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 import { toast } from '../../src/utils/toast';
+import { semanticColors } from '../../src/styles/colors';
+import { spacing } from '../../src/styles/spacing';
+import { layout } from '../../src/styles/layout';
+import { typography } from '../../src/styles/typography';
 import type { Session } from '../../src/api/types.gen';
 
 type ListItem = 
@@ -221,7 +225,7 @@ export default function SessionsScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Sessions</Text>
         <TouchableOpacity style={styles.newChatButton} onPress={handleNewChat}>
-          <Ionicons name="add" size={24} color="#0a0a0a" />
+          <Ionicons name="add" size={20} color={semanticColors.textPrimary} />
           <Text style={styles.newChatButtonText}>New Chat</Text>
         </TouchableOpacity>
       </View>
@@ -258,66 +262,68 @@ export default function SessionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: semanticColors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxxl + spacing.xl, // 60px equivalent
+    paddingBottom: spacing.xl,
+    borderBottomWidth: layout.borderWidth.DEFAULT,
+    borderBottomColor: semanticColors.border,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: typography.fontSize['4xl'],
+    fontWeight: '600' as const,
+    color: semanticColors.textPrimary,
   },
   newChatButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: semanticColors.cardBackground,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: layout.borderRadius.lg,
+    borderWidth: layout.borderWidth.DEFAULT,
+    borderColor: semanticColors.border,
   },
   newChatButtonText: {
-    color: '#0a0a0a',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 4,
+    color: semanticColors.textPrimary,
+    fontSize: typography.fontSize.sm,
+    fontWeight: '500' as const,
+    marginLeft: spacing.xs,
   },
   sessionsList: {
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
   },
   sessionItem: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    backgroundColor: semanticColors.cardBackground,
+    borderRadius: layout.borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: layout.borderWidth.DEFAULT,
+    borderColor: semanticColors.border,
   },
   sessionTitle: {
-    fontSize: 16,
-    fontWeight: 'normal',
-    color: '#ffffff',
+    fontSize: typography.fontSize.base,
+    fontWeight: '400' as const,
+    color: semanticColors.textPrimary,
   },
   dateSeparator: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    marginTop: 8,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.xs,
   },
   dateText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#9ca3af',
+    fontSize: typography.fontSize.sm,
+    fontWeight: '500' as const,
+    color: semanticColors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -325,50 +331,50 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.xxl,
   },
   emptyContainer: {
     flex: 1,
   },
   emptyIcon: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 8,
+    fontSize: typography.fontSize.xl,
+    fontWeight: '600' as const,
+    color: semanticColors.textPrimary,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
+    fontSize: typography.fontSize.sm,
+    color: semanticColors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
   },
   connectButton: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 20,
+    backgroundColor: semanticColors.textPrimary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: layout.borderRadius.md,
+    marginTop: spacing.xl,
   },
   connectButtonText: {
-    color: '#0a0a0a',
-    fontSize: 16,
-    fontWeight: '600',
+    color: semanticColors.background,
+    fontSize: typography.fontSize.base,
+    fontWeight: '600' as const,
   },
   retryButton: {
-    backgroundColor: '#f59e0b',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 20,
+    backgroundColor: semanticColors.warning,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: layout.borderRadius.md,
+    marginTop: spacing.xl,
   },
   retryButtonText: {
-    color: '#0a0a0a',
-    fontSize: 16,
-    fontWeight: '600',
+    color: semanticColors.background,
+    fontSize: typography.fontSize.base,
+    fontWeight: '600' as const,
   },
   loadingContainer: {
     flex: 1,
@@ -376,8 +382,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 16,
-    color: '#9ca3af',
-    marginTop: 12,
+    fontSize: typography.fontSize.base,
+    color: semanticColors.textMuted,
+    marginTop: spacing.sm,
   },
 });

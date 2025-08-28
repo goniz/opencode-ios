@@ -5,6 +5,10 @@ import {
   StyleSheet, 
   TextInputProps 
 } from 'react-native';
+import { semanticColors } from '../../styles/colors';
+import { spacing } from '../../styles/spacing';
+import { layout } from '../../styles/layout';
+import { typography } from '../../styles/typography';
 import { useConnection } from '../../contexts/ConnectionContext';
 import { FileSuggestions } from './FileSuggestions';
 import { 
@@ -139,13 +143,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   textInput: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginRight: 12,
-    color: '#ffffff',
-    fontSize: 16,
+    backgroundColor: semanticColors.cardBackground,
+    borderRadius: layout.borderRadius.xl,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginRight: spacing.xs,
+    color: semanticColors.textPrimary,
+    fontSize: typography.fontSize.base,
     maxHeight: 100,
   },
 });
