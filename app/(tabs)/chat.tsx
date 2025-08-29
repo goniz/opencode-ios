@@ -98,7 +98,10 @@ export default function ChatScreen() {
    const [commandStatus, setCommandStatus] = useState<string | null>(null);
    const [sessionUrl, setSessionUrl] = useState<string | null>(null);
    // FlashList ref will be handled inside ChatFlashList component
-   // Scroll timeout ref removed - handled by ChatFlashList
+
+
+
+
 
   // Handle session ID from navigation parameters
   useEffect(() => {
@@ -1054,20 +1057,21 @@ const commandBody: {
            onCancel={handleApiKeyInputCancel}
          />
 
-          <View style={styles.inputContainer}>
-           <ImageAwareTextInput
-             style={styles.textInput}
-             value={inputText}
-             onChangeText={setInputText}
-             onImageSelected={handleImageSelected}
-             onCommandSelect={handleCommandSelect}
-             onMenuCommandSelect={handleMenuCommandSelect}
-             userCommands={commands}
-             disabled={isSending || isGenerating}
-             placeholder="Type a message..."
-             placeholderTextColor="#6b7280"
-             multiline
-             maxLength={4000}
+           <View style={styles.inputContainer}>
+            <ImageAwareTextInput
+              style={styles.textInput}
+              value={inputText}
+              onChangeText={setInputText}
+              onImageSelected={handleImageSelected}
+              onCommandSelect={handleCommandSelect}
+              onMenuCommandSelect={handleMenuCommandSelect}
+              userCommands={commands}
+              disabled={false}
+              disableAttachments={false}
+              placeholder="Type a message..."
+              placeholderTextColor="#6b7280"
+              multiline
+              maxLength={4000}
            />
           {isGenerating && (
             <TouchableOpacity

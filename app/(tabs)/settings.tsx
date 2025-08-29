@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Alert, StatusBar, Switch, TextInput, Modal } from 'react-native';
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Alert, StatusBar, Switch, TextInput, Modal, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 import { getSavedServers, clearAllServers } from '../../src/utils/serverStorage';
 import { localStorage } from '../../src/utils/localStorage';
+import { secureSettings } from '../../src/utils/secureSettings';
 
 
 // Import version from package.json
@@ -18,10 +19,16 @@ export default function SettingsScreen() {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [isLoadingApiKey, setIsLoadingApiKey] = useState(false);
+  const [githubToken, setGithubToken] = useState<string | null>(null);
+  const [showGithubTokenModal, setShowGithubTokenModal] = useState(false);
+  const [githubTokenInput, setGithubTokenInput] = useState('');
+  const [isLoadingGithubToken, setIsLoadingGithubToken] = useState(false);
+  const [isTestingGithubToken, setIsTestingGithubToken] = useState(false);
 
   useEffect(() => {
     loadSavedServersCount();
     loadChutesApiKey();
+    loadGithubToken();
   }, []);
 
   const loadSavedServersCount = async () => {
@@ -35,6 +42,15 @@ export default function SettingsScreen() {
       setChutesApiKey(apiKey);
     } catch (error) {
       console.error('Failed to load Chutes API key:', error);
+    }
+  };
+
+  const loadGithubToken = async () => {
+    try {
+      const token = await secureSettings.getGitHubToken();
+      setGithubToken(token);
+    } catch (error) {
+      console.error('Failed to load GitHub token:', error);
     }
   };
 
@@ -157,6 +173,98 @@ export default function SettingsScreen() {
     setShowApiKeyModal(false);
   };
 
+  const handleSaveGithubToken = async () => {
+    const trimmedToken = githubTokenInput.trim();
+    
+    if (!trimmedToken) {
+      Alert.alert('Error', 'Please enter a valid GitHub token');
+      return;
+    }
+
+    setIsLoadingGithubToken(true);
+    
+    try {
+      await secureSettings.setGitHubToken(trimmedToken);
+      setGithubToken(trimmedToken);
+      setGithubTokenInput('');
+      setShowGithubTokenModal(false);
+      Alert.alert('Success', 'GitHub token has been saved securely');
+    } catch (error) {
+      console.error('Failed to save GitHub token:', error);
+      Alert.alert('Error', 'Failed to save GitHub token. Please try again.');
+    } finally {
+      setIsLoadingGithubToken(false);
+    }
+  };
+
+  const handleTestGithubConnection = async () => {
+    const tokenToTest = githubTokenInput.trim() || githubToken;
+    
+    if (!tokenToTest) {
+      Alert.alert('Error', 'Please enter a GitHub token to test');
+      return;
+    }
+
+    setIsTestingGithubToken(true);
+    
+    try {
+      const result = await secureSettings.testGitHubConnection(tokenToTest);
+      
+      if (result.success) {
+        const message = result.user 
+          ? `Connected successfully as ${result.user.name || result.user.login}` 
+          : 'Connection successful';
+        Alert.alert('Success', message);
+      } else {
+        Alert.alert('Connection Failed', result.error || 'Unknown error occurred');
+      }
+    } catch (error) {
+      console.error('Failed to test GitHub connection:', error);
+      Alert.alert('Error', 'Failed to test connection. Please try again.');
+    } finally {
+      setIsTestingGithubToken(false);
+    }
+  };
+
+  const handleRemoveGithubToken = () => {
+    Alert.alert(
+      'Remove GitHub Token',
+      'Are you sure you want to remove your GitHub token? This will disable GitHub integration features.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await secureSettings.removeGitHubToken();
+              setGithubToken(null);
+              Alert.alert('Removed', 'GitHub token has been removed');
+            } catch (error) {
+              console.error('Failed to remove GitHub token:', error);
+              Alert.alert('Error', 'Failed to remove GitHub token. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleEditGithubToken = () => {
+    setGithubTokenInput('');
+    setShowGithubTokenModal(true);
+  };
+
+  const handleCancelGithubTokenModal = () => {
+    setGithubTokenInput('');
+    setShowGithubTokenModal(false);
+  };
+
+  const handleOpenGithubTokenCreation = () => {
+    const url = 'https://github.com/settings/tokens/new?scopes=repo,read:org&description=opencode-mobile';
+    Linking.openURL(url).catch(err => console.error('Failed to open GitHub URL:', err));
+  };
+
   const maskApiKey = (apiKey: string): string => {
     if (apiKey.length <= 8) return '••••••••';
     return apiKey.substring(0, 4) + '••••••••' + apiKey.substring(apiKey.length - 4);
@@ -223,6 +331,34 @@ export default function SettingsScreen() {
                 </>
               ) : (
                 <TouchableOpacity style={styles.iconButton} onPress={handleEditApiKey}>
+                  <Ionicons name="add-outline" size={18} color="#10b981" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>GitHub Token</Text>
+              <Text style={styles.settingDescription}>
+                {githubToken ? 'Required for GitHub integration features' : 'Not configured'}
+              </Text>
+              {githubToken && (
+                <Text style={styles.apiKeyMasked}>{maskApiKey(githubToken)}</Text>
+              )}
+            </View>
+            <View style={styles.apiKeyActions}>
+              {githubToken ? (
+                <>
+                  <TouchableOpacity style={styles.iconButton} onPress={handleEditGithubToken}>
+                    <Ionicons name="pencil-outline" size={18} color="#10b981" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.iconButton} onPress={handleRemoveGithubToken}>
+                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity style={styles.iconButton} onPress={handleEditGithubToken}>
                   <Ionicons name="add-outline" size={18} color="#10b981" />
                 </TouchableOpacity>
               )}
@@ -355,6 +491,87 @@ export default function SettingsScreen() {
                   (!apiKeyInput.trim() || isLoadingApiKey) && styles.modalSaveButtonTextDisabled
                 ]}>
                   {isLoadingApiKey ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* GitHub Token Modal */}
+      <Modal
+        visible={showGithubTokenModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelGithubTokenModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="logo-github" size={24} color="#ffffff" />
+              <Text style={styles.modalTitle}>
+                {githubToken ? 'Update GitHub Token' : 'Add GitHub Token'}
+              </Text>
+            </View>
+            
+            <Text style={styles.modalDescription}>
+              Enter your GitHub Personal Access Token (classic) to enable GitHub integration features. 
+              The token will be stored securely on your device.
+            </Text>
+            
+            <TouchableOpacity 
+              style={styles.githubLinkButton} 
+              onPress={handleOpenGithubTokenCreation}
+            >
+              <Ionicons name="open-outline" size={16} color="#10b981" />
+              <Text style={styles.githubLinkText}>Create Classic Token</Text>
+            </TouchableOpacity>
+            
+            <TextInput
+              style={styles.modalInput}
+              value={githubTokenInput}
+              onChangeText={setGithubTokenInput}
+              placeholder="Enter your GitHub Personal Access Token (classic)"
+              placeholderTextColor="#6b7280"
+              secureTextEntry={true}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isLoadingGithubToken && !isTestingGithubToken}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={handleCancelGithubTokenModal}
+                disabled={isLoadingGithubToken || isTestingGithubToken}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalTestButton]}
+                onPress={handleTestGithubConnection}
+                disabled={!githubTokenInput.trim() && !githubToken || isLoadingGithubToken || isTestingGithubToken}
+              >
+                <Text style={styles.modalTestButtonText}>
+                  {isTestingGithubToken ? 'Testing...' : 'Test'}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.modalButton, 
+                  styles.modalSaveButton, 
+                  (!githubTokenInput.trim() || isLoadingGithubToken || isTestingGithubToken) && styles.modalSaveButtonDisabled
+                ]}
+                onPress={handleSaveGithubToken}
+                disabled={!githubTokenInput.trim() || isLoadingGithubToken || isTestingGithubToken}
+              >
+                <Text style={[
+                  styles.modalSaveButtonText, 
+                  (!githubTokenInput.trim() || isLoadingGithubToken || isTestingGithubToken) && styles.modalSaveButtonTextDisabled
+                ]}>
+                  {isLoadingGithubToken ? 'Saving...' : 'Save'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -548,5 +765,26 @@ const styles = StyleSheet.create({
   },
   modalSaveButtonTextDisabled: {
     color: '#9ca3af',
+  },
+  githubLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  githubLinkText: {
+    fontSize: 14,
+    color: '#10b981',
+    marginLeft: 6,
+  },
+  modalTestButton: {
+    backgroundColor: '#3b82f6',
+  },
+  modalTestButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
