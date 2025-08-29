@@ -1,12 +1,16 @@
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const GITHUB_TOKEN_KEY = 'github_token';
+const CHUTES_API_KEY = 'chutes_api_key';
 
 export interface SecureSettingsService {
   getGitHubToken(): Promise<string | null>;
   setGitHubToken(token: string): Promise<void>;
   removeGitHubToken(): Promise<void>;
-  testGitHubConnection(token: string): Promise<{ success: boolean; error?: string; user?: { login: string; name?: string } }>;
+  getChutesApiKey(): Promise<string | null>;
+  setChutesApiKey(apiKey: string): Promise<void>;
+  removeChutesApiKey(): Promise<void>;
 }
 
 export const secureSettings: SecureSettingsService = {
@@ -37,37 +41,30 @@ export const secureSettings: SecureSettingsService = {
     }
   },
 
-  async testGitHubConnection(token: string): Promise<{ success: boolean; error?: string; user?: { login: string; name?: string } }> {
+  async getChutesApiKey(): Promise<string | null> {
     try {
-      const response = await fetch('https://api.github.com/user', {
-        headers: {
-          'Authorization': `token ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'opencode-mobile'
-        }
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          return { success: false, error: 'Invalid token or insufficient permissions' };
-        }
-        if (response.status === 403) {
-          return { success: false, error: 'Token does not have required permissions' };
-        }
-        return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
-      }
-
-      const user = await response.json();
-      return { 
-        success: true, 
-        user: { 
-          login: user.login, 
-          name: user.name 
-        } 
-      };
+      return await AsyncStorage.getItem(CHUTES_API_KEY);
     } catch (error) {
-      console.error('Failed to test GitHub connection:', error);
-      return { success: false, error: 'Network error or invalid response' };
+      console.error('Failed to get Chutes API key from storage:', error);
+      return null;
+    }
+  },
+
+  async setChutesApiKey(apiKey: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(CHUTES_API_KEY, apiKey);
+    } catch (error) {
+      console.error('Failed to save Chutes API key to storage:', error);
+      throw error;
+    }
+  },
+
+  async removeChutesApiKey(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(CHUTES_API_KEY);
+    } catch (error) {
+      console.error('Failed to remove Chutes API key from storage:', error);
+      throw error;
     }
   }
 };

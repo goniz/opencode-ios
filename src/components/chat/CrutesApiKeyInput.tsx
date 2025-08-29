@@ -9,7 +9,7 @@ import {
   Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { localStorage } from '../../utils/localStorage';
+import { secureSettings } from '../../utils/secureSettings';
 
 interface CrutesApiKeyInputProps {
   visible: boolean;
@@ -33,7 +33,7 @@ export function CrutesApiKeyInput({ visible, onApiKeyProvided, onCancel }: Crute
     
     try {
       // Store the API key locally
-      await localStorage.setChutesApiKey(trimmedApiKey);
+      await secureSettings.setChutesApiKey(trimmedApiKey);
       console.log('[Chutes] API key stored locally');
       
       // Clear the input

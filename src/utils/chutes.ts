@@ -1,5 +1,5 @@
 import type { Client } from '../api/client/types.gen';
-import { localStorage } from './localStorage';
+import { secureSettings } from './secureSettings';
 
 export interface ChutesQuota {
   quota: number;
@@ -57,7 +57,7 @@ export async function fetchChutesQuota(
     if (response.status === 401 || response.status === 403) {
       // Remove the invalid API key from storage
       try {
-        await localStorage.removeChutesApiKey();
+        await secureSettings.removeChutesApiKey();
         console.log('[Chutes] Removed invalid API key from storage');
       } catch (removeError) {
         console.error('[Chutes] Failed to remove invalid API key from storage:', removeError);

@@ -3,8 +3,8 @@ import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Alert, StatusBar,
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 import { getSavedServers, clearAllServers } from '../../src/utils/serverStorage';
-import { localStorage } from '../../src/utils/localStorage';
 import { secureSettings } from '../../src/utils/secureSettings';
+import { testGitHubConnection } from '../../src/utils/github';
 
 
 // Import version from package.json
@@ -38,7 +38,7 @@ export default function SettingsScreen() {
 
   const loadChutesApiKey = async () => {
     try {
-      const apiKey = await localStorage.getChutesApiKey();
+      const apiKey = await secureSettings.getChutesApiKey();
       setChutesApiKey(apiKey);
     } catch (error) {
       console.error('Failed to load Chutes API key:', error);
@@ -126,7 +126,7 @@ export default function SettingsScreen() {
     setIsLoadingApiKey(true);
     
     try {
-      await localStorage.setChutesApiKey(trimmedApiKey);
+      await secureSettings.setChutesApiKey(trimmedApiKey);
       setChutesApiKey(trimmedApiKey);
       setApiKeyInput('');
       setShowApiKeyModal(false);
@@ -150,7 +150,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await localStorage.removeChutesApiKey();
+              await secureSettings.removeChutesApiKey();
               setChutesApiKey(null);
               Alert.alert('Removed', 'Chutes API key has been removed');
             } catch (error) {
@@ -208,7 +208,7 @@ export default function SettingsScreen() {
     setIsTestingGithubToken(true);
     
     try {
-      const result = await secureSettings.testGitHubConnection(tokenToTest);
+      const result = await testGitHubConnection(tokenToTest);
       
       if (result.success) {
         const message = result.user 

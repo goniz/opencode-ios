@@ -39,7 +39,7 @@ import {
 } from '../../src/api/sdk.gen';
 import type { CommandSuggestion } from '../../src/utils/commandMentions';
 import { ChutesApiKeyInvalidError, fetchChutesQuota } from '../../src/utils/chutes';
-import { localStorage } from '../../src/utils/localStorage';
+import { secureSettings } from '../../src/utils/secureSettings';
 import type { BuiltInCommand } from '../../src/types/commands';
 
 // MessageWithParts type is now exported from MessageRow component
@@ -196,7 +196,7 @@ export default function ChatScreen() {
             console.log(`[Chutes] Requesting quota for model: ${currentModel.modelID}`);
             
             // Get API key from localStorage
-            const storedKey = await localStorage.getChutesApiKey();
+            const storedKey = await secureSettings.getChutesApiKey();
             if (!storedKey) {
               console.log('[Chutes] No API key in localStorage, showing input dialog');
               setPendingApiKeyRequest({

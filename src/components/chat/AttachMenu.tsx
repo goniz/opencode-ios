@@ -30,12 +30,12 @@ interface AttachOption {
   onPress: () => void;
 }
 
-export function AttachMenu({ 
+export function AttachMenu({
   onImageSelected,
   disabled = false
 }: AttachMenuProps) {
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [githubToken, setGithubToken] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -50,19 +50,7 @@ export function AttachMenu({
     loadGithubToken();
   }, []);
 
-  // Reset stuck picker state on mount (prevents permanent disabled state)
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsPickerOpen(prev => {
-        if (prev) {
-          console.log('Force resetting stuck picker state');
-          return false;
-        }
-        return prev;
-      });
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+
 
   const handlePasteImage = useCallback(async () => {
     setIsMenuVisible(false);
@@ -110,16 +98,16 @@ export function AttachMenu({
   }, [onImageSelected]);
 
   const handleSelectImage = useCallback(async () => {
+    if (isLoading) return;
+
     setIsMenuVisible(false);
-    if (isPickerOpen) return;
-    setIsPickerOpen(true);
+    setIsLoading(true);
 
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+
       if (!permissionResult.granted) {
         Alert.alert('Permission Required', 'Permission to access photo library is required');
-        setIsPickerOpen(false);
         return;
       }
 
@@ -140,21 +128,21 @@ export function AttachMenu({
       console.error('Error selecting image:', error);
       Alert.alert('Error', `Failed to select image: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
-      setIsPickerOpen(false);
+      setIsLoading(false);
     }
-  }, [isPickerOpen, onImageSelected]);
+  }, [isLoading, onImageSelected]);
 
   const handleCameraImage = useCallback(async () => {
+    if (isLoading) return;
+
     setIsMenuVisible(false);
-    if (isPickerOpen) return;
-    setIsPickerOpen(true);
+    setIsLoading(true);
 
     try {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-      
+
       if (!permissionResult.granted) {
         Alert.alert('Permission Required', 'Permission to access camera is required');
-        setIsPickerOpen(false);
         return;
       }
 
@@ -174,9 +162,9 @@ export function AttachMenu({
       console.error('Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo');
     } finally {
-      setIsPickerOpen(false);
+      setIsLoading(false);
     }
-  }, [isPickerOpen, onImageSelected]);
+  }, [isLoading, onImageSelected]);
 
   const handleGithubAttach = useCallback(() => {
     setIsMenuVisible(false);
@@ -234,14 +222,10 @@ export function AttachMenu({
   }, [handleCameraImage, handleSelectImage, handlePasteImage, handleLocalFileAttach, handleGithubAttach, githubToken]);
 
   const handleOpenMenu = useCallback(() => {
-    if (!disabled && !isPickerOpen) {
+    if (!disabled && !isLoading) {
       setIsMenuVisible(true);
-    } else if (isPickerOpen) {
-      // If isPickerOpen is stuck, reset it
-      console.log('Resetting stuck picker state');
-      setIsPickerOpen(false);
     }
-  }, [disabled, isPickerOpen]);
+  }, [disabled, isLoading]);
 
   const handleCloseMenu = useCallback(() => {
     setIsMenuVisible(false);
@@ -252,15 +236,15 @@ export function AttachMenu({
   return (
     <>
       <TouchableOpacity
-        style={[styles.attachButton, disabled && styles.attachButtonDisabled]}
+        style={[styles.attachButton, (disabled || isLoading) && styles.attachButtonDisabled]}
         onPress={handleOpenMenu}
-        disabled={disabled || isPickerOpen}
+        disabled={disabled || isLoading}
         testID="attach-menu-button"
       >
-        <Ionicons 
-          name="add" 
-          size={20} 
-          color={disabled || isPickerOpen ? semanticColors.textMuted : semanticColors.textPrimary} 
+        <Ionicons
+          name={isLoading ? "hourglass-outline" : "add"}
+          size={20}
+          color={(disabled || isLoading) ? semanticColors.textMuted : semanticColors.textPrimary}
         />
       </TouchableOpacity>
 
