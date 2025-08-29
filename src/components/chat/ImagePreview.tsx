@@ -3,7 +3,7 @@ import {
   View, 
   TouchableOpacity, 
   StyleSheet, 
-  ScrollView,
+  FlatList,
   Dimensions 
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -27,13 +27,10 @@ export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
 
   return (
     <View style={styles.container} testID="image-preview-container">
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {images.map((imageUri, index) => (
-          <View key={index} style={styles.imageContainer}>
+      <FlatList 
+        data={images}
+        renderItem={({ item: imageUri, index }) => (
+          <View style={styles.imageContainer}>
             <TouchableOpacity 
               testID="preview-image-touchable"
               onPress={() => {
@@ -60,8 +57,12 @@ export function ImagePreview({ images, onRemoveImage }: ImagePreviewProps) {
               <Ionicons name="close-circle" size={24} color="#ef4444" />
             </TouchableOpacity>
           </View>
-        ))}
-      </ScrollView>
+        )}
+        keyExtractor={(item, index) => `image-${index}-${item}`}
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      />
       
       <FullScreenImageViewer
         visible={!!selectedImage}
