@@ -1,10 +1,10 @@
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  FlatList, 
-  StyleSheet 
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { FileSuggestion } from '../../utils/fileMentions';
@@ -60,16 +60,18 @@ export function FileSuggestions({
         </TouchableOpacity>
       </View>
       
-      <FlatList
-        data={suggestions}
-        renderItem={renderSuggestion}
-        keyExtractor={(item, index) => `${item.path}-${index}`}
+      <ScrollView
         style={styles.suggestionsList}
         showsVerticalScrollIndicator={false}
-        maxToRenderPerBatch={10}
-        windowSize={10}
         keyboardShouldPersistTaps="always"
-      />
+        nestedScrollEnabled={false}
+      >
+        {suggestions.map((item, index) => (
+          <View key={`${item.path}-${index}`}>
+            {renderSuggestion({ item })}
+          </View>
+        ))}
+      </ScrollView>
       
       {suggestions.length === 0 && (
         <View style={styles.emptyState}>
