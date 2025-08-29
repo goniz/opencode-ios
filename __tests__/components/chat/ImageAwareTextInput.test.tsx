@@ -46,8 +46,8 @@ describe('ImageAwareTextInput', () => {
     );
 
     expect(getByDisplayValue('test message')).toBeTruthy();
-    // Find the image button by testID
-    expect(getByTestId('image-button')).toBeTruthy();
+    // Find the attach menu button by testID
+    expect(getByTestId('attach-menu-button')).toBeTruthy();
   });
 
   it('calls onChangeText when text changes', () => {
@@ -76,13 +76,13 @@ describe('ImageAwareTextInput', () => {
       />
     );
 
-    // Find the image button by testID
-    const imageButton = getByTestId('image-button');
-    fireEvent.press(imageButton);
+    // Find the attach menu button by testID
+    const attachButton = getByTestId('attach-menu-button');
+    fireEvent.press(attachButton);
 
     // Note: Testing Alert.alert is complex in unit tests
     // In a real scenario, you might want to use a custom modal component instead
-    expect(imageButton).toBeTruthy();
+    expect(attachButton).toBeTruthy();
   });
 
   it('handles base64 image from clipboard', async () => {

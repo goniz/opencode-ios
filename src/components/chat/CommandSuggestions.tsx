@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   StyleSheet
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -83,16 +83,18 @@ export function CommandSuggestions({
         </TouchableOpacity>
       </View>
       
-      <FlatList
-        data={suggestions}
-        renderItem={renderSuggestion}
-        keyExtractor={(item, index) => `${item.name}-${index}`}
+      <ScrollView
         style={styles.suggestionsList}
         showsVerticalScrollIndicator={false}
-        maxToRenderPerBatch={10}
-        windowSize={10}
         keyboardShouldPersistTaps="always"
-      />
+        nestedScrollEnabled={false}
+      >
+        {suggestions.map((item, index) => (
+          <View key={`${item.name}-${index}`}>
+            {renderSuggestion({ item })}
+          </View>
+        ))}
+      </ScrollView>
       
       {suggestions.length === 0 && (
         <View style={styles.emptyState}>

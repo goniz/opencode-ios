@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ConnectionContextType } from '../contexts/ConnectionContext';
 import { ChutesApiKeyInvalidError, fetchChutesQuota } from '../utils/chutes';
-import { localStorage } from '../utils/localStorage';
+import { secureSettings } from '../utils/secureSettings';
 import type { ChutesQuota } from '../types/chat';
 
 export interface ChutesIntegrationHook {
@@ -40,7 +40,7 @@ export function useChutesIntegration(
             console.log(`[Chutes] Requesting quota for model: ${currentModel.modelID}`);
             
             // Get API key from localStorage
-            const storedKey = await localStorage.getChutesApiKey();
+            const storedKey = await secureSettings.getChutesApiKey();
             if (!storedKey) {
               console.log('[Chutes] No API key in localStorage, showing input dialog');
               setPendingApiKeyRequest({

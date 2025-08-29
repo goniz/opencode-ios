@@ -39,7 +39,7 @@ import {
 } from '../../src/api/sdk.gen';
 import type { CommandSuggestion } from '../../src/utils/commandMentions';
 import { ChutesApiKeyInvalidError, fetchChutesQuota } from '../../src/utils/chutes';
-import { localStorage } from '../../src/utils/localStorage';
+import { secureSettings } from '../../src/utils/secureSettings';
 import type { BuiltInCommand } from '../../src/types/commands';
 
 // MessageWithParts type is now exported from MessageRow component
@@ -98,7 +98,10 @@ export default function ChatScreen() {
    const [commandStatus, setCommandStatus] = useState<string | null>(null);
    const [sessionUrl, setSessionUrl] = useState<string | null>(null);
    // FlashList ref will be handled inside ChatFlashList component
-   // Scroll timeout ref removed - handled by ChatFlashList
+
+
+
+
 
   // Handle session ID from navigation parameters
   useEffect(() => {
@@ -193,7 +196,7 @@ export default function ChatScreen() {
             console.log(`[Chutes] Requesting quota for model: ${currentModel.modelID}`);
             
             // Get API key from localStorage
-            const storedKey = await localStorage.getChutesApiKey();
+            const storedKey = await secureSettings.getChutesApiKey();
             if (!storedKey) {
               console.log('[Chutes] No API key in localStorage, showing input dialog');
               setPendingApiKeyRequest({
@@ -1054,20 +1057,21 @@ const commandBody: {
            onCancel={handleApiKeyInputCancel}
          />
 
-          <View style={styles.inputContainer}>
-           <ImageAwareTextInput
-             style={styles.textInput}
-             value={inputText}
-             onChangeText={setInputText}
-             onImageSelected={handleImageSelected}
-             onCommandSelect={handleCommandSelect}
-             onMenuCommandSelect={handleMenuCommandSelect}
-             userCommands={commands}
-             disabled={isSending || isGenerating}
-             placeholder="Type a message..."
-             placeholderTextColor="#6b7280"
-             multiline
-             maxLength={4000}
+           <View style={styles.inputContainer}>
+            <ImageAwareTextInput
+              style={styles.textInput}
+              value={inputText}
+              onChangeText={setInputText}
+              onImageSelected={handleImageSelected}
+              onCommandSelect={handleCommandSelect}
+              onMenuCommandSelect={handleMenuCommandSelect}
+              userCommands={commands}
+              disabled={false}
+              disableAttachments={false}
+              placeholder="Type a message..."
+              placeholderTextColor="#6b7280"
+              multiline
+              maxLength={4000}
            />
           {isGenerating && (
             <TouchableOpacity
