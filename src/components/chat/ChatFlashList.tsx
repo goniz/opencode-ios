@@ -67,8 +67,25 @@ export const ChatFlashList: React.FC<ChatFlashListProps> = ({
   // Note: Streaming throttling is handled at the connection/context level
 
   // Reverse messages for inverted display (newest at visual bottom)
+  // Also ensure we only have unique messages by ID to prevent key conflicts
   const reversedMessages = useMemo(() => {
-    return [...messages].reverse();
+    // Remove any potential duplicates by message ID
+    const uniqueMessages = messages.reduce((acc, message) => {
+      const existingIndex = acc.findIndex(m => m.info.id === message.info.id);
+      if (existingIndex === -1) {
+        acc.push(message);
+      } else {
+        // Replace with newer message if it has more parts or newer timestamp
+        const existing = acc[existingIndex];
+        if (message.parts.length > existing.parts.length || 
+            message.info.time.created > existing.info.time.created) {
+          acc[existingIndex] = message;
+        }
+      }
+      return acc;
+    }, [] as MessageWithParts[]);
+    
+    return [...uniqueMessages].reverse();
   }, [messages]);
 
   // Memoized render function
@@ -86,8 +103,14 @@ export const ChatFlashList: React.FC<ChatFlashListProps> = ({
     [reversedMessages.length, currentSessionId, isStreamConnected, isGenerating, messages.length]
   );
 
-  // Key extractor for stable list performance
-  const keyExtractor = useCallback((item: MessageWithParts) => item.info.id, []);
+  // Key extractor for stable list performance - ensure uniqueness
+  const keyExtractor = useCallback((item: MessageWithParts, index: number) => {
+    // Use a combination of session ID, message ID, timestamp, and index to ensure absolute uniqueness
+    // This prevents duplicate key errors when messages might have similar IDs
+    const sessionId = item.info.sessionID || currentSessionId || 'unknown';
+    const timestamp = item.info.time.created || Date.now();
+    return `${sessionId}-${item.info.id}-${timestamp}-${index}`;
+  }, [currentSessionId]);
 
   // Handle scroll events to track user position
   const handleScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {

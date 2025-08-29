@@ -108,7 +108,7 @@ const MessageRow: React.FC<MessageRowProps> = memo(({
         const isLastPart = partIndex === partsToRender.length - 1;
         
         return (
-          <View key={`${message.info.id}-${index}-part-${partIndex}`} style={getMessageRowStyle(isUser)}>
+          <View key={`${message.info.id}-${message.info.time.created}-${index}-part-${partIndex}`} style={getMessageRowStyle(isUser)}>
             {!isUser && (
               <MessageDecoration 
                 role={message.info.role}
