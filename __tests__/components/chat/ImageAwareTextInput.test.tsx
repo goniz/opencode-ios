@@ -27,6 +27,19 @@ jest.mock('../../../src/contexts/ConnectionContext', () => ({
   }),
 }));
 
+// Mock GitHub integration
+jest.mock('../../../src/integrations/github', () => ({
+  GitHubClient: jest.fn(),
+  GitHubPicker: jest.fn(),
+}));
+
+// Mock secure settings to prevent async warnings
+jest.mock('../../../src/utils/secureSettings', () => ({
+  getGitHubToken: jest.fn().mockResolvedValue(null),
+  setGitHubToken: jest.fn().mockResolvedValue(void 0),
+  removeGitHubToken: jest.fn().mockResolvedValue(void 0),
+}));
+
 describe('ImageAwareTextInput', () => {
   const mockOnChangeText = jest.fn();
   const mockOnImageSelected = jest.fn();

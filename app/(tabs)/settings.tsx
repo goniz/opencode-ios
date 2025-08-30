@@ -6,12 +6,12 @@ import { getSavedServers, clearAllServers } from '../../src/utils/serverStorage'
 import { secureSettings } from '../../src/utils/secureSettings';
 import { testGitHubConnection } from '../../src/utils/github';
 
+// Import opencode API version
+import { OPENCODE_VERSION } from '../../src/api';
+
 
 // Import version from package.json
 const packageJson = require('../../package.json');
-
-// Import opencode API version
-import { OPENCODE_VERSION } from '../../src/api';
 
 export default function SettingsScreen() {
   const { connectionStatus, disconnect } = useConnection();

@@ -60,6 +60,22 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }
     }
   }, [githubToken]);
 
+  const loadRepositoryItems = useCallback(async (repo: GitHubRepository, client: GitHubClient) => {
+    if (!client) return;
+    
+    setLoading(true);
+    try {
+      // Load only open/merged items by default (exclude closed)
+      const query = formatRepositoryQuery(repo, activeTab === 'issues' ? 'issue' : 'pr', false);
+      const result = await client.searchIssuesPRs(query);
+      setSearchResults(result.items);
+    } catch (error) {
+      Alert.alert('Error', `Failed to load ${activeTab}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab]);
+
   // Detect current repository when visible
   useEffect(() => {
     const detectRepository = async () => {
@@ -82,23 +98,7 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }
     };
 
     detectRepository();
-  }, [visible, client, githubClient]);
-
-  const loadRepositoryItems = useCallback(async (repo: GitHubRepository, client: GitHubClient) => {
-    if (!client) return;
-    
-    setLoading(true);
-    try {
-      // Load only open/merged items by default (exclude closed)
-      const query = formatRepositoryQuery(repo, activeTab === 'issues' ? 'issue' : 'pr', false);
-      const result = await client.searchIssuesPRs(query);
-      setSearchResults(result.items);
-    } catch (error) {
-      Alert.alert('Error', `Failed to load ${activeTab}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab]);
+  }, [visible, client, githubClient, loadRepositoryItems]);
 
   // Auto-reload when tab changes for current repository
   useEffect(() => {
