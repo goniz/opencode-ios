@@ -431,15 +431,11 @@ export default function SettingsScreen() {
 
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Version</Text>
-              <Text style={styles.settingValue}>{packageJson.version}</Text>
-            </View>
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>API Version</Text>
-              <Text style={styles.settingValue}>{OPENCODE_VERSION}</Text>
+              <Text style={styles.settingLabel}>Versions</Text>
+              <Text style={styles.settingDescription}>
+                App Version: {packageJson.version}{'\n'}
+                Opencode API Version: {OPENCODE_VERSION}
+              </Text>
             </View>
           </View>
         </View>
