@@ -130,6 +130,7 @@ export function CommandMenuButton({ onCommandSelect, userCommands = [], disabled
               );
             }}
             keyExtractor={(item, index) => `${item.type}-${item.command.name}-${index}`}
+            nestedScrollEnabled={false}
           />
         </SafeAreaView>
       </Modal>

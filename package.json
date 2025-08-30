@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:ci": "jest --no-watch --watchAll=false --silent",
-    "generate-api": "opencode generate > src/api/opencode_api.json && openapi-ts -i src/api/opencode_api.json -o src/api -c @hey-api/client-fetch",
+    "generate-api": "tsx scripts/generate-api-with-version.ts",
     "events": "tsx scripts/event-listener.ts",
     "ota-host": "tsx scripts/ota-host.ts",
     "ota-host:dev": "tsx scripts/ota-host.ts --dev --port 8443",
