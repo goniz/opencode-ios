@@ -89,7 +89,8 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }
     
     setLoading(true);
     try {
-      const query = formatRepositoryQuery(repo, activeTab === 'issues' ? 'issue' : 'pr');
+      // Load only open/merged items by default (exclude closed)
+      const query = formatRepositoryQuery(repo, activeTab === 'issues' ? 'issue' : 'pr', false);
       const result = await client.searchIssuesPRs(query);
       setSearchResults(result.items);
     } catch (error) {
@@ -137,15 +138,25 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }
       let query = searchQuery;
       
       // If we have a current repository and the search query doesn't already include repo scope,
-      // automatically scope to current repository
+      // automatically scope to current repository with state filtering
       if (currentRepository && !query.includes('repo:')) {
         const type = activeTab === 'issues' ? 'issue' : 'pr';
         query = `${query} repo:${currentRepository.fullName} type:${type}`;
+        
+        // Add state filter to show only open items unless user specified state explicitly
+        if (!query.includes('state:')) {
+          query += ' state:open';
+        }
       } else {
         // Add type filter if not repository-scoped
         const type = activeTab === 'issues' ? 'issue' : 'pr';
         if (!query.includes('type:')) {
           query += ` type:${type}`;
+        }
+        
+        // Add state filter for global searches too unless user specified state explicitly
+        if (!query.includes('state:')) {
+          query += ' state:open';
         }
       }
       
@@ -292,8 +303,8 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }
             <TextInput
               style={styles.searchInput}
               placeholder={currentRepository 
-                ? `Search in ${currentRepository.fullName}...`
-                : `Search ${activeTab === 'issues' ? 'issues' : 'pull requests'}...`
+                ? `Search open ${activeTab} in ${currentRepository.fullName}...`
+                : `Search open ${activeTab === 'issues' ? 'issues' : 'pull requests'}...`
               }
               placeholderTextColor={semanticColors.textMuted}
               value={searchQuery}

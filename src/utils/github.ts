@@ -174,13 +174,30 @@ export function parseGitHubUrlToRepository(url: string): GitHubRepository | null
   return null;
 }
 
-export function formatRepositoryQuery(repo: GitHubRepository, type: 'issue' | 'pr' | 'both' = 'both'): string {
+export function formatRepositoryQuery(
+  repo: GitHubRepository, 
+  type: 'issue' | 'pr' | 'both' = 'both',
+  includeClosedItems: boolean = false
+): string {
   let query = `repo:${repo.fullName}`;
   
   if (type === 'issue') {
     query += ' type:issue';
+    // For issues: show open issues by default, exclude closed unless explicitly requested
+    if (!includeClosedItems) {
+      query += ' state:open';
+    }
   } else if (type === 'pr') {
     query += ' type:pr';
+    // For PRs: show only open PRs by default, exclude closed and merged unless explicitly requested
+    if (!includeClosedItems) {
+      query += ' state:open';
+    }
+  } else {
+    // For both: apply appropriate state filters - only open items
+    if (!includeClosedItems) {
+      query += ' state:open';
+    }
   }
   
   return query;
