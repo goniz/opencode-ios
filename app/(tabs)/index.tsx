@@ -217,9 +217,9 @@ export default function Index() {
                   <Text style={styles.detailText}>
                     Server: {appVersion || 'Connected'}
                   </Text>
-                  <Text style={styles.detailText}>
-                    Root Path: {rootPath || 'Unknown'}
-                  </Text>
+                   <Text style={styles.detailText}>
+                     Home Directory: {rootPath || 'Unknown'}
+                   </Text>
                 </View>
               )}
 
