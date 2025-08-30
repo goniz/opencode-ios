@@ -10,6 +10,9 @@ import { testGitHubConnection } from '../../src/utils/github';
 // Import version from package.json
 const packageJson = require('../../package.json');
 
+// Import opencode API version
+import { OPENCODE_VERSION } from '../../src/api';
+
 export default function SettingsScreen() {
   const { connectionStatus, disconnect } = useConnection();
   const [savedServersCount, setSavedServersCount] = useState(0);
@@ -430,6 +433,13 @@ export default function SettingsScreen() {
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Version</Text>
               <Text style={styles.settingValue}>{packageJson.version}</Text>
+            </View>
+          </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>API Version</Text>
+              <Text style={styles.settingValue}>{OPENCODE_VERSION}</Text>
             </View>
           </View>
         </View>
