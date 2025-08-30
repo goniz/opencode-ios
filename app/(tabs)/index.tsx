@@ -18,6 +18,7 @@ export default function Index() {
   const [savedServers, setSavedServers] = useState<SavedServer[]>([]);
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [rootPath, setRootPath] = useState<string | null>(null);
+  const [homePath, setHomePath] = useState<string | null>(null);
 
   const loadSavedServers = useCallback(async () => {
     const servers = await getSavedServers();
@@ -56,9 +57,11 @@ export default function Index() {
             const apiVersion = '1.0.0'; // From OpenAPI spec info.version
             const hostname = appData.hostname || 'localhost';
             const rootPathValue = appData.path?.root || 'unknown';
-            
+            const homePathValue = appData.path?.home || 'unknown';
+
             setAppVersion(`API v${apiVersion} (${hostname})`);
             setRootPath(rootPathValue);
+            setHomePath(homePathValue);
           }
         } catch (error) {
           console.error('Failed to fetch app info:', error);
@@ -209,19 +212,22 @@ export default function Index() {
                 )}
               </View>
 
-              {connectionStatus === 'connected' && (
-                <View style={styles.connectionDetails}>
-                  <Text style={styles.detailText}>
-                    Active Sessions: {sessions.length}
-                  </Text>
-                  <Text style={styles.detailText}>
-                    Server: {appVersion || 'Connected'}
-                  </Text>
+               {connectionStatus === 'connected' && (
+                 <View style={styles.connectionDetails}>
                    <Text style={styles.detailText}>
-                     Home Directory: {rootPath || 'Unknown'}
+                     Active Sessions: {sessions.length}
                    </Text>
-                </View>
-              )}
+                   <Text style={styles.detailText}>
+                     Server: {appVersion || 'Connected'}
+                   </Text>
+                   <Text style={styles.detailText}>
+                     Root Directory: {rootPath || 'Unknown'}
+                   </Text>
+                   <Text style={styles.detailText}>
+                     Home Directory: {homePath || 'Unknown'}
+                   </Text>
+                 </View>
+               )}
 
               {connectionStatus === 'error' && (
                 <View style={styles.errorDetails}>
