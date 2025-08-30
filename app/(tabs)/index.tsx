@@ -221,10 +221,10 @@ export default function Index() {
                      Server: {appVersion || 'Connected'}
                    </Text>
                    <Text style={styles.detailText}>
-                     Root Directory: {rootPath || 'Unknown'}
+                     Home Directory: {homePath || 'Unknown'}
                    </Text>
                    <Text style={styles.detailText}>
-                     Home Directory: {homePath || 'Unknown'}
+                     Root Directory: {rootPath || 'Unknown'}
                    </Text>
                  </View>
                )}
