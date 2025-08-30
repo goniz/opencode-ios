@@ -16,10 +16,15 @@ import { semanticColors } from '../../styles/colors';
 import { spacing } from '../../styles/spacing';
 import { layout } from '../../styles/layout';
 import { secureSettings } from '../../utils/secureSettings';
+import { GitHubPicker } from '../../integrations/github';
+import { FilePartLike } from '../../integrations/github/GitHubTypes';
+import type { Client } from '../../api/client/types.gen';
 
 interface AttachMenuProps {
   onImageSelected?: (imageUri: string) => void;
+  onFileAttached?: (filePart: FilePartLike) => void;
   disabled?: boolean;
+  client?: Client | null;
 }
 
 interface AttachOption {
@@ -32,11 +37,14 @@ interface AttachOption {
 
 export function AttachMenu({
   onImageSelected,
-  disabled = false
+  onFileAttached,
+  disabled = false,
+  client = null
 }: AttachMenuProps) {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [githubToken, setGithubToken] = useState<string | null>(null);
+  const [isGithubPickerVisible, setIsGithubPickerVisible] = useState(false);
 
   React.useEffect(() => {
     const loadGithubToken = async () => {
@@ -186,7 +194,7 @@ export function AttachMenu({
 
   const handleGithubAttach = useCallback(() => {
     setIsMenuVisible(false);
-    Alert.alert('Coming Soon', 'GitHub integration is under development');
+    setIsGithubPickerVisible(true);
   }, []);
 
   const handleLocalFileAttach = useCallback(() => {
@@ -249,6 +257,17 @@ export function AttachMenu({
     setIsMenuVisible(false);
   }, []);
 
+  const handleGithubPickerClose = useCallback(() => {
+    setIsGithubPickerVisible(false);
+  }, []);
+
+  const handleGithubAttachFile = useCallback((filePart: FilePartLike) => {
+    if (onFileAttached) {
+      onFileAttached(filePart);
+    }
+    setIsGithubPickerVisible(false);
+  }, [onFileAttached]);
+
   const attachOptions = createAttachOptions();
 
   return (
@@ -308,6 +327,16 @@ export function AttachMenu({
           </TouchableOpacity>
         </SafeAreaView>
       </Modal>
+
+      {githubToken && client && (
+        <GitHubPicker
+          visible={isGithubPickerVisible}
+          onClose={handleGithubPickerClose}
+          onAttach={handleGithubAttachFile}
+          githubToken={githubToken}
+          client={client}
+        />
+      )}
     </>
   );
 }

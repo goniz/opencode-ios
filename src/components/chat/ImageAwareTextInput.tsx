@@ -11,29 +11,35 @@ import { AttachMenu } from './AttachMenu';
 import type { CommandSuggestion } from '../../utils/commandMentions';
 import type { Command } from '../../api/types.gen';
 import type { BuiltInCommand } from '../../types/commands';
+import type { FilePartLike } from '../../integrations/github/GitHubTypes';
+import type { Client } from '../../api/client/types.gen';
 
 interface ImageAwareTextInputProps extends Omit<TextInputProps, 'onChangeText' | 'onSelectionChange'> {
   value: string;
   onChangeText: (text: string) => void;
   onImageSelected?: (imageUri: string) => void;
+  onFileAttached?: (filePart: FilePartLike) => void;
   onSelectionChange?: (selection: { start: number; end: number }) => void;
   onCommandSelect?: (command: CommandSuggestion) => void;
   onMenuCommandSelect?: (command: BuiltInCommand | Command) => void;
   userCommands?: Command[];
   disabled?: boolean;
   disableAttachments?: boolean;
+  client?: Client | null;
 }
 
 export function ImageAwareTextInput({ 
   value, 
   onChangeText, 
   onImageSelected,
+  onFileAttached,
   onSelectionChange,
   onCommandSelect,
   onMenuCommandSelect,
   userCommands = [],
   disabled = false,
   disableAttachments = false,
+  client = null,
   ...textInputProps 
 }: ImageAwareTextInputProps) {
 
@@ -58,7 +64,9 @@ export function ImageAwareTextInput({
       
       <AttachMenu
         onImageSelected={onImageSelected}
+        onFileAttached={onFileAttached}
         disabled={disableAttachments}
+        client={client}
       />
     </View>
   );
