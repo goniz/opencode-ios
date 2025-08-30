@@ -17,6 +17,8 @@ import { GitHubClient } from './GitHubClient';
 import { GitHubPreview } from './GitHubPreview';
 import { GHIssue, GHPull, FilePartLike } from './GitHubTypes';
 import { githubIssueToMessagePart, githubPullToMessagePart } from '../../components/chat/adapters/githubToMessagePart';
+import { detectCurrentGitHubRepository, formatRepositoryQuery, type GitHubRepository } from '../../utils/github';
+import type { Client } from '../../api/client/types.gen';
 import { semanticColors } from '../../styles/colors';
 import { spacing } from '../../styles/spacing';
 import { layout } from '../../styles/layout';
@@ -26,6 +28,7 @@ interface GitHubPickerProps {
   onClose: () => void;
   onAttach: (filePart: FilePartLike) => void;
   githubToken: string;
+  client: Client;
 }
 
 type TabType = 'issues' | 'pulls';
@@ -41,19 +44,67 @@ interface SearchResult {
   pull_request?: unknown;
 }
 
-export function GitHubPicker({ visible, onClose, onAttach, githubToken }: GitHubPickerProps) {
+export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }: GitHubPickerProps) {
   const [activeTab, setActiveTab] = useState<TabType>('issues');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<GHIssue | GHPull | null>(null);
-  const [client, setClient] = useState<GitHubClient | null>(null);
+  const [githubClient, setGithubClient] = useState<GitHubClient | null>(null);
+  const [currentRepository, setCurrentRepository] = useState<GitHubRepository | null>(null);
+
 
   useEffect(() => {
     if (githubToken) {
-      setClient(new GitHubClient(githubToken));
+      setGithubClient(new GitHubClient(githubToken));
     }
   }, [githubToken]);
+
+  // Detect current repository when visible
+  useEffect(() => {
+    const detectRepository = async () => {
+      if (!visible || !client) return;
+      
+      try {
+        const repo = await detectCurrentGitHubRepository(client);
+        setCurrentRepository(repo);
+        
+        if (repo) {
+          console.log('Detected GitHub repository:', repo.fullName);
+          // Load repository issues/PRs by default
+          if (githubClient) {
+            await loadRepositoryItems(repo, githubClient);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to detect repository:', error);
+      }
+    };
+
+    detectRepository();
+  }, [visible, client, githubClient]);
+
+  const loadRepositoryItems = useCallback(async (repo: GitHubRepository, client: GitHubClient) => {
+    if (!client) return;
+    
+    setLoading(true);
+    try {
+      const query = formatRepositoryQuery(repo, activeTab === 'issues' ? 'issue' : 'pr');
+      const result = await client.searchIssuesPRs(query);
+      setSearchResults(result.items);
+    } catch (error) {
+      Alert.alert('Error', `Failed to load ${activeTab}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab]);
+
+  // Auto-reload when tab changes for current repository
+  useEffect(() => {
+    if (currentRepository && githubClient && visible) {
+      loadRepositoryItems(currentRepository, githubClient);
+    }
+  }, [activeTab, currentRepository, githubClient, visible, loadRepositoryItems]);
 
   const formatDate = (isoDate: string): string => {
     return new Date(isoDate).toLocaleDateString('en-US', {
@@ -79,22 +130,36 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken }: GitHub
   };
 
   const handleSearch = useCallback(async () => {
-    if (!client || !searchQuery.trim()) return;
+    if (!githubClient || !searchQuery.trim()) return;
 
     setLoading(true);
     try {
-      const type = activeTab === 'issues' ? 'issue' : 'pr';
-      const result = await client.searchIssuesPRs(searchQuery, type);
+      let query = searchQuery;
+      
+      // If we have a current repository and the search query doesn't already include repo scope,
+      // automatically scope to current repository
+      if (currentRepository && !query.includes('repo:')) {
+        const type = activeTab === 'issues' ? 'issue' : 'pr';
+        query = `${query} repo:${currentRepository.fullName} type:${type}`;
+      } else {
+        // Add type filter if not repository-scoped
+        const type = activeTab === 'issues' ? 'issue' : 'pr';
+        if (!query.includes('type:')) {
+          query += ` type:${type}`;
+        }
+      }
+      
+      const result = await githubClient.searchIssuesPRs(query);
       setSearchResults(result.items);
     } catch (error) {
       Alert.alert('Search Error', error instanceof Error ? error.message : 'Failed to search');
     } finally {
       setLoading(false);
     }
-  }, [client, searchQuery, activeTab]);
+  }, [githubClient, searchQuery, activeTab, currentRepository]);
 
   const handleItemPress = useCallback(async (item: SearchResult) => {
-    if (!client) return;
+    if (!githubClient) return;
 
     setLoading(true);
     try {
@@ -107,9 +172,9 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken }: GitHub
       let detailedItem: GHIssue | GHPull;
       
       if (item.pull_request) {
-        detailedItem = await client.getPullRequest(repoInfo.owner, repoInfo.repo, item.number);
+        detailedItem = await githubClient.getPullRequest(repoInfo.owner, repoInfo.repo, item.number);
       } else {
-        detailedItem = await client.getIssue(repoInfo.owner, repoInfo.repo, item.number);
+        detailedItem = await githubClient.getIssue(repoInfo.owner, repoInfo.repo, item.number);
       }
 
       setSelectedItem(detailedItem);
@@ -118,7 +183,7 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken }: GitHub
     } finally {
       setLoading(false);
     }
-  }, [client]);
+  }, [githubClient]);
 
   const handleAttach = useCallback(() => {
     if (!selectedItem) return;
@@ -211,12 +276,25 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken }: GitHub
           </TouchableOpacity>
         </View>
 
+        {currentRepository && (
+          <View style={styles.repositoryHeader}>
+            <View style={styles.repoInfo}>
+              <Ionicons name="book-outline" size={16} color={semanticColors.textMuted} />
+              <Text style={styles.repoName}>{currentRepository.fullName}</Text>
+            </View>
+            <Text style={styles.repoSubtext}>Current repository</Text>
+          </View>
+        )}
+
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
             <Ionicons name="search-outline" size={20} color={semanticColors.textMuted} />
             <TextInput
               style={styles.searchInput}
-              placeholder={`Search ${activeTab === 'issues' ? 'issues' : 'pull requests'}...`}
+              placeholder={currentRepository 
+                ? `Search in ${currentRepository.fullName}...`
+                : `Search ${activeTab === 'issues' ? 'issues' : 'pull requests'}...`
+              }
               placeholderTextColor={semanticColors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -415,5 +493,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: semanticColors.textMuted,
     marginTop: spacing.xs,
+  },
+  repositoryHeader: {
+    backgroundColor: semanticColors.cardBackground,
+    padding: spacing.md,
+    borderBottomWidth: layout.borderWidth.DEFAULT,
+    borderBottomColor: semanticColors.border,
+  },
+  repoInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  repoName: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: semanticColors.textPrimary,
+    marginLeft: spacing.xs,
+  },
+  repoSubtext: {
+    fontSize: 12,
+    color: semanticColors.textMuted,
   },
 });

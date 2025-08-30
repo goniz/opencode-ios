@@ -18,11 +18,13 @@ import { layout } from '../../styles/layout';
 import { secureSettings } from '../../utils/secureSettings';
 import { GitHubPicker } from '../../integrations/github';
 import { FilePartLike } from '../../integrations/github/GitHubTypes';
+import type { Client } from '../../api/client/types.gen';
 
 interface AttachMenuProps {
   onImageSelected?: (imageUri: string) => void;
   onFileAttached?: (filePart: FilePartLike) => void;
   disabled?: boolean;
+  client?: Client | null;
 }
 
 interface AttachOption {
@@ -36,7 +38,8 @@ interface AttachOption {
 export function AttachMenu({
   onImageSelected,
   onFileAttached,
-  disabled = false
+  disabled = false,
+  client = null
 }: AttachMenuProps) {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -325,12 +328,13 @@ export function AttachMenu({
         </SafeAreaView>
       </Modal>
 
-      {githubToken && (
+      {githubToken && client && (
         <GitHubPicker
           visible={isGithubPickerVisible}
           onClose={handleGithubPickerClose}
           onAttach={handleGithubAttachFile}
           githubToken={githubToken}
+          client={client}
         />
       )}
     </>

@@ -1096,6 +1096,7 @@ const commandBody: {
               userCommands={commands}
               disabled={false}
               disableAttachments={false}
+              client={client}
               placeholder="Type a message..."
               placeholderTextColor="#6b7280"
               multiline
