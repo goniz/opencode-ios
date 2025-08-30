@@ -24,8 +24,10 @@ import { ChatFlashList } from '../../src/components/chat/ChatFlashList';
 
 import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInput';
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
+import { FilePreview } from '../../src/components/chat/FilePreview';
 import { CrutesApiKeyInput } from '../../src/components/chat/CrutesApiKeyInput';
 import type { AssistantMessage, Command } from '../../src/api/types.gen';
+import type { FilePartLike } from '../../src/integrations/github/GitHubTypes';
 import {
   configProviders,
   sessionCommand,
@@ -82,6 +84,7 @@ export default function ChatScreen() {
   
    const [inputText, setInputText] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [attachedFiles, setAttachedFiles] = useState<FilePartLike[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [currentProvider, setCurrentProvider] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<{providerID: string, modelID: string} | null>(null);
@@ -412,6 +415,15 @@ export default function ChatScreen() {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   }, []);
 
+  const handleFileAttached = useCallback((filePart: FilePartLike) => {
+    console.log('File attached:', filePart.name);
+    setAttachedFiles(prev => [...prev, filePart]);
+  }, []);
+
+  const handleRemoveFile = useCallback((index: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
   const handleDismissError = useCallback(() => {
     if (lastError) {
       setDismissedErrors(prev => new Set(prev).add(lastError));
@@ -444,16 +456,27 @@ export default function ChatScreen() {
       currentModel
     });
 
-    if (((!inputText || !inputText.trim()) && selectedImages.length === 0) || !currentSession || isSending) {
+    if (((!inputText || !inputText.trim()) && selectedImages.length === 0 && attachedFiles.length === 0) || !currentSession || isSending) {
       console.log('Early return due to validation');
       return;
     }
 
-    const messageText = inputText?.trim() || '';
+    const imagesToSend = [...selectedImages];
+    const filesToSend = [...attachedFiles];
+    
+    let messageText = inputText?.trim() || '';
+    
+    // If we have attached files, append their content to the message
+    if (filesToSend.length > 0) {
+      const fileContents = filesToSend.map(file => 
+        `\n\n**Attached file: ${file.name}**\n\n${file.content}`
+      ).join('');
+      messageText = messageText + fileContents;
+    }
     
     // Check if this is a command
-    if (messageText.startsWith('/')) {
-      await handleCommandExecution(messageText);
+    if (inputText?.trim().startsWith('/')) {
+      await handleCommandExecution(inputText.trim());
       return;
     }
 
@@ -461,13 +484,12 @@ export default function ChatScreen() {
        console.log('No model selected');
        return;
      }
-
-    const imagesToSend = [...selectedImages];
     
-    console.log('Sending message:', { messageText, imagesToSend });
+    console.log('Sending message:', { messageText: messageText.substring(0, 200) + '...', imagesToSend, filesToSend });
     
     setInputText('');
     setSelectedImages([]);
+    setAttachedFiles([]);
     setIsSending(true);
 
      try {
@@ -1046,10 +1068,15 @@ const commandBody: {
            />
          )}
 
-         <ImagePreview 
-           images={selectedImages}
-           onRemoveImage={handleRemoveImage}
-         />
+          <ImagePreview 
+            images={selectedImages}
+            onRemoveImage={handleRemoveImage}
+          />
+
+          <FilePreview 
+            files={attachedFiles}
+            onRemoveFile={handleRemoveFile}
+          />
 
          <CrutesApiKeyInput
            visible={showApiKeyInput}
@@ -1063,6 +1090,7 @@ const commandBody: {
               value={inputText}
               onChangeText={setInputText}
               onImageSelected={handleImageSelected}
+              onFileAttached={handleFileAttached}
               onCommandSelect={handleCommandSelect}
               onMenuCommandSelect={handleMenuCommandSelect}
               userCommands={commands}
@@ -1081,18 +1109,19 @@ const commandBody: {
                <Ionicons name="stop" size={20} color={semanticColors.textPrimary} />
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            style={[styles.sendButton, ((!inputText.trim() && selectedImages.length === 0) || isSending) && styles.sendButtonDisabled]}
+           <TouchableOpacity
+            style={[styles.sendButton, ((!inputText.trim() && selectedImages.length === 0 && attachedFiles.length === 0) || isSending) && styles.sendButtonDisabled]}
             onPress={() => {
               console.log('Send button pressed!', {
                 hasText: !!inputText.trim(),
                 imageCount: selectedImages.length,
+                fileCount: attachedFiles.length,
                 isSending,
-                disabled: (!inputText.trim() && selectedImages.length === 0) || isSending
+                disabled: (!inputText.trim() && selectedImages.length === 0 && attachedFiles.length === 0) || isSending
               });
               handleSendMessage();
             }}
-            disabled={(!inputText.trim() && selectedImages.length === 0) || isSending}
+            disabled={(!inputText.trim() && selectedImages.length === 0 && attachedFiles.length === 0) || isSending}
           >
             {isSending ? (
               <ActivityIndicator size="small" color={semanticColors.background} />
