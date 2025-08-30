@@ -32,7 +32,7 @@ export function FilePreview({ files, onRemoveFile }: FilePreviewProps) {
               {file.name}
             </Text>
             <Text style={styles.fileMeta}>
-              {file.mimeType === 'text/markdown' ? 'Markdown' : 'File'}
+              {file.mimeType === 'text/plain' ? 'Text' : 'File'}
             </Text>
             {file.metadata?.github && (
               <View style={styles.githubBadge}>

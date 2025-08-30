@@ -28,6 +28,7 @@ import { FilePreview } from '../../src/components/chat/FilePreview';
 import { CrutesApiKeyInput } from '../../src/components/chat/CrutesApiKeyInput';
 import type { AssistantMessage, Command } from '../../src/api/types.gen';
 import type { FilePartLike } from '../../src/integrations/github/GitHubTypes';
+import { convertGitHubFilePartsToInputs } from '../../src/utils/githubFileParts';
 import {
   configProviders,
   sessionCommand,
@@ -466,13 +467,8 @@ export default function ChatScreen() {
     
     let messageText = inputText?.trim() || '';
     
-    // If we have attached files, append their content to the message
-    if (filesToSend.length > 0) {
-      const fileContents = filesToSend.map(file => 
-        `\n\n**Attached file: ${file.name}**\n\n${file.content}`
-      ).join('');
-      messageText = messageText + fileContents;
-    }
+    // Convert GitHub file parts to API format
+    const githubFileParts = filesToSend.length > 0 ? convertGitHubFilePartsToInputs(filesToSend) : [];
     
     // Check if this is a command
     if (inputText?.trim().startsWith('/')) {
@@ -485,7 +481,7 @@ export default function ChatScreen() {
        return;
      }
     
-    console.log('Sending message:', { messageText: messageText.substring(0, 200) + '...', imagesToSend, filesToSend });
+    console.log('Sending message:', { messageText: messageText.substring(0, 200) + '...', imagesToSend, githubFilePartsCount: githubFileParts.length });
     
     setInputText('');
     setSelectedImages([]);
@@ -498,15 +494,17 @@ export default function ChatScreen() {
           messageText,
           currentModel.providerID,
           currentModel.modelID,
-          imagesToSend
+          imagesToSend,
+          githubFileParts
         );
         console.log('Message queued successfully');
         // Scroll to bottom after sending (will be handled by messages change effect)
       } catch (error) {
         console.error('Failed to send message:', error);
-        // Restore the input text and images if sending failed
+        // Restore the input text, images, and attached files if sending failed
         setInputText(messageText);
         setSelectedImages(imagesToSend);
+        setAttachedFiles(filesToSend);
       } finally {
         // Always reset isSending state regardless of success or failure
         setIsSending(false);

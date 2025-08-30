@@ -23,7 +23,7 @@ ${truncateContent(issue.body || 'No description provided.')}`;
 
   return {
     type: 'file',
-    mimeType: 'text/markdown',
+    mimeType: 'text/plain',
     name: `${issue.repo.replace('/', '-')}-issue-${issue.number}.md`,
     content,
     metadata: {
@@ -47,7 +47,7 @@ ${truncateContent(pull.body || 'No description provided.')}`;
 
   return {
     type: 'file',
-    mimeType: 'text/markdown',
+    mimeType: 'text/plain',
     name: `${pull.repo.replace('/', '-')}-pr-${pull.number}.md`,
     content,
     metadata: {
@@ -70,7 +70,7 @@ ${truncateContent(comment.body)}`;
 
   return {
     type: 'file',
-    mimeType: 'text/markdown',
+    mimeType: 'text/plain',
     name: `${comment.repo.replace('/', '-')}-comment-${comment.id}.md`,
     content,
     metadata: {

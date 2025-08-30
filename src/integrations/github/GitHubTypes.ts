@@ -46,7 +46,7 @@ export interface GitHubMetadata {
 
 export interface FilePartLike {
   type: 'file';
-  mimeType: 'text/markdown';
+  mimeType: 'text/plain';
   name: string;
   content: string;
   metadata?: GitHubMetadata;

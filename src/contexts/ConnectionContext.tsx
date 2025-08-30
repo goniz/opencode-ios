@@ -80,7 +80,7 @@ export interface ConnectionContextType extends ConnectionState {
   retryConnection: () => Promise<void>;
   setCurrentSession: (session: Session | null) => void;
   loadMessages: (sessionId: string) => Promise<void>;
-  sendMessage: (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]) => void;
+  sendMessage: (sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[], fileParts?: FilePartInput[]) => void;
   abortSession: (sessionId: string) => Promise<boolean>;
   refreshCommands: () => Promise<void>;
   onSessionIdle: (callback: (sessionId: string) => void) => () => void;
@@ -781,14 +781,15 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     }
   }, []);
 
-  const sendMessage = useCallback((sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[]): void => {
+  const sendMessage = useCallback((sessionId: string, message: string, providerID?: string, modelID?: string, images?: string[], fileParts?: FilePartInput[]): void => {
     console.log('🔍 [sendMessage] Function called with:', {
       sessionId,
       message: JSON.stringify(message),
       messageLength: message.length,
       providerID,
       modelID,
-      imagesCount: images?.length || 0
+      imagesCount: images?.length || 0,
+      filePartsCount: fileParts?.length || 0
     });
 
     if (!state.client || state.connectionStatus !== 'connected') {
@@ -895,6 +896,21 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
           console.log('📎 [sendMessage] File parts added, total parts array length:', parts.length);
          } else {
            console.log('📎 [sendMessage] No file parts to add');
+         }
+
+         // Add GitHub file parts if there are any
+         console.log('🐙 [sendMessage] Checking GitHub file attachments - count:', fileParts?.length || 0);
+         if (fileParts && fileParts.length > 0) {
+           console.log('🐙 [sendMessage] Adding GitHub file parts to message:', fileParts.map(fp => ({
+             filename: fp.filename,
+             mime: fp.mime,
+             type: fp.type
+           })));
+
+           parts.push(...fileParts);
+           console.log('🐙 [sendMessage] GitHub file parts added, total parts array length:', parts.length);
+         } else {
+           console.log('🐙 [sendMessage] No GitHub file parts to add');
          }
 
          // Add image parts if there are images
