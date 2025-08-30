@@ -101,7 +101,15 @@ export function AttachMenu({
     if (isLoading) return;
 
     setIsMenuVisible(false);
-    setIsLoading(true);
+    
+    // Add a small delay to ensure menu closes before setting loading
+    setTimeout(() => setIsLoading(true), 100);
+
+    // Safety timeout to reset loading state
+    const timeoutId = setTimeout(() => {
+      console.log('Image picker timeout - resetting loading state');
+      setIsLoading(false);
+    }, 30000); // 30 second timeout
 
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -128,6 +136,7 @@ export function AttachMenu({
       console.error('Error selecting image:', error);
       Alert.alert('Error', `Failed to select image: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
   }, [isLoading, onImageSelected]);
@@ -136,7 +145,15 @@ export function AttachMenu({
     if (isLoading) return;
 
     setIsMenuVisible(false);
-    setIsLoading(true);
+    
+    // Add a small delay to ensure menu closes before setting loading
+    setTimeout(() => setIsLoading(true), 100);
+
+    // Safety timeout to reset loading state
+    const timeoutId = setTimeout(() => {
+      console.log('Camera timeout - resetting loading state');
+      setIsLoading(false);
+    }, 30000); // 30 second timeout
 
     try {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
@@ -162,6 +179,7 @@ export function AttachMenu({
       console.error('Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo');
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
   }, [isLoading, onImageSelected]);

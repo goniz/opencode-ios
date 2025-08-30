@@ -36,6 +36,7 @@ export const TodoTool: React.FC<TodoToolProps> = ({ todos }) => {
         data={todos}
         renderItem={renderTodoItem}
         keyExtractor={item => item.id}
+        nestedScrollEnabled={false}
       />
     </View>
   );
