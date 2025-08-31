@@ -426,29 +426,6 @@ const [commandStatus, setCommandStatus] = useState<string | null>(null);
      }
    }, [connectionStatus, fetchGitBranch]);
 
-   // Load git branch when component mounts
-   useEffect(() => {
-     loadGitBranch();
-   }, []);
-
-   const loadGitBranch = async () => {
-     if (!client || !currentSession) {
-       setGitBranch(null);
-       return;
-     }
-
-     try {
-       // Run git branch command in a temporary session
-       await runShellCommandInSession(client, 'git rev-parse --abbrev-ref HEAD');
-       // For now, we'll just show a generic message since the actual output
-       // isn't returned by the utility function
-       setGitBranch('Repository connected');
-     } catch (error) {
-       console.error('Failed to fetch git branch:', error);
-       setGitBranch(null);
-     }
-   };
-
    // Cleanup handled by ChatFlashList component
 
   const handleImageSelected = useCallback((imageUri: string) => {
@@ -1042,7 +1019,7 @@ const commandBody: {
            </View>
            
 {/* Token/cost/quota info row */}
-             {(contextInfo || chutesQuota || commandStatus || sessionUrl || gitBranch) && !isGenerating && (
+             {(contextInfo || chutesQuota || commandStatus || sessionUrl || gitBranch) && (
                <View style={styles.headerInfoRow}>
                  {contextInfo && (
                    <Text style={styles.tokenInfoCompact}>
