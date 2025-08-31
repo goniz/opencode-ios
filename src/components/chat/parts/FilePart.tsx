@@ -5,6 +5,7 @@ import { MessagePartProps, MessagePartContainer, getRenderMode, getMessagePartSt
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
 import { FullScreenImageViewer } from '../FullScreenImageViewer';
+import { getFileTypeInfo } from '../../../utils/fileTypeDetection';
 
 interface FilePartData {
   file?: {
@@ -31,33 +32,28 @@ export const FilePart: React.FC<MessagePartProps> = ({
   const actualRenderMode = getRenderMode(renderMode, messageRole);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   
-  // Debug state changes
-  React.useEffect(() => {
-    console.log('FilePart imageViewerVisible changed:', imageViewerVisible);
-  }, [imageViewerVisible]);
-  
-  // Handle both the MessagePartProps interface and actual API FilePart type
   const filePart = part as FilePartData;
   
-  // Try to get file info from different possible sources
+  // Get file info from different possible sources
   const filePath = filePart.file?.path || filePart.source?.path || filePart.filename || 'Unknown file';
   const fileContent = filePart.file?.content || filePart.source?.text?.value || '';
   const mimeType = filePart.mime || '';
   const fileUrl = filePart.url || '';
+  
+  // Extract filename
+  const fileName = filePath.split('/').pop() || filePath;
+  const fileTypeInfo = getFileTypeInfo(fileName, mimeType);
   
   // Check if this is an image file
   const isImage = mimeType.startsWith('image/') || 
     ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tiff', 'tif'].some(ext => 
       filePath.toLowerCase().endsWith(`.${ext}`)
     );
-    
-  // For user messages, we might have image data in different formats
-  // Check if we have a valid URL for rendering (including base64 data URLs)
+     
+  // Check if we have a valid URL for rendering
   const hasValidUrl = Boolean(fileUrl && fileUrl.trim() !== '') && 
     (fileUrl.startsWith('http') || fileUrl.startsWith('file://') || fileUrl.startsWith('data:'));
-    
-
-  
+   
   // For user messages with local files, check if we can render them directly
   const isLocalImage = messageRole === 'user' && 
     !hasValidUrl && 
@@ -87,64 +83,34 @@ export const FilePart: React.FC<MessagePartProps> = ({
     toggleExpanded,
   } = expandableResult;
   
-  console.log('FilePart render check:', {
-    messageRole,
-    isImage,
-    hasValidUrl,
-    isLocalImage,
-    mimeType: mimeType.substring(0, 20),
-    actualRenderMode
-  });
-  
+  // USER MESSAGE BUBBLE - Simple format: [TYPE] filename
   if (messageRole === 'user' && actualRenderMode === 'bubble') {
     return (
       <View style={getMessagePartStyles({ messageRole: 'user', renderMode: 'bubble' }).fileContainer}>
-        <View style={styles.userFileHeader}>
-          <Text style={styles.fileIcon}>{isImage ? '🖼️' : '📄'}</Text>
-          <Text style={styles.userFileName} numberOfLines={1}>
-            {filePath.split('/').pop() || filePath}
-          </Text>
-        </View>
+        <Text style={styles.userFileText}>
+          [{fileTypeInfo.icon}] {fileName}
+        </Text>
+        
+        {/* Show image preview for images */}
         {(isImage && hasValidUrl) || isLocalImage ? (
-          <View style={{ alignSelf: 'center', marginTop: 8 }}>
-            <TouchableOpacity 
-              onPress={() => {
-                console.log('USER IMAGE CLICKED - Debug info:', {
-                  fileUrl: fileUrl?.substring(0, 50) + '...',
-                  filePath,
-                  hasValidUrl,
-                  isLocalImage,
-                  imageViewerVisible
-                });
-                setImageViewerVisible(true);
-              }}
-              activeOpacity={0.7}
-              style={{ 
-                borderRadius: 8,
-                overflow: 'hidden',
-                backgroundColor: '#1a1a1a',
-              }}
-            >
-              <Image
-                source={{ uri: hasValidUrl ? fileUrl : `file://${filePath}` }}
-                style={styles.userImagePreview}
-                contentFit="cover"
-                placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
-                cachePolicy="memory-disk"
-                onError={(error) => console.log('Image load error:', error)}
-                onLoad={() => console.log('Image loaded successfully')}
-              />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity 
+            onPress={() => setImageViewerVisible(true)}
+            style={styles.userImageContainer}
+          >
+            <Image
+              source={{ uri: hasValidUrl ? fileUrl : `file://${filePath}` }}
+              style={styles.userImagePreview}
+              contentFit="cover"
+              placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
+              cachePolicy="memory-disk"
+            />
+          </TouchableOpacity>
         ) : null}
         
         <FullScreenImageViewer
           visible={imageViewerVisible}
           imageUri={hasValidUrl ? fileUrl : `file://${filePath}`}
-          onClose={() => {
-            console.log('FullScreenImageViewer closed');
-            setImageViewerVisible(false);
-          }}
+          onClose={() => setImageViewerVisible(false)}
         />
       </View>
     );
@@ -155,10 +121,7 @@ export const FilePart: React.FC<MessagePartProps> = ({
     return null;
   }
 
-  // Extract file name from path
-  const fileName = filePath ? filePath.split('/').pop() || filePath : 'Unknown file';
-  
-  // Simple file extension detection for styling
+  // ASSISTANT MESSAGE - Expanded format
   const fileExtension = fileName.split('.').pop()?.toLowerCase() || '';
   const isCodeFile = ['js', 'ts', 'tsx', 'jsx', 'py', 'java', 'cpp', 'c', 'css', 'html', 'json'].includes(fileExtension);
 
@@ -167,9 +130,9 @@ export const FilePart: React.FC<MessagePartProps> = ({
       <View style={styles.container}>
         {/* File header */}
         <View style={styles.header}>
-<View style={styles.fileIconContainer}>
-  <Text style={styles.fileIconText}>{isImage ? '🖼️' : '📄'}</Text>
-</View>
+          <View style={styles.fileIconContainer}>
+            <Text style={styles.fileIconText}>[{fileTypeInfo.icon}]</Text>
+          </View>
           <View style={styles.fileInfo}>
             <Text style={styles.fileName}>{fileName}</Text>
             <Text style={styles.filePath}>{filePath}</Text>
@@ -178,10 +141,7 @@ export const FilePart: React.FC<MessagePartProps> = ({
 
         {/* Image content */}
         {isImage && hasValidUrl && (
-          <TouchableOpacity onPress={() => {
-            console.log('IMAGE CLICKED');
-            setImageViewerVisible(true);
-          }}>
+          <TouchableOpacity onPress={() => setImageViewerVisible(true)}>
             <View style={styles.imageContainer}>
               <Image
                 source={{ uri: fileUrl }}
@@ -218,10 +178,7 @@ export const FilePart: React.FC<MessagePartProps> = ({
         <FullScreenImageViewer
           visible={imageViewerVisible}
           imageUri={hasValidUrl ? fileUrl : `file://${filePath}`}
-          onClose={() => {
-            console.log('FullScreenImageViewer closed');
-            setImageViewerVisible(false);
-          }}
+          onClose={() => setImageViewerVisible(false)}
         />
       </View>
     </MessagePartContainer>
@@ -232,6 +189,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  
+  // USER MESSAGE STYLES - Simple and clean
+  userFileText: {
+    fontSize: 15,
+    color: '#ffffff',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  userImageContainer: {
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+    alignSelf: 'flex-start',
+  },
+  userImagePreview: {
+    width: 150,
+    height: 150,
+    borderRadius: 8,
+  },
+  
+  // ASSISTANT MESSAGE STYLES - Expanded format
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -242,16 +220,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   fileIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: '#374151',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginRight: 10,
   },
   fileIconText: {
     fontSize: 14,
+    color: '#9ca3af',
+    fontWeight: '500',
   },
   fileInfo: {
     flex: 1,
@@ -260,7 +234,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#e5e7eb',
-    marginBottom: 1,
+    marginBottom: 2,
   },
   filePath: {
     fontSize: 11,
@@ -298,29 +272,5 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 180,
     borderRadius: 12,
-  },
-  
-  // User bubble mode styles
-  userFileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  fileIcon: {
-    marginRight: 8,
-    fontSize: 16,
-  },
-  userFileName: {
-    fontSize: 14,
-    color: '#ffffff',
-    fontWeight: '400',
-    flex: 1,
-  },
-  userImagePreview: {
-    width: 120,
-    height: 120,
-    borderRadius: 8,
-    alignSelf: 'center',
-    marginTop: 8,
   },
 });
