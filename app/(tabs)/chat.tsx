@@ -418,7 +418,8 @@ const [commandStatus, setCommandStatus] = useState<string | null>(null);
        setGitBranch(result || null); // Use actual result or null if empty
      } catch (error) {
        console.error('Failed to fetch git branch:', error);
-       setGitBranch(null);
+       // Show error message in UI for debugging
+       setGitBranch(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
      }
    }, [client, connectionStatus]);
 

@@ -22,7 +22,7 @@ export async function runShellCommandInSession(
 
   const session = sessionResponse.data;
   if (!session) {
-    throw new Error('Failed to create session');
+    throw new Error(`Failed to create session for command: ${shellCommand}`);
   }
 
   try {
@@ -41,7 +41,7 @@ export async function runShellCommandInSession(
 
     const message = shellResponse.data;
     if (!message) {
-      throw new Error('Failed to execute shell command');
+      throw new Error(`Failed to execute shell command: ${shellCommand} in session ${session.id}`);
     }
 
     console.log(`Shell command executed, message ID: ${message.id}`);
@@ -60,7 +60,7 @@ export async function runShellCommandInSession(
     });
 
     if (!messageResponse.data) {
-      throw new Error('Failed to retrieve message output');
+      throw new Error(`Failed to retrieve message output for command: ${shellCommand} in session ${session.id}, message ${message.id}`);
     }
 
     console.log(`Message parts count: ${messageResponse.data.parts.length}`);
@@ -74,8 +74,14 @@ export async function runShellCommandInSession(
       }
     }
 
-    console.log(`Final output: "${output.trim()}"`);
+    console.log(`Final output for command "${shellCommand}": "${output.trim()}"`);
     return output.trim();
+  } catch (error) {
+    // Re-throw with more context
+    if (error instanceof Error) {
+      throw new Error(`Error running shell command "${shellCommand}" in session ${session.id}: ${error.message}`);
+    }
+    throw new Error(`Unknown error running shell command "${shellCommand}" in session ${session.id}`);
   } finally {
     // Clean up by deleting the session
     try {
@@ -87,7 +93,7 @@ export async function runShellCommandInSession(
       });
     } catch (error) {
       // Log the error but don't throw, as the command was already executed
-      console.warn(`Failed to delete session ${session.id}:`, error);
+      console.warn(`Failed to delete session ${session.id} after running command "${shellCommand}":`, error);
     }
   }
 }
