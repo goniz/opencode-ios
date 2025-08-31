@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Alert, StatusBar, Switch, TextInput, Modal, Linking, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
@@ -31,14 +31,7 @@ export default function SettingsScreen() {
   const [gitBranch, setGitBranch] = useState<string | null>(null);
   const [isLoadingGitBranch, setIsLoadingGitBranch] = useState(false);
 
-  useEffect(() => {
-    loadSavedServersCount();
-    loadChutesApiKey();
-    loadGithubToken();
-    loadGitBranch();
-  }, [connectionStatus]);
-
-  const loadGitBranch = async () => {
+  const loadGitBranch = useCallback(async () => {
     if (!client || connectionStatus !== 'connected') {
       return;
     }
@@ -46,7 +39,7 @@ export default function SettingsScreen() {
     setIsLoadingGitBranch(true);
     try {
       // Run git branch command in a temporary session
-      const result = await runShellCommandInSession(client, 'git branch --show-current');
+      await runShellCommandInSession(client, 'git branch --show-current');
       // For now, we'll just show a generic message since the actual output
       // isn't returned by the utility function
       setGitBranch('Connected to repository');
@@ -56,7 +49,14 @@ export default function SettingsScreen() {
     } finally {
       setIsLoadingGitBranch(false);
     }
-  };
+  }, [client, connectionStatus]);
+
+  useEffect(() => {
+    loadSavedServersCount();
+    loadChutesApiKey();
+    loadGithubToken();
+    loadGitBranch();
+  }, [connectionStatus, loadGitBranch]);
 
   const loadSavedServersCount = async () => {
     const servers = await getSavedServers();
