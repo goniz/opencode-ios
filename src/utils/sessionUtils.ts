@@ -1,5 +1,139 @@
-import { sessionCreate, sessionShell, sessionMessage, sessionDelete } from '../api/sdk.gen';
+import { sessionCreate, sessionShell, sessionMessage, sessionDelete, sessionMessages } from '../api/sdk.gen';
 import { Client } from '../api/client';
+import { withRetry, delay } from './retryUtils';
+
+// Constants
+const DEFAULT_AGENT = 'general';
+const COMMAND_COMPLETION_DELAY = 1000;
+const SESSION_TITLE_MAX_LENGTH = 30;
+
+// Types
+interface MessagePart {
+  type: string;
+  text?: string;
+}
+
+interface MessageData {
+  parts: MessagePart[];
+}
+
+interface SessionMessage {
+  info: {
+    id: string;
+    role: string;
+    time: {
+      created?: number;
+    };
+  };
+}
+
+// Utility functions
+function createSessionTitle(command: string): string {
+  const truncated = command.length > SESSION_TITLE_MAX_LENGTH 
+    ? `${command.substring(0, SESSION_TITLE_MAX_LENGTH)}...` 
+    : command;
+  return `Temporary session for command: ${truncated}`;
+}
+
+
+
+async function resolveMessageId(
+  client: Client, 
+  sessionId: string, 
+  messageId: string
+): Promise<string> {
+  if (!messageId.includes('{messageID}')) {
+    return messageId;
+  }
+  
+  const messagesResponse = await sessionMessages({
+    client,
+    path: { id: sessionId }
+  });
+  
+  if (!messagesResponse.data?.length) {
+    throw new Error('No messages found in session');
+  }
+  
+  const assistantMessages = messagesResponse.data
+    .filter((m: SessionMessage) => m.info.role === 'assistant')
+    .sort((a: SessionMessage, b: SessionMessage) => 
+      (b.info.time.created || 0) - (a.info.time.created || 0));
+  
+  if (!assistantMessages.length) {
+    throw new Error('No assistant messages found in session');
+  }
+  
+  return assistantMessages[0].info.id;
+}
+
+function extractTextFromParts(parts: MessagePart[]): string {
+  return parts
+    .filter(part => part.type === 'text')
+    .map(part => part.text || '')
+    .join('')
+    .trim();
+}
+
+async function createSession(client: Client, command: string) {
+  const response = await sessionCreate({
+    client,
+    body: { title: createSessionTitle(command) }
+  });
+  
+  if (!response.data) {
+    throw new Error(`Failed to create session for command: ${command}`);
+  }
+  
+  return response.data;
+}
+
+async function executeCommand(client: Client, sessionId: string, command: string) {
+  const response = await sessionShell({
+    client,
+    path: { id: sessionId },
+    body: {
+      agent: DEFAULT_AGENT,
+      command
+    }
+  });
+  
+  if (!response.data) {
+    throw new Error(`Failed to execute command: ${command}`);
+  }
+  
+  return response.data;
+}
+
+async function fetchMessage(client: Client, sessionId: string, messageId: string): Promise<MessageData> {
+  return withRetry(async () => {
+    const result = await sessionMessage({
+      client,
+      path: {
+        id: sessionId,
+        messageID: messageId
+      }
+    });
+
+    if (!result.data) {
+      throw new Error('Message data not available');
+    }
+
+    return result.data;
+  });
+}
+
+async function cleanupSession(client: Client, sessionId: string): Promise<void> {
+  try {
+    await sessionDelete({
+      client,
+      path: { id: sessionId }
+    });
+  } catch (error) {
+    // Session cleanup failure is not critical
+    console.warn(`Failed to cleanup session ${sessionId}:`, error);
+  }
+}
 
 /**
  * Runs a shell command in a temporary session and returns the output
@@ -12,134 +146,21 @@ export async function runShellCommandInSession(
   client: Client,
   shellCommand: string
 ): Promise<string> {
-  console.log(`Creating session for command: ${shellCommand}`);
-  console.log(`SessionCreate request body:`, {
-    title: `Temporary session for command: ${shellCommand.substring(0, 30)}${shellCommand.length > 30 ? '...' : ''}`
-  });
+  const session = await createSession(client, shellCommand);
   
-  // Create a new session
-  const sessionResponse = await sessionCreate({
-    client,
-    body: {
-      title: `Temporary session for command: ${shellCommand.substring(0, 30)}${shellCommand.length > 30 ? '...' : ''}`
-    }
-  });
-
-  console.log(`SessionCreate response:`, sessionResponse);
-  const session = sessionResponse.data;
-  if (!session) {
-    throw new Error(`Failed to create session for command: ${shellCommand}`);
-  }
-
-  console.log(`Session created with ID: ${session.id}`);
-
   try {
-    console.log(`Executing shell command: ${shellCommand} in session ${session.id}`);
-    console.log(`SessionShell request body:`, {
-      agent: 'general',
-      command: shellCommand
-    });
+    const message = await executeCommand(client, session.id, shellCommand);
+    const actualMessageId = await resolveMessageId(client, session.id, message.id);
     
-    // Execute the shell command in the session
-    const shellResponse = await sessionShell({
-      client,
-      path: {
-        id: session.id
-      },
-      body: {
-        agent: 'general', // Default agent
-        command: shellCommand
-      }
-    });
-
-    console.log(`SessionShell response:`, shellResponse);
-    const message = shellResponse.data;
-    if (!message) {
-      throw new Error(`Failed to execute shell command: ${shellCommand} in session ${session.id}`);
-    }
-
-    console.log(`Shell command executed, message ID: ${message.id}`);
-    console.log(`Shell message response:`, message);
+    await delay(COMMAND_COMPLETION_DELAY);
     
-    // Validate that we have a proper message ID
-    if (!message.id || message.id === 'placeholder' || message.id.startsWith('temp_')) {
-      console.warn(`Suspicious message ID detected: ${message.id}`);
-    }
+    const messageData = await fetchMessage(client, session.id, actualMessageId);
+    return extractTextFromParts(messageData.parts);
     
-    // Wait a bit for the command to complete and generate output
-    // This is a simple approach - in a production app, we might want to use events
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    console.log(`Fetching message parts for message ${message.id} in session ${session.id}`);
-    
-    // Try to fetch the message multiple times in case it's not ready immediately
-    let messageResponse = null;
-    let retries = 0;
-    const maxRetries = 3;
-    
-    while (retries < maxRetries) {
-      try {
-        messageResponse = await sessionMessage({
-          client,
-          path: {
-            id: session.id,
-            messageID: message.id
-          }
-        });
-        
-        console.log(`SessionMessage response (attempt ${retries + 1}):`, messageResponse);
-        
-        if (messageResponse.data) {
-          break;
-        }
-      } catch (error) {
-        console.warn(`Failed to fetch message (attempt ${retries + 1}):`, error);
-      }
-      
-      retries++;
-      if (retries < maxRetries) {
-        console.log(`Retrying message fetch in 1 second...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-    
-    if (!messageResponse || !messageResponse.data) {
-      throw new Error(`Failed to retrieve message output for command: ${shellCommand} in session ${session.id}, message ${message.id} after ${maxRetries} attempts`);
-    }
-
-    console.log(`Message parts count: ${messageResponse.data.parts.length}`);
-    // Extract text from text parts
-    let output = '';
-    for (const part of messageResponse.data.parts) {
-      console.log(`Part type: ${part.type}`);
-      if (part.type === 'text') {
-        console.log(`Text part content: ${part.text}`);
-        output += part.text;
-      }
-    }
-
-    console.log(`Final output for command "${shellCommand}": "${output.trim()}"`);
-    return output.trim();
   } catch (error) {
-    // Re-throw with more context
-    if (error instanceof Error) {
-      throw new Error(`Error running shell command "${shellCommand}" in session ${session.id}: ${error.message}`);
-    }
-    throw new Error(`Unknown error running shell command "${shellCommand}" in session ${session.id}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Error running shell command "${shellCommand}": ${errorMessage}`);
   } finally {
-    // Clean up by deleting the session
-    try {
-      console.log(`Deleting session ${session.id}`);
-      const deleteResponse = await sessionDelete({
-        client,
-        path: {
-          id: session.id
-        }
-      });
-      console.log(`SessionDelete response:`, deleteResponse);
-    } catch (error) {
-      // Log the error but don't throw, as the command was already executed
-      console.warn(`Failed to delete session ${session.id} after running command "${shellCommand}":`, error);
-    }
+    await cleanupSession(client, session.id);
   }
 }
