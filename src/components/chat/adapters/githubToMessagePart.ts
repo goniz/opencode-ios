@@ -14,12 +14,22 @@ function formatDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString();
 }
 
-export function githubIssueToMessagePart(issue: GHIssue): FilePartLike {
-  const content = `# ${issue.title} (${issue.repo} #${issue.number})
+export function githubIssueToMessagePart(issue: GHIssue, includeComments: boolean = false): FilePartLike {
+  let content = `# ${issue.title} (${issue.repo} #${issue.number})
 State: ${issue.state} • Updated: ${formatDate(issue.updatedAt)}
 Source: ${issue.url}
 
 ${truncateContent(issue.body || 'No description provided.')}`;
+
+  if (includeComments && issue.comments && issue.comments.length > 0) {
+    content += '\n\n---\n\n## Comments\n\n';
+    issue.comments.slice(0, 20).forEach(comment => {
+      content += `### Comment by ${comment.author} • ${formatDate(comment.createdAt)}\n${truncateContent(comment.body, 1000)}\n\n`;
+    });
+    if (issue.comments.length > 20) {
+      content += `... and ${issue.comments.length - 20} more comments\n`;
+    }
+  }
 
   return {
     type: 'file',
@@ -32,18 +42,52 @@ ${truncateContent(issue.body || 'No description provided.')}`;
         repo: issue.repo,
         number: issue.number,
         url: issue.url,
-        state: issue.state
+        state: issue.state,
+        commentCount: issue.commentCount,
+        includesComments: includeComments
       }
     }
   };
 }
 
-export function githubPullToMessagePart(pull: GHPull): FilePartLike {
-  const content = `# ${pull.title} (${pull.repo} #${pull.number})
+export function githubPullToMessagePart(pull: GHPull, includeComments: boolean = false, includeReviews: boolean = false): FilePartLike {
+  let content = `# ${pull.title} (${pull.repo} #${pull.number})
 State: ${pull.state} • Updated: ${formatDate(pull.updatedAt)}
 Source: ${pull.url}
 
 ${truncateContent(pull.body || 'No description provided.')}`;
+
+  if (includeReviews && pull.reviews && pull.reviews.length > 0) {
+    content += '\n\n---\n\n## Reviews\n\n';
+    pull.reviews.slice(0, 10).forEach(review => {
+      content += `### Review: ${review.state} by ${review.author} • ${formatDate(review.submittedAt)}\n`;
+      if (review.body) {
+        content += `${truncateContent(review.body, 500)}\n\n`;
+      }
+      if (review.comments && review.comments.length > 0) {
+        content += '#### Review Comments:\n';
+        review.comments.slice(0, 5).forEach(comment => {
+          content += `**${comment.path}:${comment.line}**\n${truncateContent(comment.body, 500)}\n\n`;
+        });
+        if (review.comments.length > 5) {
+          content += `... and ${review.comments.length - 5} more review comments\n\n`;
+        }
+      }
+    });
+    if (pull.reviews.length > 10) {
+      content += `... and ${pull.reviews.length - 10} more reviews\n`;
+    }
+  }
+
+  if (includeComments && pull.comments && pull.comments.length > 0) {
+    content += '\n\n---\n\n## Comments\n\n';
+    pull.comments.slice(0, 20).forEach(comment => {
+      content += `### Comment by ${comment.author} • ${formatDate(comment.createdAt)}\n${truncateContent(comment.body, 1000)}\n\n`;
+    });
+    if (pull.comments.length > 20) {
+      content += `... and ${pull.comments.length - 20} more comments\n`;
+    }
+  }
 
   return {
     type: 'file',
@@ -56,7 +100,11 @@ ${truncateContent(pull.body || 'No description provided.')}`;
         repo: pull.repo,
         number: pull.number,
         url: pull.url,
-        state: pull.state
+        state: pull.state,
+        commentCount: pull.commentCount,
+        reviewCount: pull.reviewCount,
+        includesComments: includeComments,
+        includesReviews: includeReviews
       }
     }
   };

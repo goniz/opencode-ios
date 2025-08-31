@@ -196,14 +196,14 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }
     }
   }, [githubClient]);
 
-  const handleAttach = useCallback(() => {
+  const handleAttach = useCallback((options: { includeComments: boolean; includeReviews: boolean }) => {
     if (!selectedItem) return;
 
     let filePart: FilePartLike;
     if (selectedItem.kind === 'issue') {
-      filePart = githubIssueToMessagePart(selectedItem);
+      filePart = githubIssueToMessagePart(selectedItem, options.includeComments);
     } else {
-      filePart = githubPullToMessagePart(selectedItem);
+      filePart = githubPullToMessagePart(selectedItem, options.includeComments, options.includeReviews);
     }
 
     onAttach(filePart);
@@ -246,11 +246,12 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }
     </TouchableOpacity>
   );
 
-  if (selectedItem) {
+  if (selectedItem && githubClient) {
     return (
       <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
         <GitHubPreview
           item={selectedItem}
+          client={githubClient}
           onAttach={handleAttach}
           onClose={handleClosePreview}
         />
