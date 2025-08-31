@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Text, View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { sessionCreate } from '../../src/api/sdk.gen';
+import { sessionCreate, sessionDelete } from '../../src/api/sdk.gen';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 import { toast } from '../../src/utils/toast';
 import { semanticColors } from '../../src/styles/colors';
@@ -154,12 +155,54 @@ export default function SessionsScreen() {
     }
   }, [connectionStatus, loadSessions]);
 
-  const renderSession = (session: Session) => (
-    <TouchableOpacity style={styles.sessionItem} onPress={() => handleSessionPress(session)}>
-      <Text style={styles.sessionTitle} numberOfLines={2}>
-        {session.title || 'Untitled Session'}
-      </Text>
+  const handleDeleteSession = async (session: Session) => {
+    if (!client) return;
+
+    Alert.alert(
+      'Delete Session',
+      `Are you sure you want to delete "${session.title || 'Untitled Session'}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await sessionDelete({ client, path: { id: session.id } });
+              await refreshSessions();
+              toast.showSuccess('Session deleted');
+            } catch (error) {
+              console.error('Error deleting session:', error);
+              const errorMsg = error instanceof Error ? error.message : 'Failed to delete session';
+              toast.showError('Failed to delete session', errorMsg);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderRightAction = (session: Session) => (
+    <TouchableOpacity
+      style={styles.deleteButton}
+      onPress={() => handleDeleteSession(session)}
+    >
+      <Ionicons name="trash" size={24} color="#ffffff" />
     </TouchableOpacity>
+  );
+
+  const renderSession = (session: Session) => (
+    <Swipeable
+      renderRightActions={() => renderRightAction(session)}
+      overshootRight={false}
+      containerStyle={styles.swipeableContainer}
+    >
+      <TouchableOpacity style={styles.sessionItem} onPress={() => handleSessionPress(session)}>
+        <Text style={styles.sessionTitle} numberOfLines={2}>
+          {session.title || 'Untitled Session'}
+        </Text>
+      </TouchableOpacity>
+    </Swipeable>
   );
 
   const renderDateSeparator = (displayDate: string) => (
@@ -299,7 +342,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: 0,
     paddingTop: spacing.md,
   },
   sessionItem: {
@@ -385,5 +428,16 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     color: semanticColors.textMuted,
     marginTop: spacing.sm,
+  },
+  deleteButton: {
+    backgroundColor: '#ef4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    borderRadius: layout.borderRadius.lg,
+    marginBottom: spacing.sm,
+  },
+  swipeableContainer: {
+    marginHorizontal: spacing.xl,
   },
 });
