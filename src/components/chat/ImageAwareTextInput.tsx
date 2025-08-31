@@ -19,6 +19,7 @@ interface ImageAwareTextInputProps extends Omit<TextInputProps, 'onChangeText' |
   onChangeText: (text: string) => void;
   onImageSelected?: (imageUri: string) => void;
   onFileAttached?: (filePart: FilePartLike) => void;
+  onFilesAttached?: (fileParts: FilePartLike[]) => void;
   onSelectionChange?: (selection: { start: number; end: number }) => void;
   onCommandSelect?: (command: CommandSuggestion) => void;
   onMenuCommandSelect?: (command: BuiltInCommand | Command) => void;
@@ -33,6 +34,7 @@ export function ImageAwareTextInput({
   onChangeText, 
   onImageSelected,
   onFileAttached,
+  onFilesAttached,
   onSelectionChange,
   onCommandSelect,
   onMenuCommandSelect,
@@ -65,6 +67,7 @@ export function ImageAwareTextInput({
       <AttachMenu
         onImageSelected={onImageSelected}
         onFileAttached={onFileAttached}
+        onFilesAttached={onFilesAttached}
         disabled={disableAttachments}
         client={client}
       />

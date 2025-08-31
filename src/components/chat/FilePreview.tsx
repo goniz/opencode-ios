@@ -5,6 +5,7 @@ import { FilePartLike } from '../../integrations/github/GitHubTypes';
 import { semanticColors } from '../../styles/colors';
 import { spacing } from '../../styles/spacing';
 import { layout } from '../../styles/layout';
+import { getFileTypeInfo, truncateFileName } from '../../utils/fileTypeDetection';
 
 interface FilePreviewProps {
   files: FilePartLike[];
@@ -19,20 +20,17 @@ export function FilePreview({ files, onRemoveFile }: FilePreviewProps) {
   return (
     <View style={styles.container}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContainer}>
-        {files.map((file, index) => (
+        {files.map((file, index) => {
+          const fileTypeInfo = getFileTypeInfo(file.name, file.mimeType);
+          
+          return (
           <View key={index} style={styles.fileCard}>
-            <View style={styles.fileIcon}>
-              <Ionicons 
-                name="document-text-outline" 
-                size={20} 
-                color={semanticColors.primary} 
-              />
+            <View style={styles.fileTypeHeader}>
+              <Text style={styles.fileTypeIcon}>{fileTypeInfo.icon}</Text>
+              <Text style={styles.fileTypeLabel}>{fileTypeInfo.label}</Text>
             </View>
             <Text style={styles.fileName} numberOfLines={2}>
-              {file.name}
-            </Text>
-            <Text style={styles.fileMeta}>
-              {file.mimeType === 'text/plain' ? 'Text' : 'File'}
+              {truncateFileName(file.name, 18)}
             </Text>
             {file.metadata?.github && (
               <View style={styles.githubBadge}>
@@ -52,7 +50,8 @@ export function FilePreview({ files, onRemoveFile }: FilePreviewProps) {
               </TouchableOpacity>
             )}
           </View>
-        ))}
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -61,11 +60,13 @@ export function FilePreview({ files, onRemoveFile }: FilePreviewProps) {
 const styles = StyleSheet.create({
   container: {
     paddingVertical: spacing.sm,
+    paddingTop: spacing.md, // Extra padding top for remove buttons
     borderBottomWidth: layout.borderWidth.DEFAULT,
     borderBottomColor: semanticColors.border,
   },
   scrollContainer: {
     paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs, // Add vertical padding for remove buttons
     gap: spacing.sm,
   },
   fileCard: {
@@ -83,6 +84,20 @@ const styles = StyleSheet.create({
     borderRadius: layout.borderRadius.md,
     padding: spacing.sm,
     marginBottom: spacing.xs,
+  },
+  fileTypeHeader: {
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  fileTypeIcon: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  fileTypeLabel: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+    color: semanticColors.primary,
+    textAlign: 'center',
   },
   fileName: {
     fontSize: 12,
@@ -114,8 +129,8 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     position: 'absolute',
-    top: -6,
-    right: -6,
+    top: -4,
+    right: -4,
     backgroundColor: semanticColors.error,
     borderRadius: 10,
     width: 20,
@@ -124,5 +139,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: semanticColors.background,
+    zIndex: 1,
   },
 });

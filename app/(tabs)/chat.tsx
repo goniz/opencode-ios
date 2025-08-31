@@ -451,8 +451,33 @@ const [commandStatus, setCommandStatus] = useState<string | null>(null);
   }, []);
 
   const handleFileAttached = useCallback((filePart: FilePartLike) => {
-    console.log('File attached:', filePart.name);
-    setAttachedFiles(prev => [...prev, filePart]);
+    console.log('🔍 [handleFileAttached] File attached:', filePart.name);
+    console.log('🔍 [handleFileAttached] File part details:', {
+      type: filePart.type,
+      mimeType: filePart.mimeType,
+      contentLength: filePart.content.length,
+      metadataKind: filePart.metadata?.github?.kind
+    });
+    
+    setAttachedFiles(prev => {
+      const newFiles = [...prev, filePart];
+      console.log('🔍 [handleFileAttached] Updated attached files count:', newFiles.length);
+      return newFiles;
+    });
+  }, []);
+
+  const handleFilesAttached = useCallback((fileParts: FilePartLike[]) => {
+    console.log('🔍 [handleFilesAttached] Batch attaching', fileParts.length, 'files');
+    console.log('🔍 [handleFilesAttached] Files:', fileParts.map(part => ({
+      name: part.name,
+      metadataKind: part.metadata?.github?.kind
+    })));
+    
+    setAttachedFiles(prev => {
+      const newFiles = [...prev, ...fileParts];
+      console.log('🔍 [handleFilesAttached] Updated attached files count:', newFiles.length);
+      return newFiles;
+    });
   }, []);
 
   const handleRemoveFile = useCallback((index: number) => {
@@ -502,7 +527,18 @@ const [commandStatus, setCommandStatus] = useState<string | null>(null);
     let messageText = inputText?.trim() || '';
     
     // Convert GitHub file parts to API format
+    console.log('🔍 [handleSendMessage] Preparing to convert attached files:', filesToSend.map(file => ({
+      name: file.name,
+      type: file.type,
+      metadataKind: file.metadata?.github?.kind
+    })));
+    
     const githubFileParts = filesToSend.length > 0 ? convertGitHubFilePartsToInputs(filesToSend) : [];
+    
+    console.log('🔍 [handleSendMessage] Converted GitHub file parts:', githubFileParts.map(part => ({
+      filename: part.filename,
+      type: part.type
+    })));
     
     // Check if this is a command
     if (inputText?.trim().startsWith('/')) {
@@ -1128,6 +1164,7 @@ const commandBody: {
               onChangeText={setInputText}
               onImageSelected={handleImageSelected}
               onFileAttached={handleFileAttached}
+              onFilesAttached={handleFilesAttached}
               onCommandSelect={handleCommandSelect}
               onMenuCommandSelect={handleMenuCommandSelect}
               userCommands={commands}

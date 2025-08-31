@@ -7,6 +7,14 @@ import type { FilePartLike } from '../integrations/github/GitHubTypes';
  * @returns FilePartInput compatible with the OpenCode API
  */
 export function convertGitHubFilePartToInput(githubFilePart: FilePartLike): FilePartInput {
+  console.log(`🔍 [convertGitHubFilePartToInput] Converting file part: ${githubFilePart.name}`);
+  console.log(`🔍 [convertGitHubFilePartToInput] File part metadata:`, githubFilePart.metadata?.github?.kind);
+  
+  // Verify content
+  if (!githubFilePart.content || githubFilePart.content.trim().length === 0) {
+    console.warn(`⚠️ [convertGitHubFilePartToInput] File part has empty content: ${githubFilePart.name}`);
+  }
+  
   // Convert the content to base64 data URI format
   const encoder = new TextEncoder();
   const uint8Array = encoder.encode(githubFilePart.content);
@@ -19,12 +27,16 @@ export function convertGitHubFilePartToInput(githubFilePart: FilePartLike): File
   const base64Content = btoa(binaryString);
   const dataUri = `data:${githubFilePart.mimeType};base64,${base64Content}`;
 
-  return {
+  const result: FilePartInput = {
     type: 'file',
     mime: githubFilePart.mimeType,
     filename: githubFilePart.name,
     url: dataUri
   };
+  
+  console.log(`✅ [convertGitHubFilePartToInput] Successfully converted ${githubFilePart.name} to FilePartInput`);
+  
+  return result;
 }
 
 /**
@@ -33,5 +45,14 @@ export function convertGitHubFilePartToInput(githubFilePart: FilePartLike): File
  * @returns Array of FilePartInput objects
  */
 export function convertGitHubFilePartsToInputs(githubFileParts: FilePartLike[]): FilePartInput[] {
-  return githubFileParts.map(convertGitHubFilePartToInput);
+  console.log('🔍 [convertGitHubFilePartsToInputs] Converting', githubFileParts.length, 'file parts');
+  console.log('🔍 [convertGitHubFilePartsToInputs] File parts:', githubFileParts.map(part => ({
+    name: part.name,
+    type: part.type,
+    metadataKind: part.metadata?.github?.kind
+  })));
+  
+  const result = githubFileParts.map(convertGitHubFilePartToInput);
+  console.log('🔍 [convertGitHubFilePartsToInputs] Conversion complete, returning', result.length, 'file part inputs');
+  return result;
 }

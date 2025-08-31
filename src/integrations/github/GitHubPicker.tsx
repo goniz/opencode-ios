@@ -26,7 +26,7 @@ import { layout } from '../../styles/layout';
 interface GitHubPickerProps {
   visible: boolean;
   onClose: () => void;
-  onAttach: (filePart: FilePartLike) => void;
+  onAttach: (fileParts: FilePartLike[]) => void;
   githubToken: string;
   client: Client;
 }
@@ -196,17 +196,26 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }
     }
   }, [githubClient]);
 
-  const handleAttach = useCallback(() => {
+  const handleAttach = useCallback((options: { includeComments: boolean; includeReviews: boolean; fileParts?: FilePartLike[] }) => {
     if (!selectedItem) return;
 
-    let filePart: FilePartLike;
-    if (selectedItem.kind === 'issue') {
-      filePart = githubIssueToMessagePart(selectedItem);
+    let fileParts: FilePartLike[];
+    
+    // Use pre-generated file parts if available (from GitHubPreview with loaded comments/reviews)
+    if (options.fileParts) {
+      console.log('🔍 [GitHubPicker.handleAttach] Using pre-generated file parts:', options.fileParts.length);
+      fileParts = options.fileParts;
     } else {
-      filePart = githubPullToMessagePart(selectedItem);
+      console.log('🔍 [GitHubPicker.handleAttach] Generating file parts from selectedItem');
+      if (selectedItem.kind === 'issue') {
+        fileParts = githubIssueToMessagePart(selectedItem, options.includeComments);
+      } else {
+        fileParts = githubPullToMessagePart(selectedItem, options.includeComments, options.includeReviews);
+      }
     }
 
-    onAttach(filePart);
+    console.log('🔍 [GitHubPicker.handleAttach] Final file parts count:', fileParts.length);
+    onAttach(fileParts);
     setSelectedItem(null);
     setSearchQuery('');
     setSearchResults([]);
@@ -246,11 +255,12 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }
     </TouchableOpacity>
   );
 
-  if (selectedItem) {
+  if (selectedItem && githubClient) {
     return (
       <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
         <GitHubPreview
           item={selectedItem}
+          client={githubClient}
           onAttach={handleAttach}
           onClose={handleClosePreview}
         />

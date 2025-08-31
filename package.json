@@ -1,7 +1,7 @@
 {
   "name": "opencode-mobile",
   "main": "expo-router/entry",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "scripts": {
     "start": "expo start -g",
     "start:tunnel": "expo start -g --tunnel",
@@ -109,7 +109,7 @@
     ],
     "collectCoverage": false,
     "transformIgnorePatterns": [
-      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|react-syntax-highlighter|react-native-code-highlighter)"
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|react-syntax-highlighter|react-native-code-highlighter|@octokit/rest|@octokit/core)"
     ]
   },
   "expo": {

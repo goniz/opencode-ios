@@ -10,16 +10,49 @@ export interface GHRefBase {
   title?: string;
 }
 
+export interface GHIssueComment {
+  id: number;
+  body: string;
+  createdAt: string;
+  author: string;
+  url: string;
+}
+
+export interface GHReviewComment {
+  id: number;
+  body: string;
+  path?: string;
+  line?: number;
+  author: string;
+  url: string;
+}
+
+export interface GHReview {
+  id: number;
+  state: 'PENDING' | 'COMMENTED' | 'APPROVED' | 'CHANGES_REQUESTED' | 'DISMISSED';
+  body?: string; // Top-level review comment
+  author: string;
+  submittedAt: string;
+  comments: GHReviewComment[]; // Nested review comments
+  url: string;
+}
+
 export interface GHIssue extends GHRefBase {
   kind: 'issue';
   state: 'open' | 'closed';
   body?: string;
+  comments?: GHIssueComment[];
+  commentCount: number;
 }
 
 export interface GHPull extends GHRefBase {
   kind: 'pull';
   state: 'open' | 'closed' | 'merged';
   body?: string;
+  comments?: GHIssueComment[];
+  reviews?: GHReview[];
+  commentCount: number;
+  reviewCount: number;
 }
 
 export interface GHComment extends GHRefBase {
@@ -31,6 +64,12 @@ export interface GHComment extends GHRefBase {
 
 export type GitHubRef = GHIssue | GHPull | GHComment;
 
+export interface PreviewOptions {
+  includeComments: boolean;
+  includeReviews: boolean; // PR only
+  fileParts?: FilePartLike[]; // Optional pre-generated file parts
+}
+
 export interface GitHubMetadata {
   github: {
     kind: string;
@@ -41,6 +80,10 @@ export interface GitHubMetadata {
     id?: string | number;
     parentNumber?: number;
     parentKind?: string;
+    commentCount?: number;
+    reviewCount?: number;
+    includesComments?: boolean;
+    includesReviews?: boolean;
   };
 }
 
