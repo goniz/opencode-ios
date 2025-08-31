@@ -67,6 +67,7 @@ export type GitHubRef = GHIssue | GHPull | GHComment;
 export interface PreviewOptions {
   includeComments: boolean;
   includeReviews: boolean; // PR only
+  fileParts?: FilePartLike[]; // Optional pre-generated file parts
 }
 
 export interface GitHubMetadata {

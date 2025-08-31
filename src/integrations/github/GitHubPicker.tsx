@@ -196,16 +196,25 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }
     }
   }, [githubClient]);
 
-  const handleAttach = useCallback((options: { includeComments: boolean; includeReviews: boolean }) => {
+  const handleAttach = useCallback((options: { includeComments: boolean; includeReviews: boolean; fileParts?: FilePartLike[] }) => {
     if (!selectedItem) return;
 
     let fileParts: FilePartLike[];
-    if (selectedItem.kind === 'issue') {
-      fileParts = githubIssueToMessagePart(selectedItem, options.includeComments);
+    
+    // Use pre-generated file parts if available (from GitHubPreview with loaded comments/reviews)
+    if (options.fileParts) {
+      console.log('🔍 [GitHubPicker.handleAttach] Using pre-generated file parts:', options.fileParts.length);
+      fileParts = options.fileParts;
     } else {
-      fileParts = githubPullToMessagePart(selectedItem, options.includeComments, options.includeReviews);
+      console.log('🔍 [GitHubPicker.handleAttach] Generating file parts from selectedItem');
+      if (selectedItem.kind === 'issue') {
+        fileParts = githubIssueToMessagePart(selectedItem, options.includeComments);
+      } else {
+        fileParts = githubPullToMessagePart(selectedItem, options.includeComments, options.includeReviews);
+      }
     }
 
+    console.log('🔍 [GitHubPicker.handleAttach] Final file parts count:', fileParts.length);
     onAttach(fileParts);
     setSelectedItem(null);
     setSearchQuery('');

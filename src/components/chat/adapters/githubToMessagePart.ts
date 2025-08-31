@@ -88,6 +88,7 @@ ${truncateContent(issue.body || 'No description provided.')}`;
     console.log('🔍 [githubIssueToMessagePart] Not adding comments for issue:', issue.number, 'includeComments:', includeComments, 'comments count:', issue.comments?.length || 0);
   }
 
+  console.log('🔍 [githubIssueToMessagePart] Final parts array:', parts.map(p => ({ name: p.name, kind: p.metadata?.github?.kind })));
   console.log('🔍 [githubIssueToMessagePart] Returning', parts.length, 'parts for issue:', issue.number);
   return parts;
 }
@@ -230,6 +231,8 @@ ${truncateContent(pull.body || 'No description provided.')}`;
     console.log('🔍 [githubPullToMessagePart] Not adding comments for PR:', pull.number, 'includeComments:', includeComments, 'comments count:', pull.comments?.length || 0);
   }
 
+  console.log('🔍 [githubPullToMessagePart] Final parts array:', parts.map(p => ({ name: p.name, kind: p.metadata?.github?.kind })));
+  console.log('🔍 [githubPullToMessagePart] Returning', parts.length, 'parts for PR:', pull.number);
   return parts;
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Switch, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { GHIssue, GHPull, PreviewOptions } from './GitHubTypes';
+import { GHIssue, GHPull, PreviewOptions, FilePartLike } from './GitHubTypes';
 import { GitHubClient } from './GitHubClient';
 import { GitHubMarkdownPreview } from './GitHubMarkdownPreview';
 import { githubIssueToMessagePart, githubPullToMessagePart } from '../../components/chat/adapters/githubToMessagePart';
@@ -103,7 +103,15 @@ export function GitHubPreview({ item, client, onAttach, onClose }: GitHubPreview
   };
 
   const handleAttach = () => {
-    onAttach({ includeComments, includeReviews });
+    // Generate the file parts using the fullItem (which has comments/reviews loaded)
+    let fileParts: FilePartLike[];
+    if (fullItem.kind === 'issue') {
+      fileParts = githubIssueToMessagePart(fullItem, includeComments);
+    } else {
+      fileParts = githubPullToMessagePart(fullItem, includeComments, includeReviews);
+    }
+    console.log('🔍 [GitHubPreview.handleAttach] Generated', fileParts.length, 'file parts with fullItem data');
+    onAttach({ includeComments, includeReviews, fileParts });
   };
 
   const markdownParts = useMemo(() => {
