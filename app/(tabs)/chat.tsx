@@ -406,13 +406,16 @@ const [commandStatus, setCommandStatus] = useState<string | null>(null);
    // Fetch git branch information
    const fetchGitBranch = useCallback(async () => {
      if (!client || connectionStatus !== 'connected') {
+       setGitBranch(null);
        return;
      }
 
      try {
+       console.log('Fetching git branch...');
        // Run git branch command in a temporary session
-       const result = await runShellCommandInSession(client, 'git branch --show-current');
-       setGitBranch(result || 'main'); // Use actual result or fallback to 'main'
+       const result = await runShellCommandInSession(client, 'git rev-parse --abbrev-ref HEAD');
+       console.log('Git branch result:', result);
+       setGitBranch(result || null); // Use actual result or null if empty
      } catch (error) {
        console.error('Failed to fetch git branch:', error);
        setGitBranch(null);
@@ -425,6 +428,11 @@ const [commandStatus, setCommandStatus] = useState<string | null>(null);
        fetchGitBranch();
      }
    }, [connectionStatus, fetchGitBranch]);
+
+   // Fetch git branch when component mounts and when session changes
+   useEffect(() => {
+     fetchGitBranch();
+   }, [fetchGitBranch]);
 
    // Cleanup handled by ChatFlashList component
 
