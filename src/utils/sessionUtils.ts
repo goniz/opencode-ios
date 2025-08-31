@@ -1,4 +1,4 @@
-import { sessionCreate, sessionShell, sessionMessage, sessionDelete } from '../api/sdk.gen';
+import { sessionCreate, sessionShell, sessionDelete } from '../api/sdk.gen';
 import { Client } from '../api/client';
 
 
@@ -10,11 +10,16 @@ const SESSION_TITLE_MAX_LENGTH = 30;
 interface MessagePart {
   type: string;
   text?: string;
+  tool?: string;
+  state?: {
+    status: string;
+    metadata?: {
+      output?: string;
+    };
+  };
 }
 
-interface MessageData {
-  parts: MessagePart[];
-}
+
 
 
 
@@ -31,6 +36,17 @@ function createSessionTitle(command: string): string {
 
 
 function extractTextFromParts(parts: MessagePart[]): string {
+  // First try to extract from tool parts (like bash commands)
+  const toolOutputs = parts
+    .filter(part => part.type === 'tool' && part.state?.status === 'completed')
+    .map(part => part.state?.metadata?.output || '')
+    .filter(output => output.trim().length > 0);
+  
+  if (toolOutputs.length > 0) {
+    return toolOutputs.join('').trim();
+  }
+  
+  // Fallback to text parts
   return parts
     .filter(part => part.type === 'text')
     .map(part => part.text || '')
@@ -61,6 +77,8 @@ async function executeCommand(client: Client, sessionId: string, command: string
     }
   });
   
+  console.log('sessionShell response:', JSON.stringify(response.data, null, 2));
+  
   if (!response.data) {
     throw new Error(`Failed to execute command: ${command}`);
   }
@@ -68,21 +86,7 @@ async function executeCommand(client: Client, sessionId: string, command: string
   return response.data;
 }
 
-async function fetchMessage(client: Client, sessionId: string, messageId: string): Promise<MessageData> {
-  const result = await sessionMessage({
-    client,
-    path: {
-      id: sessionId,
-      messageID: messageId
-    }
-  });
 
-  if (!result.data) {
-    throw new Error('Message data not available');
-  }
-
-  return result.data;
-}
 
 async function cleanupSession(client: Client, sessionId: string): Promise<void> {
   try {
@@ -110,10 +114,10 @@ export async function runShellCommandInSession(
   const session = await createSession(client, shellCommand);
   
   try {
-    const message = await executeCommand(client, session.id, shellCommand);
-
-    const messageData = await fetchMessage(client, session.id, message.id);
-    return extractTextFromParts(messageData.parts);
+    const response = await executeCommand(client, session.id, shellCommand);
+    // The response has both info (AssistantMessage) and parts array
+    const parts = (response as any).parts || [];
+    return extractTextFromParts(parts);
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
