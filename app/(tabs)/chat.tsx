@@ -40,6 +40,7 @@ import {
   sessionRevert,
   sessionUnrevert
 } from '../../src/api/sdk.gen';
+import { runShellCommandInSession } from '../../src/utils/sessionUtils';
 import type { CommandSuggestion } from '../../src/utils/commandMentions';
 import { ChutesApiKeyInvalidError, fetchChutesQuota } from '../../src/utils/chutes';
 import { secureSettings } from '../../src/utils/secureSettings';
@@ -99,8 +100,9 @@ export default function ChatScreen() {
    const [chutesQuota, setChutesQuota] = useState<{used: number, quota: number} | null>(null);
    const [showApiKeyInput, setShowApiKeyInput] = useState(false);
    const [pendingApiKeyRequest, setPendingApiKeyRequest] = useState<{providerID: string, modelID: string} | null>(null);
-   const [commandStatus, setCommandStatus] = useState<string | null>(null);
+const [commandStatus, setCommandStatus] = useState<string | null>(null);
    const [sessionUrl, setSessionUrl] = useState<string | null>(null);
+   const [gitBranch, setGitBranch] = useState<string | null>(null);
    // FlashList ref will be handled inside ChatFlashList component
 
 
@@ -390,7 +392,7 @@ export default function ChatScreen() {
      console.log('Selected images changed:', selectedImages);
    }, [selectedImages]);
 
-   // Update session URL when current session changes
+// Update session URL when current session changes
    useEffect(() => {
      if (currentSession?.share?.url) {
        setSessionUrl(currentSession.share.url);
@@ -400,6 +402,38 @@ export default function ChatScreen() {
      // Clear any stale command status when session changes
      setCommandStatus(null);
    }, [currentSession]);
+
+   // Fetch git branch information
+   const fetchGitBranch = useCallback(async () => {
+     if (!client || connectionStatus !== 'connected') {
+       setGitBranch(null);
+       return;
+     }
+
+     try {
+       console.log('Fetching git branch...');
+       // Run git branch command in a temporary session
+       const result = await runShellCommandInSession(client, 'git rev-parse --abbrev-ref HEAD');
+       console.log('Git branch result:', result);
+       setGitBranch(result || null); // Use actual result or null if empty
+     } catch (error) {
+       console.error('Failed to fetch git branch:', error);
+       // Show error message in UI for debugging
+       setGitBranch(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+     }
+   }, [client, connectionStatus]);
+
+   // Fetch git branch when connection status changes
+   useEffect(() => {
+     if (connectionStatus === 'connected') {
+       fetchGitBranch();
+     }
+   }, [connectionStatus, fetchGitBranch]);
+
+   // Fetch git branch when component mounts and when session changes
+   useEffect(() => {
+     fetchGitBranch();
+   }, [fetchGitBranch]);
 
    // Cleanup handled by ChatFlashList component
 
@@ -1029,46 +1063,51 @@ const commandBody: {
              )}
            </View>
            
-            {/* Token/cost/quota info row */}
-            {(contextInfo || chutesQuota || commandStatus || sessionUrl) && !isGenerating && (
-              <View style={styles.headerInfoRow}>
-                {contextInfo && (
-                  <Text style={styles.tokenInfoCompact}>
-                    {contextInfo.isSubscriptionModel
-                      ? `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}%`
-                      : `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}% ($${contextInfo.sessionCost.toFixed(2)})`
-                    }
-                  </Text>
-                )}
-                {chutesQuota && (
-                  <Text style={styles.tokenInfoCompact}>
-                    Chutes: {chutesQuota.used}/{chutesQuota.quota}
-                  </Text>
-                )}
-                {commandStatus && (
-                  <Text style={styles.commandStatusText}>
-                    {commandStatus}
-                  </Text>
-                )}
-                {sessionUrl && (
-                  <TouchableOpacity onPress={async () => {
-                    try {
-                      await Clipboard.setStringAsync(sessionUrl);
-                      setCommandStatus('Session URL copied to clipboard!');
-                      setTimeout(() => setCommandStatus(null), 2000);
-                    } catch (error) {
-                      console.error('Failed to copy URL to clipboard:', error);
-                      setCommandStatus('Failed to copy URL');
-                      setTimeout(() => setCommandStatus(null), 2000);
-                    }
-                  }}>
-                    <Text style={styles.sessionUrlText}>
-                      🔗 Session Link
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
+{/* Token/cost/quota info row */}
+             {(contextInfo || chutesQuota || commandStatus || sessionUrl || gitBranch) && (
+               <View style={styles.headerInfoRow}>
+                 {contextInfo && (
+                   <Text style={styles.tokenInfoCompact}>
+                     {contextInfo.isSubscriptionModel
+                       ? `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}%`
+                       : `${formatTokenCount(contextInfo.currentTokens)}/${contextInfo.percentage}% ($${contextInfo.sessionCost.toFixed(2)})`
+                     }
+                   </Text>
+                 )}
+                 {chutesQuota && (
+                   <Text style={styles.tokenInfoCompact}>
+                     Chutes: {chutesQuota.used}/{chutesQuota.quota}
+                   </Text>
+                 )}
+                 {commandStatus && (
+                   <Text style={styles.commandStatusText}>
+                     {commandStatus}
+                   </Text>
+                 )}
+                 {gitBranch && (
+                   <Text style={styles.tokenInfoCompact}>
+                     🌿 {gitBranch}
+                   </Text>
+                 )}
+                 {sessionUrl && (
+                   <TouchableOpacity onPress={async () => {
+                     try {
+                       await Clipboard.setStringAsync(sessionUrl);
+                       setCommandStatus('Session URL copied to clipboard!');
+                       setTimeout(() => setCommandStatus(null), 2000);
+                     } catch (error) {
+                       console.error('Failed to copy URL to clipboard:', error);
+                       setCommandStatus('Failed to copy URL');
+                       setTimeout(() => setCommandStatus(null), 2000);
+                     }
+                   }}>
+                     <Text style={styles.sessionUrlText}>
+                       🔗 Session Link
+                     </Text>
+                   </TouchableOpacity>
+                 )}
+               </View>
+             )}
          </View>
 
         {lastError && !dismissedErrors.has(lastError) && (
