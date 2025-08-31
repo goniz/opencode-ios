@@ -61,23 +61,50 @@ export async function runShellCommandInSession(
     console.log(`Shell command executed, message ID: ${message.id}`);
     console.log(`Shell message response:`, message);
     
+    // Validate that we have a proper message ID
+    if (!message.id || message.id === 'placeholder' || message.id.startsWith('temp_')) {
+      console.warn(`Suspicious message ID detected: ${message.id}`);
+    }
+    
     // Wait a bit for the command to complete and generate output
     // This is a simple approach - in a production app, we might want to use events
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     console.log(`Fetching message parts for message ${message.id} in session ${session.id}`);
-    // Get the message parts to extract the output
-    const messageResponse = await sessionMessage({
-      client,
-      path: {
-        id: session.id,
-        messageID: message.id
+    
+    // Try to fetch the message multiple times in case it's not ready immediately
+    let messageResponse = null;
+    let retries = 0;
+    const maxRetries = 3;
+    
+    while (retries < maxRetries) {
+      try {
+        messageResponse = await sessionMessage({
+          client,
+          path: {
+            id: session.id,
+            messageID: message.id
+          }
+        });
+        
+        console.log(`SessionMessage response (attempt ${retries + 1}):`, messageResponse);
+        
+        if (messageResponse.data) {
+          break;
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch message (attempt ${retries + 1}):`, error);
       }
-    });
-
-    console.log(`SessionMessage response:`, messageResponse);
-    if (!messageResponse.data) {
-      throw new Error(`Failed to retrieve message output for command: ${shellCommand} in session ${session.id}, message ${message.id}`);
+      
+      retries++;
+      if (retries < maxRetries) {
+        console.log(`Retrying message fetch in 1 second...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    if (!messageResponse || !messageResponse.data) {
+      throw new Error(`Failed to retrieve message output for command: ${shellCommand} in session ${session.id}, message ${message.id} after ${maxRetries} attempts`);
     }
 
     console.log(`Message parts count: ${messageResponse.data.parts.length}`);
