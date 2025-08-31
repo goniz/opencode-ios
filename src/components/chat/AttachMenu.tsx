@@ -261,10 +261,25 @@ export function AttachMenu({
     setIsGithubPickerVisible(false);
   }, []);
 
-  const handleGithubAttachFile = useCallback((filePart: FilePartLike) => {
+  const handleGithubAttachFile = useCallback((fileParts: FilePartLike[]) => {
+    console.log('🔍 [handleGithubAttachFile] Received', fileParts.length, 'file parts from GitHub picker');
+    console.log('🔍 [handleGithubAttachFile] File parts:', fileParts.map(part => ({
+      name: part.name,
+      type: part.type,
+      metadataKind: part.metadata?.github?.kind
+    })));
+    
     if (onFileAttached) {
-      onFileAttached(filePart);
+      console.log('🔍 [handleGithubAttachFile] onFileAttached callback exists, attaching files one by one');
+      fileParts.forEach((filePart, index) => {
+        console.log(`🔍 [handleGithubAttachFile] Attaching file part ${index + 1}/${fileParts.length}:`, filePart.name);
+        onFileAttached(filePart);
+      });
+      console.log('🔍 [handleGithubAttachFile] All file parts attached');
+    } else {
+      console.log('❌ [handleGithubAttachFile] onFileAttached callback is missing, cannot attach files');
     }
+    
     setIsGithubPickerVisible(false);
   }, [onFileAttached]);
 

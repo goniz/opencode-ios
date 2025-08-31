@@ -26,7 +26,7 @@ import { layout } from '../../styles/layout';
 interface GitHubPickerProps {
   visible: boolean;
   onClose: () => void;
-  onAttach: (filePart: FilePartLike) => void;
+  onAttach: (fileParts: FilePartLike[]) => void;
   githubToken: string;
   client: Client;
 }
@@ -199,14 +199,14 @@ export function GitHubPicker({ visible, onClose, onAttach, githubToken, client }
   const handleAttach = useCallback((options: { includeComments: boolean; includeReviews: boolean }) => {
     if (!selectedItem) return;
 
-    let filePart: FilePartLike;
+    let fileParts: FilePartLike[];
     if (selectedItem.kind === 'issue') {
-      filePart = githubIssueToMessagePart(selectedItem, options.includeComments);
+      fileParts = githubIssueToMessagePart(selectedItem, options.includeComments);
     } else {
-      filePart = githubPullToMessagePart(selectedItem, options.includeComments, options.includeReviews);
+      fileParts = githubPullToMessagePart(selectedItem, options.includeComments, options.includeReviews);
     }
 
-    onAttach(filePart);
+    onAttach(fileParts);
     setSelectedItem(null);
     setSearchQuery('');
     setSearchResults([]);

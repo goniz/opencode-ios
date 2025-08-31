@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Switch, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GHIssue, GHPull, PreviewOptions } from './GitHubTypes';
 import { GitHubClient } from './GitHubClient';
+import { GitHubMarkdownPreview } from './GitHubMarkdownPreview';
+import { githubIssueToMessagePart, githubPullToMessagePart } from '../../components/chat/adapters/githubToMessagePart';
 import { semanticColors } from '../../styles/colors';
 import { spacing } from '../../styles/spacing';
 import { layout } from '../../styles/layout';
@@ -58,6 +60,7 @@ export function GitHubPreview({ item, client, onAttach, onClose }: GitHubPreview
   const [includeReviews, setIncludeReviews] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fullItem, setFullItem] = useState<GHIssue | GHPull>(item);
+  const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
 
   const stateColor = getStateColor(item.state);
   const stateIcon = getStateIcon(item.state, item.kind);
@@ -103,15 +106,51 @@ export function GitHubPreview({ item, client, onAttach, onClose }: GitHubPreview
     onAttach({ includeComments, includeReviews });
   };
 
-  const truncateBody = (body: string, maxLength: number = 500): string => {
-    if (body.length <= maxLength) {
-      return body;
+  const getMarkdownParts = () => {
+    if (fullItem.kind === 'issue') {
+      const fileParts = githubIssueToMessagePart(fullItem, includeComments);
+      return fileParts.map(part => {
+        let title = "Main Issue Content";
+        if (part.metadata?.github?.kind === 'issue-comments') {
+          title = "Issue Comments";
+        }
+        return { name: part.name, content: part.content, title };
+      });
+    } else {
+      const fileParts = githubPullToMessagePart(fullItem, includeComments, includeReviews);
+      return fileParts.map(part => {
+        let title = "Main Pull Request Content";
+        if (part.metadata?.github?.kind === 'pull-reviews') {
+          title = "Pull Request Reviews";
+        } else if (part.metadata?.github?.kind === 'pull-comments') {
+          title = "Pull Request Comments";
+        }
+        return { name: part.name, content: part.content, title };
+      });
     }
+  };
+
+  const markdownParts = useMemo(() => getMarkdownParts(), [fullItem, includeComments, includeReviews]);
+  
+  const handlePreviewMarkdown = () => {
+    setShowMarkdownPreview(true);
+  };
+  
+  const truncateBody = (body: string, maxLength: number = 200): string => {
+    if (!body) return 'No description provided.';
+    if (body.length <= maxLength) return body;
     return body.slice(0, maxLength) + '...';
   };
 
   return (
-    <View style={styles.container}>
+    <>
+      <GitHubMarkdownPreview
+        visible={showMarkdownPreview}
+        parts={markdownParts}
+        onClose={() => setShowMarkdownPreview(false)}
+      />
+      
+      <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.title}>{item.kind === 'issue' ? 'Issue' : 'Pull Request'} Preview</Text>
@@ -229,10 +268,17 @@ export function GitHubPreview({ item, client, onAttach, onClose }: GitHubPreview
           </View>
         )}
 
-        <TouchableOpacity style={styles.linkButton} onPress={handleOpenInBrowser}>
-          <Ionicons name="open-outline" size={16} color={semanticColors.primary} />
-          <Text style={styles.linkText}>View on GitHub</Text>
-        </TouchableOpacity>
+        <View style={styles.linkButtonsContainer}>
+          <TouchableOpacity style={styles.linkButton} onPress={handleOpenInBrowser}>
+            <Ionicons name="open-outline" size={16} color={semanticColors.primary} />
+            <Text style={styles.linkText}>View on GitHub</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.previewButton} onPress={handlePreviewMarkdown}>
+            <Ionicons name="document-text-outline" size={16} color={semanticColors.primary} />
+            <Text style={styles.previewText}>Preview Raw Text</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       <View style={styles.actions}>
@@ -245,6 +291,7 @@ export function GitHubPreview({ item, client, onAttach, onClose }: GitHubPreview
         </TouchableOpacity>
       </View>
     </View>
+    </>
   );
 }
 
@@ -336,12 +383,25 @@ const styles = StyleSheet.create({
     color: semanticColors.textSecondary,
     lineHeight: 20,
   },
+  linkButtonsContainer: {
+    gap: spacing.sm,
+  },
   linkButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.sm,
   },
   linkText: {
+    fontSize: 14,
+    color: semanticColors.primary,
+    marginLeft: spacing.xs,
+  },
+  previewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  previewText: {
     fontSize: 14,
     color: semanticColors.primary,
     marginLeft: spacing.xs,
