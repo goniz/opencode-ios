@@ -106,31 +106,33 @@ export function GitHubPreview({ item, client, onAttach, onClose }: GitHubPreview
     onAttach({ includeComments, includeReviews });
   };
 
-  const getMarkdownParts = () => {
-    if (fullItem.kind === 'issue') {
-      const fileParts = githubIssueToMessagePart(fullItem, includeComments);
-      return fileParts.map(part => {
-        let title = "Main Issue Content";
-        if (part.metadata?.github?.kind === 'issue-comments') {
-          title = "Issue Comments";
-        }
-        return { name: part.name, content: part.content, title };
-      });
-    } else {
-      const fileParts = githubPullToMessagePart(fullItem, includeComments, includeReviews);
-      return fileParts.map(part => {
-        let title = "Main Pull Request Content";
-        if (part.metadata?.github?.kind === 'pull-reviews') {
-          title = "Pull Request Reviews";
-        } else if (part.metadata?.github?.kind === 'pull-comments') {
-          title = "Pull Request Comments";
-        }
-        return { name: part.name, content: part.content, title };
-      });
-    }
-  };
+  const markdownParts = useMemo(() => {
+    const getMarkdownParts = () => {
+      if (fullItem.kind === 'issue') {
+        const fileParts = githubIssueToMessagePart(fullItem, includeComments);
+        return fileParts.map(part => {
+          let title = "Main Issue Content";
+          if (part.metadata?.github?.kind === 'issue-comments') {
+            title = "Issue Comments";
+          }
+          return { name: part.name, content: part.content, title };
+        });
+      } else {
+        const fileParts = githubPullToMessagePart(fullItem, includeComments, includeReviews);
+        return fileParts.map(part => {
+          let title = "Main Pull Request Content";
+          if (part.metadata?.github?.kind === 'pull-reviews') {
+            title = "Pull Request Reviews";
+          } else if (part.metadata?.github?.kind === 'pull-comments') {
+            title = "Pull Request Comments";
+          }
+          return { name: part.name, content: part.content, title };
+        });
+      }
+    };
 
-  const markdownParts = useMemo(() => getMarkdownParts(), [fullItem, includeComments, includeReviews]);
+    return getMarkdownParts();
+  }, [fullItem, includeComments, includeReviews]);
   
   const handlePreviewMarkdown = () => {
     setShowMarkdownPreview(true);

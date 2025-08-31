@@ -43,6 +43,16 @@ jest.mock('../../src/api/sdk.gen', () => ({
   sessionAbort: jest.fn(() => Promise.resolve({ data: {} })),
 }));
 
+// Mock GitHubClient to avoid @octokit/rest ES module issues in tests
+jest.mock('../../src/integrations/github/GitHubClient', () => ({
+  GitHubClient: jest.fn().mockImplementation(() => ({
+    searchIssues: jest.fn(),
+    searchPullRequests: jest.fn(),
+    getIssue: jest.fn(),
+    getPullRequest: jest.fn(),
+  })),
+}));
+
 // This is needed to make this file a valid test file for Jest
 // The actual setup is in the mock functions above
 describe('jest.setup', () => {

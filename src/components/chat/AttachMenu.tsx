@@ -330,6 +330,7 @@ export function AttachMenu({
                     key={option.key}
                     style={styles.optionButton}
                     onPress={option.onPress}
+                    testID={`attach-option-${option.key}`}
                   >
                     <View style={[styles.optionIcon, { backgroundColor: option.color + '20' }]}>
                       <Ionicons name={option.icon as keyof typeof Ionicons.glyphMap} size={24} color={option.color} />
