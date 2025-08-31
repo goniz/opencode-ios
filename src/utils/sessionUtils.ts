@@ -26,6 +26,7 @@ export async function runShellCommandInSession(
   }
 
   try {
+    console.log(`Executing shell command: ${shellCommand} in session ${session.id}`);
     // Execute the shell command in the session
     const shellResponse = await sessionShell({
       client,
@@ -43,6 +44,12 @@ export async function runShellCommandInSession(
       throw new Error('Failed to execute shell command');
     }
 
+    console.log(`Shell command executed, message ID: ${message.id}`);
+    
+    // Wait a bit for the command to complete and generate output
+    // This is a simple approach - in a production app, we might want to use events
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     // Get the message parts to extract the output
     const messageResponse = await sessionMessage({
       client,
@@ -56,14 +63,18 @@ export async function runShellCommandInSession(
       throw new Error('Failed to retrieve message output');
     }
 
+    console.log(`Message parts count: ${messageResponse.data.parts.length}`);
     // Extract text from text parts
     let output = '';
     for (const part of messageResponse.data.parts) {
+      console.log(`Part type: ${part.type}`);
       if (part.type === 'text') {
+        console.log(`Text part content: ${part.text}`);
         output += part.text;
       }
     }
 
+    console.log(`Final output: "${output.trim()}"`);
     return output.trim();
   } finally {
     // Clean up by deleting the session
