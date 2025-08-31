@@ -1,10 +1,9 @@
-import { sessionCreate, sessionShell, sessionMessage, sessionDelete, sessionMessages } from '../api/sdk.gen';
+import { sessionCreate, sessionShell, sessionMessage, sessionDelete } from '../api/sdk.gen';
 import { Client } from '../api/client';
-import { withRetry, delay } from './retryUtils';
+
 
 // Constants
-const DEFAULT_AGENT = 'general';
-const COMMAND_COMPLETION_DELAY = 1000;
+const DEFAULT_AGENT = 'build';
 const SESSION_TITLE_MAX_LENGTH = 30;
 
 // Types
@@ -17,15 +16,7 @@ interface MessageData {
   parts: MessagePart[];
 }
 
-interface SessionMessage {
-  info: {
-    id: string;
-    role: string;
-    time: {
-      created?: number;
-    };
-  };
-}
+
 
 // Utility functions
 function createSessionTitle(command: string): string {
@@ -37,35 +28,7 @@ function createSessionTitle(command: string): string {
 
 
 
-async function resolveMessageId(
-  client: Client, 
-  sessionId: string, 
-  messageId: string
-): Promise<string> {
-  if (!messageId.includes('{messageID}')) {
-    return messageId;
-  }
-  
-  const messagesResponse = await sessionMessages({
-    client,
-    path: { id: sessionId }
-  });
-  
-  if (!messagesResponse.data?.length) {
-    throw new Error('No messages found in session');
-  }
-  
-  const assistantMessages = messagesResponse.data
-    .filter((m: SessionMessage) => m.info.role === 'assistant')
-    .sort((a: SessionMessage, b: SessionMessage) => 
-      (b.info.time.created || 0) - (a.info.time.created || 0));
-  
-  if (!assistantMessages.length) {
-    throw new Error('No assistant messages found in session');
-  }
-  
-  return assistantMessages[0].info.id;
-}
+
 
 function extractTextFromParts(parts: MessagePart[]): string {
   return parts
@@ -106,21 +69,19 @@ async function executeCommand(client: Client, sessionId: string, command: string
 }
 
 async function fetchMessage(client: Client, sessionId: string, messageId: string): Promise<MessageData> {
-  return withRetry(async () => {
-    const result = await sessionMessage({
-      client,
-      path: {
-        id: sessionId,
-        messageID: messageId
-      }
-    });
-
-    if (!result.data) {
-      throw new Error('Message data not available');
+  const result = await sessionMessage({
+    client,
+    path: {
+      id: sessionId,
+      messageID: messageId
     }
-
-    return result.data;
   });
+
+  if (!result.data) {
+    throw new Error('Message data not available');
+  }
+
+  return result.data;
 }
 
 async function cleanupSession(client: Client, sessionId: string): Promise<void> {
@@ -150,11 +111,8 @@ export async function runShellCommandInSession(
   
   try {
     const message = await executeCommand(client, session.id, shellCommand);
-    const actualMessageId = await resolveMessageId(client, session.id, message.id);
-    
-    await delay(COMMAND_COMPLETION_DELAY);
-    
-    const messageData = await fetchMessage(client, session.id, actualMessageId);
+
+    const messageData = await fetchMessage(client, session.id, message.id);
     return extractTextFromParts(messageData.parts);
     
   } catch (error) {
