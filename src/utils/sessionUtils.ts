@@ -1,4 +1,4 @@
-import { sessionCreate, sessionShell, sessionDelete } from '../api/sdk.gen';
+import { sessionCreate, sessionShell, sessionMessage, sessionDelete } from '../api/sdk.gen';
 import { Client } from '../api/client';
 
 /**
@@ -43,9 +43,28 @@ export async function runShellCommandInSession(
       throw new Error('Failed to execute shell command');
     }
 
-    // For now, we'll return a success message since the actual output
-    // would be in the message parts which would require additional processing
-    return `Command executed successfully in session ${session.id}`;
+    // Get the message parts to extract the output
+    const messageResponse = await sessionMessage({
+      client,
+      path: {
+        id: session.id,
+        messageID: message.id
+      }
+    });
+
+    if (!messageResponse.data) {
+      throw new Error('Failed to retrieve message output');
+    }
+
+    // Extract text from text parts
+    let output = '';
+    for (const part of messageResponse.data.parts) {
+      if (part.type === 'text') {
+        output += part.text;
+      }
+    }
+
+    return output.trim();
   } finally {
     // Clean up by deleting the session
     try {

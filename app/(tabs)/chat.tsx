@@ -410,9 +410,9 @@ const [commandStatus, setCommandStatus] = useState<string | null>(null);
      }
 
      try {
-       // For now, we'll just show a placeholder since the actual output
-       // isn't returned by the utility function
-       setGitBranch('main'); // Placeholder - in a real implementation, this would be the actual branch name
+       // Run git branch command in a temporary session
+       const result = await runShellCommandInSession(client, 'git branch --show-current');
+       setGitBranch(result || 'main'); // Use actual result or fallback to 'main'
      } catch (error) {
        console.error('Failed to fetch git branch:', error);
        setGitBranch(null);
