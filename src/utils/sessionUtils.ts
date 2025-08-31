@@ -12,6 +12,11 @@ export async function runShellCommandInSession(
   client: Client,
   shellCommand: string
 ): Promise<string> {
+  console.log(`Creating session for command: ${shellCommand}`);
+  console.log(`SessionCreate request body:`, {
+    title: `Temporary session for command: ${shellCommand.substring(0, 30)}${shellCommand.length > 30 ? '...' : ''}`
+  });
+  
   // Create a new session
   const sessionResponse = await sessionCreate({
     client,
@@ -20,13 +25,21 @@ export async function runShellCommandInSession(
     }
   });
 
+  console.log(`SessionCreate response:`, sessionResponse);
   const session = sessionResponse.data;
   if (!session) {
     throw new Error(`Failed to create session for command: ${shellCommand}`);
   }
 
+  console.log(`Session created with ID: ${session.id}`);
+
   try {
     console.log(`Executing shell command: ${shellCommand} in session ${session.id}`);
+    console.log(`SessionShell request body:`, {
+      agent: 'general',
+      command: shellCommand
+    });
+    
     // Execute the shell command in the session
     const shellResponse = await sessionShell({
       client,
@@ -39,17 +52,20 @@ export async function runShellCommandInSession(
       }
     });
 
+    console.log(`SessionShell response:`, shellResponse);
     const message = shellResponse.data;
     if (!message) {
       throw new Error(`Failed to execute shell command: ${shellCommand} in session ${session.id}`);
     }
 
     console.log(`Shell command executed, message ID: ${message.id}`);
+    console.log(`Shell message response:`, message);
     
     // Wait a bit for the command to complete and generate output
     // This is a simple approach - in a production app, we might want to use events
     await new Promise(resolve => setTimeout(resolve, 1000));
     
+    console.log(`Fetching message parts for message ${message.id} in session ${session.id}`);
     // Get the message parts to extract the output
     const messageResponse = await sessionMessage({
       client,
@@ -59,6 +75,7 @@ export async function runShellCommandInSession(
       }
     });
 
+    console.log(`SessionMessage response:`, messageResponse);
     if (!messageResponse.data) {
       throw new Error(`Failed to retrieve message output for command: ${shellCommand} in session ${session.id}, message ${message.id}`);
     }
@@ -85,12 +102,14 @@ export async function runShellCommandInSession(
   } finally {
     // Clean up by deleting the session
     try {
-      await sessionDelete({
+      console.log(`Deleting session ${session.id}`);
+      const deleteResponse = await sessionDelete({
         client,
         path: {
           id: session.id
         }
       });
+      console.log(`SessionDelete response:`, deleteResponse);
     } catch (error) {
       // Log the error but don't throw, as the command was already executed
       console.warn(`Failed to delete session ${session.id} after running command "${shellCommand}":`, error);
