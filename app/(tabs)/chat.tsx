@@ -432,6 +432,20 @@ export default function ChatScreen() {
     });
   }, []);
 
+  const handleFilesAttached = useCallback((fileParts: FilePartLike[]) => {
+    console.log('🔍 [handleFilesAttached] Batch attaching', fileParts.length, 'files');
+    console.log('🔍 [handleFilesAttached] Files:', fileParts.map(part => ({
+      name: part.name,
+      metadataKind: part.metadata?.github?.kind
+    })));
+    
+    setAttachedFiles(prev => {
+      const newFiles = [...prev, ...fileParts];
+      console.log('🔍 [handleFilesAttached] Updated attached files count:', newFiles.length);
+      return newFiles;
+    });
+  }, []);
+
   const handleRemoveFile = useCallback((index: number) => {
     setAttachedFiles(prev => prev.filter((_, i) => i !== index));
   }, []);
@@ -1111,6 +1125,7 @@ const commandBody: {
               onChangeText={setInputText}
               onImageSelected={handleImageSelected}
               onFileAttached={handleFileAttached}
+              onFilesAttached={handleFilesAttached}
               onCommandSelect={handleCommandSelect}
               onMenuCommandSelect={handleMenuCommandSelect}
               userCommands={commands}

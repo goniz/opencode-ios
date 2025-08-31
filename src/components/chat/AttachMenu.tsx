@@ -23,6 +23,7 @@ import type { Client } from '../../api/client/types.gen';
 interface AttachMenuProps {
   onImageSelected?: (imageUri: string) => void;
   onFileAttached?: (filePart: FilePartLike) => void;
+  onFilesAttached?: (fileParts: FilePartLike[]) => void;
   disabled?: boolean;
   client?: Client | null;
 }
@@ -38,6 +39,7 @@ interface AttachOption {
 export function AttachMenu({
   onImageSelected,
   onFileAttached,
+  onFilesAttached,
   disabled = false,
   client = null
 }: AttachMenuProps) {
@@ -269,19 +271,22 @@ export function AttachMenu({
       metadataKind: part.metadata?.github?.kind
     })));
     
-    if (onFileAttached) {
-      console.log('🔍 [handleGithubAttachFile] onFileAttached callback exists, attaching files one by one');
+    // Prefer batch attachment for multiple files to avoid React state race conditions
+    if (onFilesAttached && fileParts.length > 1) {
+      console.log('🔍 [handleGithubAttachFile] Using batch attachment for', fileParts.length, 'files');
+      onFilesAttached(fileParts);
+    } else if (onFileAttached) {
+      console.log('🔍 [handleGithubAttachFile] Using individual attachment for', fileParts.length, 'files');
       fileParts.forEach((filePart, index) => {
         console.log(`🔍 [handleGithubAttachFile] Attaching file part ${index + 1}/${fileParts.length}:`, filePart.name);
         onFileAttached(filePart);
       });
-      console.log('🔍 [handleGithubAttachFile] All file parts attached');
     } else {
-      console.log('❌ [handleGithubAttachFile] onFileAttached callback is missing, cannot attach files');
+      console.log('❌ [handleGithubAttachFile] No attachment callback available');
     }
     
     setIsGithubPickerVisible(false);
-  }, [onFileAttached]);
+  }, [onFileAttached, onFilesAttached]);
 
   const attachOptions = createAttachOptions();
 
