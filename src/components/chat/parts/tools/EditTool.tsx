@@ -5,66 +5,7 @@ import { ToolHeader, ToolResult, ToolComponentProps } from './BaseToolComponent'
 import { useExpandable } from '../../../../hooks/useExpandable';
 import { ExpandButton } from '../../ExpandButton';
 import { getRelativePath } from '../../../../utils/pathUtils';
-
-// Helper function to parse LSP diagnostics
-const parseLSPDiagnostics = (result: string): { diagnostics: { file: string; line: number; column: number; severity: string; message: string }[] | null; cleanResult: string } => {
-  if (!result || !result.includes('<project_diagnostics>')) {
-    return { diagnostics: null, cleanResult: result };
-  }
-
-  // Remove all diagnostic-related content from the result
-  let cleanResult = result
-    .replace(/<project_diagnostics>.*?<\/project_diagnostics>/s, '')
-    .replace(/<file_diagnostics>.*?<\/file_diagnostics>/s, '')
-    .replace(/This file has errors, please fix/g, '')
-    .trim();
-  
-  // If after cleaning there's nothing meaningful left, return empty string
-  if (!cleanResult || cleanResult.length < 10) {
-    cleanResult = '';
-  }
-
-  const diagnosticsMatch = result.match(/<project_diagnostics>(.*?)<\/project_diagnostics>/s);
-  if (!diagnosticsMatch) {
-    return { diagnostics: null, cleanResult };
-  }
-
-  const diagnosticsText = diagnosticsMatch[1].trim();
-  
-  if (!diagnosticsText) {
-    return { diagnostics: [], cleanResult };
-  }
-
-  // Parse file diagnostics
-  const fileMatch = result.match(/<file_diagnostics>(.*?)<\/file_diagnostics>/s);
-  if (!fileMatch) {
-    return { diagnostics: [], cleanResult };
-  }
-
-  const fileErrors = fileMatch[1].trim();
-  const diagnostics: { file: string; line: number; column: number; severity: string; message: string }[] = [];
-  
-  // Extract file path from diagnostics text
-  const filePath = diagnosticsText.split('\n')[0];
-  
-  // Parse individual errors
-  const errorLines = fileErrors.split('\n').filter(line => line.trim().startsWith('ERROR'));
-  
-  for (const errorLine of errorLines) {
-    const match = errorLine.match(/ERROR \[(\d+):(\d+)\] (.+)/);
-    if (match) {
-      diagnostics.push({
-        file: filePath,
-        line: parseInt(match[1]),
-        column: parseInt(match[2]),
-        severity: 'ERROR',
-        message: match[3]
-      });
-    }
-  }
-
-  return { diagnostics, cleanResult };
-};
+import { parseLSPDiagnostics } from '../../../../utils/diagnosticParser';
 
 export const EditTool: React.FC<ToolComponentProps> = ({ 
   part, 
@@ -73,9 +14,10 @@ export const EditTool: React.FC<ToolComponentProps> = ({
   result, 
   filePath 
 }) => {
-  const { diagnostics, cleanResult } = parseLSPDiagnostics(result);
+  const { fileDiagnostics, projectDiagnostics, cleanResult } = parseLSPDiagnostics(result);
   const [isDiffExpanded, setIsDiffExpanded] = useState(false);
-  const [isDiagnosticsExpanded, setIsDiagnosticsExpanded] = useState(false);
+  const [isFileDiagnosticsExpanded, setIsFileDiagnosticsExpanded] = useState(false);
+  const [isProjectDiagnosticsExpanded, setIsProjectDiagnosticsExpanded] = useState(false);
   
   const {
     isExpanded,
@@ -211,33 +153,75 @@ export const EditTool: React.FC<ToolComponentProps> = ({
           </TouchableOpacity>
         )}
 
-        {diagnostics && diagnostics.length > 0 && (
+        {fileDiagnostics && fileDiagnostics.length > 0 && (
           <TouchableOpacity 
             style={styles.diagnosticsContainer}
-            onPress={() => setIsDiagnosticsExpanded(!isDiagnosticsExpanded)}
+            onPress={() => setIsFileDiagnosticsExpanded(!isFileDiagnosticsExpanded)}
             activeOpacity={0.7}
           >
             <View style={styles.diagnosticsHeader}>
-              <Text style={styles.diagnosticsTitle}>LSP Diagnostics</Text>
+              <Text style={styles.diagnosticsTitle}>File Diagnostics</Text>
               <View style={styles.diagnosticsCount}>
                 <Text style={styles.diagnosticsCountText}>
-                  {diagnostics.length}
+                  {fileDiagnostics.length}
                 </Text>
               </View>
               <View style={styles.expandHintContainer}>
                 <Text style={styles.expandHint}>
-                  {isDiagnosticsExpanded ? '◀' : '▶'}
+                  {isFileDiagnosticsExpanded ? '◀' : '▶'}
                 </Text>
               </View>
             </View>
             
-            {isDiagnosticsExpanded && (
+            {isFileDiagnosticsExpanded && (
               <View style={styles.diagnosticsDetails}>
-                {diagnostics.map((diagnostic, index) => (
+                {fileDiagnostics.map((diagnostic, index) => (
                   <View key={index} style={styles.diagnosticItem}>
                     <View style={styles.diagnosticHeader}>
-                      <View style={styles.severityBadge}>
-                        <Text style={styles.severityText}>ERROR</Text>
+                      <View style={[styles.severityBadge, { backgroundColor: diagnostic.severity === 'ERROR' ? '#dc2626' : diagnostic.severity === 'WARN' ? '#f59e0b' : '#3b82f6' }]}>
+                        <Text style={styles.severityText}>{diagnostic.severity}</Text>
+                      </View>
+                      <Text style={styles.locationText}>
+                        {diagnostic.line}:{diagnostic.column}
+                      </Text>
+                    </View>
+                    <Text style={styles.diagnosticMessage}>
+                      {diagnostic.message}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {projectDiagnostics && projectDiagnostics.length > 0 && (
+          <TouchableOpacity 
+            style={styles.projectDiagnosticsContainer}
+            onPress={() => setIsProjectDiagnosticsExpanded(!isProjectDiagnosticsExpanded)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.diagnosticsHeader}>
+              <Text style={styles.projectDiagnosticsTitle}>Project Diagnostics</Text>
+              <View style={styles.projectDiagnosticsCount}>
+                <Text style={styles.diagnosticsCountText}>
+                  {projectDiagnostics.length}
+                </Text>
+              </View>
+              <View style={styles.expandHintContainer}>
+                <Text style={styles.expandHint}>
+                  {isProjectDiagnosticsExpanded ? '◀' : '▶'}
+                </Text>
+              </View>
+            </View>
+            
+            {isProjectDiagnosticsExpanded && (
+              <View style={styles.diagnosticsDetails}>
+                {projectDiagnostics.map((diagnostic, index) => (
+                  <View key={index} style={styles.diagnosticItem}>
+                    <View style={styles.diagnosticHeader}>
+                      <View style={[styles.severityBadge, { backgroundColor: diagnostic.severity === 'ERROR' ? '#dc2626' : diagnostic.severity === 'WARN' ? '#f59e0b' : '#3b82f6' }]}>
+                        <Text style={styles.severityText}>{diagnostic.severity}</Text>
                       </View>
                       <Text style={styles.locationText}>
                         {getRelativePath(diagnostic.file)}:{diagnostic.line}:{diagnostic.column}
@@ -494,5 +478,24 @@ const styles = StyleSheet.create({
     color: '#e2e8f0',
     fontWeight: '500',
     flex: 1,
+  },
+  projectDiagnosticsContainer: {
+    marginBottom: 12,
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+    overflow: 'hidden',
+  },
+  projectDiagnosticsTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fbbf24',
+  },
+  projectDiagnosticsCount: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
 });
