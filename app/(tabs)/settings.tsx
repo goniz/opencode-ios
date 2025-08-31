@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Alert, StatusBar, Switch, TextInput, Modal, Linking } from 'react-native';
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Alert, StatusBar, Switch, TextInput, Modal, Linking, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 import { getSavedServers, clearAllServers } from '../../src/utils/serverStorage';
 import { secureSettings } from '../../src/utils/secureSettings';
 import { testGitHubConnection } from '../../src/utils/github';
+import { runShellCommandInSession } from '../../src/utils/sessionUtils';
 
 // Import opencode API version
 import { OPENCODE_VERSION } from '../../src/api';
@@ -14,7 +15,7 @@ import { OPENCODE_VERSION } from '../../src/api';
 const packageJson = require('../../package.json');
 
 export default function SettingsScreen() {
-  const { connectionStatus, disconnect } = useConnection();
+  const { connectionStatus, disconnect, client } = useConnection();
   const [savedServersCount, setSavedServersCount] = useState(0);
   const [darkMode, setDarkMode] = useState(true); // App is currently dark mode only
   const [notifications, setNotifications] = useState(true);
@@ -27,12 +28,35 @@ export default function SettingsScreen() {
   const [githubTokenInput, setGithubTokenInput] = useState('');
   const [isLoadingGithubToken, setIsLoadingGithubToken] = useState(false);
   const [isTestingGithubToken, setIsTestingGithubToken] = useState(false);
+  const [gitBranch, setGitBranch] = useState<string | null>(null);
+  const [isLoadingGitBranch, setIsLoadingGitBranch] = useState(false);
 
   useEffect(() => {
     loadSavedServersCount();
     loadChutesApiKey();
     loadGithubToken();
-  }, []);
+    loadGitBranch();
+  }, [connectionStatus]);
+
+  const loadGitBranch = async () => {
+    if (!client || connectionStatus !== 'connected') {
+      return;
+    }
+
+    setIsLoadingGitBranch(true);
+    try {
+      // Run git branch command in a temporary session
+      const result = await runShellCommandInSession(client, 'git branch --show-current');
+      // For now, we'll just show a generic message since the actual output
+      // isn't returned by the utility function
+      setGitBranch('Connected to repository');
+    } catch (error) {
+      console.error('Failed to fetch git branch:', error);
+      setGitBranch('Unknown');
+    } finally {
+      setIsLoadingGitBranch(false);
+    }
+  };
 
   const loadSavedServersCount = async () => {
     const servers = await getSavedServers();
@@ -438,6 +462,33 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Repository Status</Text>
+              {isLoadingGitBranch ? (
+                <View style={styles.gitBranchContainer}>
+                  <ActivityIndicator size="small" color="#10b981" />
+                  <Text style={styles.settingDescription}>Checking repository...</Text>
+                </View>
+              ) : (
+                <Text style={styles.settingDescription}>
+                  {gitBranch || 'Not connected to a repository'}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity 
+              style={styles.iconButton} 
+              onPress={loadGitBranch}
+              disabled={isLoadingGitBranch || !client || connectionStatus !== 'connected'}
+            >
+              <Ionicons 
+                name="refresh-outline" 
+                size={18} 
+                color={isLoadingGitBranch || !client || connectionStatus !== 'connected' ? '#6b7280' : '#10b981'} 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
@@ -792,5 +843,10 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  gitBranchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 });

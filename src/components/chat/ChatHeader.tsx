@@ -19,6 +19,7 @@ interface ChatHeaderProps {
   chutesQuota?: ChutesQuota;
   commandStatus?: string;
   sessionUrl?: string;
+  gitBranch?: string;
   onUrlCopy: () => void;
   availableProviders: { id: string; name: string }[];
   availableModels: { modelID: string; name: string }[];
@@ -37,6 +38,7 @@ export function ChatHeader({
   chutesQuota,
   commandStatus,
   sessionUrl,
+  gitBranch,
   onUrlCopy,
   availableProviders,
   availableModels,
@@ -129,7 +131,7 @@ export function ChatHeader({
       </View>
       
       {/* Token/cost/quota info row */}
-      {(contextInfo || chutesQuota || commandStatus || sessionUrl) && !isGenerating && (
+      {(contextInfo || chutesQuota || commandStatus || sessionUrl || gitBranch) && !isGenerating && (
         <View style={styles.headerInfoRow}>
           {contextInfo && (
             <Text style={styles.tokenInfoCompact}>
@@ -147,6 +149,11 @@ export function ChatHeader({
           {commandStatus && (
             <Text style={styles.commandStatusText}>
               {commandStatus}
+            </Text>
+          )}
+          {gitBranch && (
+            <Text style={styles.tokenInfoCompact}>
+              🌿 {gitBranch}
             </Text>
           )}
           {sessionUrl && (
