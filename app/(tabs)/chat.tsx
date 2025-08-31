@@ -247,10 +247,14 @@ const [commandStatus, setCommandStatus] = useState<string | null>(null);
 
     loadChutesQuota();
     
-    // Also subscribe to session.idle events to refresh quota
+    // Also subscribe to session.idle events to refresh quota and git branch
     const unsubscribe = onSessionIdle((sessionId: string) => {
       console.log(`[Chutes] Session ${sessionId} became idle, refreshing quota`);
       loadChutesQuota();
+      
+      // Update git branch when session becomes idle
+      console.log('Git branch update triggered by session.idle event');
+      fetchGitBranch();
     });
     
     return unsubscribe;
