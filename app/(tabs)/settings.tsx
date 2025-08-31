@@ -6,6 +6,7 @@ import { getSavedServers, clearAllServers } from '../../src/utils/serverStorage'
 import { secureSettings } from '../../src/utils/secureSettings';
 import { testGitHubConnection } from '../../src/utils/github';
 
+
 // Import opencode API version
 import { OPENCODE_VERSION } from '../../src/api';
 
@@ -26,13 +27,15 @@ export default function SettingsScreen() {
   const [showGithubTokenModal, setShowGithubTokenModal] = useState(false);
   const [githubTokenInput, setGithubTokenInput] = useState('');
   const [isLoadingGithubToken, setIsLoadingGithubToken] = useState(false);
-  const [isTestingGithubToken, setIsTestingGithubToken] = useState(false);
+   const [isTestingGithubToken, setIsTestingGithubToken] = useState(false);
 
-  useEffect(() => {
-    loadSavedServersCount();
-    loadChutesApiKey();
-    loadGithubToken();
-  }, []);
+
+
+   useEffect(() => {
+     loadSavedServersCount();
+     loadChutesApiKey();
+     loadGithubToken();
+   }, [connectionStatus]);
 
   const loadSavedServersCount = async () => {
     const servers = await getSavedServers();
@@ -438,6 +441,8 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </View>
+
+
         </View>
       </ScrollView>
 
@@ -793,4 +798,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+
 });

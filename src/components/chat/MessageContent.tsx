@@ -98,12 +98,6 @@ export function MessageContent({
   
   // Convert API part format to component part format
   const getComponentPart = () => {
-    console.log('MessageContent - processing part:', {
-      type: part.type,
-      filename: 'filename' in part ? part.filename : 'no filename',
-      mime: 'mime' in part ? part.mime : 'no mime',
-      url: 'url' in part ? (part.url?.substring(0, 20) + '...') : 'no url'
-    });
     
     const basePart = {
       type: part.type,

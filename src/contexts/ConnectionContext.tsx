@@ -1223,6 +1223,12 @@ const startEventStream = useCallback(async (client: Client, retryCount = 0): Pro
         const currentState = stateRef.current;
         console.log('Processing stream event:', eventData.type);
 
+        // Ignore storage.write events
+        if (eventData.type === 'storage.write') {
+          console.log('Ignoring storage.write event');
+          return;
+        }
+
         // Queue events during session transitions
         if (currentState.sessionTransition.inProgress) {
           console.log(`Queueing event ${eventData.type} during session transition`);
