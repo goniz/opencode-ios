@@ -38,7 +38,7 @@ describe('FilePart', () => {
     const { getByText, getAllByText } = render(<FilePart part={upperCasePart} />);
     
     // Should show image icon instead of file icon
-    expect(getByText('🖼️')).toBeTruthy();
+    expect(getByText('[IMG]')).toBeTruthy();
     // Filename might appear multiple times (in header and path), so use getAllByText
     expect(getAllByText('Photo.PNG').length).toBeGreaterThan(0);
   });
@@ -53,7 +53,7 @@ describe('FilePart', () => {
     const { getByText, getAllByText } = render(<FilePart part={mixedCasePart} />);
     
     // Should show image icon
-    expect(getByText('🖼️')).toBeTruthy();
+    expect(getByText('[IMG]')).toBeTruthy();
     expect(getAllByText('Screenshot.Jpeg').length).toBeGreaterThan(0);
   });
 
@@ -67,7 +67,7 @@ describe('FilePart', () => {
     const { getByText } = render(<FilePart part={mimeTypePart} />);
     
     // Should show image icon due to MIME type
-    expect(getByText('🖼️')).toBeTruthy();
+    expect(getByText('[IMG]')).toBeTruthy();
   });
 
   it('handles all supported image extensions case-insensitively', () => {
@@ -81,7 +81,7 @@ describe('FilePart', () => {
       };
 
       const { getByText } = render(<FilePart part={part} />);
-      expect(getByText('🖼️')).toBeTruthy();
+      expect(getByText('[IMG]')).toBeTruthy();
     });
   });
 });

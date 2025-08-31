@@ -110,17 +110,17 @@ describe('GitHub Attachment Flow', () => {
       }
     ];
 
-    const { getByText } = render(
+    const { getByText, getAllByText } = render(
       <FilePreview files={testFiles} />
     );
 
-    // Both files should be displayed
-    expect(getByText('test-repo-issue-123.md')).toBeTruthy();
-    expect(getByText('test-repo-issue-123-comments.md')).toBeTruthy();
-    
-    // Should show GitHub badges for both files (badges are lowercase)
+    // Both files should be displayed (filenames are truncated but we can verify by badges)
     expect(getByText('issue')).toBeTruthy();
     expect(getByText('issue-comments')).toBeTruthy();
+
+    // Verify we have 2 files by checking for multiple truncated filename elements
+    const truncatedNames = getAllByText('test-repo-is...md');
+    expect(truncatedNames.length).toBe(2);
   });
 
   it('should generate correct file names for issue and comments', () => {
