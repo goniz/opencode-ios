@@ -107,18 +107,50 @@ async function cleanupSession(client: Client, sessionId: string): Promise<void> 
  * @param shellCommand - The shell command to execute
  * @returns The output of the shell command
  */
+interface SessionShellMessage {
+  info: {
+    id: string;
+    sessionID: string;
+    role: string;
+    time: {
+      created: number;
+      completed?: number;
+    };
+    system: string[];
+    mode: string;
+    cost: number;
+    path: {
+      cwd: string;
+      root: string;
+    };
+    tokens: {
+      input: number;
+      output: number;
+      reasoning: number;
+      cache: {
+        read: number;
+        write: number;
+      };
+    };
+    modelID: string;
+    providerID: string;
+  };
+  parts: MessagePart[];
+}
+
 export async function runShellCommandInSession(
   client: Client,
   shellCommand: string
 ): Promise<string> {
   const session = await createSession(client, shellCommand);
-  
+
   try {
     const response = await executeCommand(client, session.id, shellCommand);
     // The response has both info (AssistantMessage) and parts array
-    const parts = (response as any).parts || [];
+    const sessionMessage = response as unknown as SessionShellMessage;
+    const parts = sessionMessage.parts || [];
     return extractTextFromParts(parts);
-    
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Error running shell command "${shellCommand}": ${errorMessage}`);
