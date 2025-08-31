@@ -61,11 +61,13 @@ export function FilePreview({ files, onRemoveFile }: FilePreviewProps) {
 const styles = StyleSheet.create({
   container: {
     paddingVertical: spacing.sm,
+    paddingTop: spacing.md, // Extra padding top for remove buttons
     borderBottomWidth: layout.borderWidth.DEFAULT,
     borderBottomColor: semanticColors.border,
   },
   scrollContainer: {
     paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs, // Add vertical padding for remove buttons
     gap: spacing.sm,
   },
   fileCard: {
@@ -114,8 +116,8 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     position: 'absolute',
-    top: -6,
-    right: -6,
+    top: -4,
+    right: -4,
     backgroundColor: semanticColors.error,
     borderRadius: 10,
     width: 20,
@@ -124,5 +126,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: semanticColors.background,
+    zIndex: 1,
   },
 });
