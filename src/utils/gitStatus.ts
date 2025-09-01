@@ -157,45 +157,5 @@ export async function getChangeCounts(client: Client): Promise<{ modified: numbe
   }
 }
 
-/**
- * Format git status for display
- */
-export function formatGitStatus(gitStatus: GitStatusInfo): string {
-  const { branch, ahead, behind, modified, deleted, untracked } = gitStatus;
 
-  let status = `${branch}`;
 
-  // Add ahead/behind indicators
-  if (ahead > 0 && behind > 0) {
-    status += ` ↕️${ahead}↓${behind}`;
-  } else if (ahead > 0) {
-    status += ` ↑${ahead}`;
-  } else if (behind > 0) {
-    status += ` ↓${behind}`;
-  }
-
-  // Add modified/deleted indicator
-  const totalChanges = modified + deleted;
-  if (totalChanges > 0) {
-    status += ` ±${totalChanges}`;
-  }
-
-  // Add untracked indicator
-  if (untracked > 0) {
-    status += ` ?${untracked}`;
-  }
-
-  return status;
-}
-
-/**
- * Get a simplified git status string for display
- */
-export async function getFormattedGitStatus(client: Client): Promise<string | null> {
-  const gitStatus = await getGitStatus(client);
-  if (!gitStatus) {
-    return null;
-  }
-  
-  return formatGitStatus(gitStatus);
-}
