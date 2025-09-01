@@ -57,19 +57,26 @@ export function GitStatus({ gitStatus, compact = true }: GitStatusProps) {
 
   const renderChanges = () => {
     const totalChanges = modified + deleted;
+    
+    // Only render if there are changes to show
+    if (totalChanges === 0 && untracked === 0) return null;
 
     return (
       <View style={styles.countsContainer}>
-        <View style={styles.countBadge}>
-          <Text style={[styles.countText, { fontSize: compact ? 9 : 11, color: totalChanges > 0 ? semanticColors.warning : semanticColors.textMuted }]}>
-            ±{totalChanges}
-          </Text>
-        </View>
-        <View style={styles.countBadge}>
-          <Text style={[styles.countText, { fontSize: compact ? 9 : 11, color: untracked > 0 ? semanticColors.info : semanticColors.textMuted }]}>
-            ?{untracked}
-          </Text>
-        </View>
+        {totalChanges > 0 && (
+          <View style={styles.countBadge}>
+            <Text style={[styles.countText, { fontSize: compact ? 9 : 11, color: semanticColors.warning }]}>
+              ±{totalChanges}
+            </Text>
+          </View>
+        )}
+        {untracked > 0 && (
+          <View style={styles.countBadge}>
+            <Text style={[styles.countText, { fontSize: compact ? 9 : 11, color: semanticColors.info }]}>
+              ?{untracked}
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
