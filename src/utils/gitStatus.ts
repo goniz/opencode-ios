@@ -123,18 +123,7 @@ async function checkRemoteBranchExists(client: Client, branch: string): Promise<
   }
 }
 
-/**
- * Check if there are uncommitted changes in the working directory
- */
-export async function hasUncommittedChanges(client: Client): Promise<boolean> {
-  try {
-    const result = await runShellCommandInSession(client, 'git status --porcelain');
-    return result.trim().length > 0;
-  } catch (error) {
-    console.warn('Failed to check for uncommitted changes:', error);
-    return false;
-  }
-}
+
 
 /**
  * Get detailed counts of modified, deleted, and untracked files

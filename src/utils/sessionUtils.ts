@@ -24,31 +24,18 @@ interface MessagePart {
 
 
 
-// Session cache
-let cachedShellSessionId: string | null = null;
-
 // Utility functions
 async function getCachedSessionId(): Promise<string | null> {
-  if (cachedShellSessionId) {
-    return cachedShellSessionId;
-  }
-  
   try {
     const stored = await AsyncStorage.getItem(STORAGE_KEY_SHELL_SESSION);
-    if (stored) {
-      cachedShellSessionId = stored;
-      return stored;
-    }
+    return stored;
   } catch (error) {
     console.warn('Failed to read cached session ID from storage:', error);
+    return null;
   }
-  
-  return null;
 }
 
 async function setCachedSessionId(sessionId: string): Promise<void> {
-  cachedShellSessionId = sessionId;
-  
   try {
     await AsyncStorage.setItem(STORAGE_KEY_SHELL_SESSION, sessionId);
   } catch (error) {
@@ -57,8 +44,6 @@ async function setCachedSessionId(sessionId: string): Promise<void> {
 }
 
 async function clearCachedSessionId(): Promise<void> {
-  cachedShellSessionId = null;
-  
   try {
     await AsyncStorage.removeItem(STORAGE_KEY_SHELL_SESSION);
   } catch (error) {
@@ -122,17 +107,23 @@ async function createShellSession(client: Client): Promise<{ id: string }> {
 }
 
 async function getOrCreateShellSession(client: Client): Promise<string> {
-  // First check memory cache
   let sessionId = await getCachedSessionId();
   
-  // Validate cached session exists by trying to use it
+  // Validate cached session exists by checking if it exists in the session list
   if (sessionId) {
     try {
-      // Try a simple test - if this fails, the session is invalid
-      await sessionList({ client });
-      return sessionId;
+      const response = await sessionList({ client });
+      const sessionExists = response.data?.some(session => session.id === sessionId);
+      
+      if (sessionExists) {
+        return sessionId;
+      } else {
+        console.warn('Cached session not found in session list, clearing cache');
+        await clearCachedSessionId();
+        sessionId = null;
+      }
     } catch (error) {
-      console.warn('Cached session appears invalid, clearing cache:', error);
+      console.warn('Failed to validate cached session, clearing cache:', error);
       await clearCachedSessionId();
       sessionId = null;
     }
@@ -241,18 +232,24 @@ interface SessionShellMessage {
   parts: MessagePart[];
 }
 
+async function executeShellCommand(
+  client: Client,
+  shellCommand: string,
+  sessionId: string
+): Promise<string> {
+  const response = await executeCommand(client, sessionId, shellCommand);
+  const sessionMessage = response as unknown as SessionShellMessage;
+  const parts = sessionMessage.parts || [];
+  return extractTextFromParts(parts);
+}
+
 export async function runShellCommandInSession(
   client: Client,
   shellCommand: string
 ): Promise<string> {
   try {
     const sessionId = await getOrCreateShellSession(client);
-    const response = await executeCommand(client, sessionId, shellCommand);
-    // The response has both info (AssistantMessage) and parts array
-    const sessionMessage = response as unknown as SessionShellMessage;
-    const parts = sessionMessage.parts || [];
-    return extractTextFromParts(parts);
-
+    return await executeShellCommand(client, shellCommand, sessionId);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -261,10 +258,7 @@ export async function runShellCommandInSession(
       try {
         await clearCachedSessionId();
         const sessionId = await getOrCreateShellSession(client);
-        const response = await executeCommand(client, sessionId, shellCommand);
-        const sessionMessage = response as unknown as SessionShellMessage;
-        const parts = sessionMessage.parts || [];
-        return extractTextFromParts(parts);
+        return await executeShellCommand(client, shellCommand, sessionId);
       } catch (retryError) {
         const retryErrorMessage = retryError instanceof Error ? retryError.message : 'Unknown error';
         throw new Error(`Error running shell command "${shellCommand}" (retry failed): ${retryErrorMessage}`);
