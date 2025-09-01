@@ -10,14 +10,14 @@ interface GitStatusProps {
 }
 
 export function GitStatus({ gitStatus, compact = true }: GitStatusProps) {
-  const { branch, ahead, behind, hasChanges, error } = gitStatus;
+  const { branch, ahead, behind, hasChanges, modified, deleted, untracked, error } = gitStatus;
 
   if (error) {
     return null; // Don't show anything if there's an error
   }
 
   const getStatusColor = () => {
-    if (hasChanges) return semanticColors.warning;
+    if (modified > 0 || deleted > 0 || untracked > 0) return semanticColors.warning;
     if (ahead > 0 || behind > 0) return semanticColors.info;
     return semanticColors.textMuted;
   };
@@ -29,10 +29,10 @@ export function GitStatus({ gitStatus, compact = true }: GitStatusProps) {
       <View style={styles.countsContainer}>
         {ahead > 0 && (
           <View style={styles.countBadge}>
-            <Ionicons 
-              name="arrow-up" 
-              size={compact ? 8 : 10} 
-              color={semanticColors.success} 
+            <Ionicons
+              name="arrow-up"
+              size={compact ? 8 : 10}
+              color={semanticColors.success}
             />
             <Text style={[styles.countText, { fontSize: compact ? 9 : 11 }]}>
               {ahead}
@@ -41,10 +41,10 @@ export function GitStatus({ gitStatus, compact = true }: GitStatusProps) {
         )}
         {behind > 0 && (
           <View style={styles.countBadge}>
-            <Ionicons 
-              name="arrow-down" 
-              size={compact ? 8 : 10} 
-              color={semanticColors.error} 
+            <Ionicons
+              name="arrow-down"
+              size={compact ? 8 : 10}
+              color={semanticColors.error}
             />
             <Text style={[styles.countText, { fontSize: compact ? 9 : 11 }]}>
               {behind}
@@ -55,19 +55,39 @@ export function GitStatus({ gitStatus, compact = true }: GitStatusProps) {
     );
   };
 
+  const renderChanges = () => {
+    const totalChanges = modified + deleted;
+
+    return (
+      <View style={styles.countsContainer}>
+        <View style={styles.countBadge}>
+          <Text style={[styles.countText, { fontSize: compact ? 9 : 11, color: totalChanges > 0 ? semanticColors.warning : semanticColors.textMuted }]}>
+            ±{totalChanges}
+          </Text>
+        </View>
+        <View style={styles.countBadge}>
+          <Text style={[styles.countText, { fontSize: compact ? 9 : 11, color: untracked > 0 ? semanticColors.info : semanticColors.textMuted }]}>
+            ?{untracked}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   if (compact) {
     return (
       <View style={styles.compactContainer}>
-        <Ionicons 
-          name="git-branch" 
-          size={12} 
-          color={getStatusColor()} 
-          style={styles.branchIcon} 
+        <Ionicons
+          name="git-branch"
+          size={12}
+          color={getStatusColor()}
+          style={styles.branchIcon}
         />
         <Text style={[styles.branchText, { color: getStatusColor() }]} numberOfLines={1}>
           {branch}
         </Text>
         {renderAheadBehind()}
+        {renderChanges()}
         {hasChanges && (
           <View style={styles.changesDot} />
         )}
@@ -87,8 +107,12 @@ export function GitStatus({ gitStatus, compact = true }: GitStatusProps) {
         <Text style={[styles.branchTextFull, { color: getStatusColor() }]}>
           {branch}
         </Text>
-        {hasChanges && (
-          <Text style={styles.changesText}>• uncommitted changes</Text>
+        {(modified > 0 || deleted > 0 || untracked > 0) && (
+          <Text style={styles.changesText}>
+            • {modified > 0 ? `${modified} modified ` : ''}
+            {deleted > 0 ? `${deleted} deleted ` : ''}
+            {untracked > 0 ? `${untracked} untracked` : ''}
+          </Text>
         )}
       </View>
       {(ahead > 0 || behind > 0) && (

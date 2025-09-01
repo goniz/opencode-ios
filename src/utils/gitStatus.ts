@@ -6,6 +6,9 @@ export interface GitStatusInfo {
   ahead: number;
   behind: number;
   hasChanges: boolean;
+  modified: number;
+  deleted: number;
+  untracked: number;
   error?: string;
 }
 
@@ -23,17 +26,20 @@ export async function getGitStatus(client: Client): Promise<GitStatusInfo | null
     // Get ahead/behind counts
     const aheadBehind = await getAheadBehindCounts(client, branch);
     
-    // Check for uncommitted changes
-    const hasChanges = await hasUncommittedChanges(client);
+    // Get detailed change counts
+    const changeCounts = await getChangeCounts(client);
 
     const result = {
       branch,
       ahead: aheadBehind.ahead,
       behind: aheadBehind.behind,
-      hasChanges,
+      hasChanges: changeCounts.modified > 0 || changeCounts.deleted > 0 || changeCounts.untracked > 0,
+      modified: changeCounts.modified,
+      deleted: changeCounts.deleted,
+      untracked: changeCounts.untracked,
     };
     
-    console.log(`[GitStatus] Updated: ${result.branch} ↑${result.ahead} ↓${result.behind} ${result.hasChanges ? '•' : ''}`);
+    console.log(`[GitStatus] Updated: ${result.branch} ↑${result.ahead} ↓${result.behind} ±${result.modified + result.deleted} ?${result.untracked}`);
     return result;
   } catch (error) {
     console.warn('[GitStatus] Failed to get git status:', error);
@@ -42,6 +48,9 @@ export async function getGitStatus(client: Client): Promise<GitStatusInfo | null
       ahead: 0,
       behind: 0,
       hasChanges: false,
+      modified: 0,
+      deleted: 0,
+      untracked: 0,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
@@ -128,13 +137,45 @@ export async function hasUncommittedChanges(client: Client): Promise<boolean> {
 }
 
 /**
+ * Get detailed counts of modified, deleted, and untracked files
+ */
+export async function getChangeCounts(client: Client): Promise<{ modified: number; deleted: number; untracked: number }> {
+  try {
+    const result = await runShellCommandInSession(client, 'git status --porcelain');
+    const lines = result.trim().split('\n').filter(line => line.length > 0);
+
+    let modified = 0;
+    let deleted = 0;
+    let untracked = 0;
+
+    for (const line of lines) {
+      const status = line.substring(0, 2);
+      if (status[0] === 'M' || status[1] === 'M') {
+        modified++;
+      }
+      if (status[0] === 'D' || status[1] === 'D') {
+        deleted++;
+      }
+      if (status === '??') {
+        untracked++;
+      }
+    }
+
+    return { modified, deleted, untracked };
+  } catch (error) {
+    console.warn('Failed to get change counts:', error);
+    return { modified: 0, deleted: 0, untracked: 0 };
+  }
+}
+
+/**
  * Format git status for display
  */
 export function formatGitStatus(gitStatus: GitStatusInfo): string {
-  const { branch, ahead, behind, hasChanges } = gitStatus;
-  
+  const { branch, ahead, behind, modified, deleted, untracked } = gitStatus;
+
   let status = `${branch}`;
-  
+
   // Add ahead/behind indicators
   if (ahead > 0 && behind > 0) {
     status += ` ↕️${ahead}↓${behind}`;
@@ -143,12 +184,18 @@ export function formatGitStatus(gitStatus: GitStatusInfo): string {
   } else if (behind > 0) {
     status += ` ↓${behind}`;
   }
-  
-  // Add changes indicator
-  if (hasChanges) {
-    status += ' •';
+
+  // Add modified/deleted indicator
+  const totalChanges = modified + deleted;
+  if (totalChanges > 0) {
+    status += ` ±${totalChanges}`;
   }
-  
+
+  // Add untracked indicator
+  if (untracked > 0) {
+    status += ` ?${untracked}`;
+  }
+
   return status;
 }
 
