@@ -8,11 +8,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  SafeAreaView
+  SafeAreaView,
+  PanResponder
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+
+import * as Haptics from 'expo-haptics';
 import { useConnection, type ConnectionStatus } from '../../src/contexts/ConnectionContext';
 import { semanticColors } from '../../src/styles/colors';
 import { spacing } from '../../src/styles/spacing';
@@ -104,6 +107,34 @@ const [commandStatus, setCommandStatus] = useState<string | null>(null);
    const [sessionUrl, setSessionUrl] = useState<string | null>(null);
    const [gitBranch, setGitBranch] = useState<string | null>(null);
    // FlashList ref will be handled inside ChatFlashList component
+   // Swipe gesture for navigation (simplified without coordination)
+   
+   // Alternative PanResponder for Expo Go compatibility
+   const panResponder = PanResponder.create({
+     onStartShouldSetPanResponder: () => false,
+     onMoveShouldSetPanResponder: (_, gestureState) => {
+       // Only activate for horizontal swipes
+       return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 20;
+     },
+     onPanResponderGrant: () => {
+       // Gesture has started
+     },
+     onPanResponderMove: () => {
+       // Handle move if needed
+     },
+     onPanResponderRelease: (_, gestureState) => {
+       // Check for left swipe (negative dx)
+       if (gestureState.dx < -50 && Math.abs(gestureState.vx) > 0.5) {
+         try {
+           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+           router.replace('/(tabs)/sessions');
+         } catch (error) {
+           console.warn('Navigation failed:', error);
+         }
+       }
+     },
+     onPanResponderTerminationRequest: () => true,
+   });
 
 
 
@@ -439,7 +470,7 @@ const [commandStatus, setCommandStatus] = useState<string | null>(null);
      fetchGitBranch();
    }, [fetchGitBranch]);
 
-   // Cleanup handled by ChatFlashList component
+  // Cleanup handled by ChatFlashList component
 
   const handleImageSelected = useCallback((imageUri: string) => {
     console.log('Image selected:', imageUri);
@@ -986,6 +1017,7 @@ const commandBody: {
   }
 
   return (
+    <View style={styles.container} {...panResponder.panHandlers}>
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView 
         style={styles.container} 
@@ -1138,6 +1170,7 @@ const commandBody: {
              currentSessionId={currentSession?.id}
              isStreamConnected={isStreamConnected}
              isGenerating={isGenerating}
+
              // TODO: Implement pagination when API supports it
              onLoadOlder={undefined}
              hasMoreOlder={false}
@@ -1209,8 +1242,9 @@ const commandBody: {
             )}
           </TouchableOpacity>
          </View>
-       </KeyboardAvoidingView>
-     </SafeAreaView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+    </View>
   );
 }
 

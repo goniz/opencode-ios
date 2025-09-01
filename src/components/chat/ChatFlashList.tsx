@@ -6,6 +6,7 @@ import { MessageRow, type MessageWithParts } from './MessageRow';
 import { semanticColors } from '../../styles/colors';
 import { spacing } from '../../styles/spacing';
 
+
 interface ChatFlashListProps {
   messages: MessageWithParts[];
   currentSessionId?: string;
@@ -14,6 +15,7 @@ interface ChatFlashListProps {
   onLoadOlder?: () => Promise<void>;
   hasMoreOlder?: boolean;
   isLoadingOlder?: boolean;
+
 }
 
 interface ScrollState {
