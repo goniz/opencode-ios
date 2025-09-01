@@ -1144,9 +1144,16 @@ const commandBody: {
                      {commandStatus}
                    </Text>
                  )}
-                  {gitStatus && (
-                    <GitStatus gitStatus={gitStatus} compact={true} />
-                  )}
+                   {gitStatus && (
+                     <GitStatus 
+                       gitStatus={gitStatus} 
+                       compact={true} 
+                       onPress={() => {
+                         console.log('Refreshing git status...');
+                         fetchGitStatus();
+                       }}
+                     />
+                   )}
                  {sessionUrl && (
                    <TouchableOpacity onPress={async () => {
                      try {

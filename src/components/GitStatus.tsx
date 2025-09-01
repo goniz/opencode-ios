@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { semanticColors } from '../styles/colors';
 import type { GitStatusInfo } from '../utils/gitStatus';
@@ -7,10 +7,12 @@ import type { GitStatusInfo } from '../utils/gitStatus';
 interface GitStatusProps {
   gitStatus: GitStatusInfo;
   compact?: boolean;
+  onPress?: () => void;
 }
 
-export function GitStatus({ gitStatus, compact = true }: GitStatusProps) {
+export function GitStatus({ gitStatus, compact = true, onPress }: GitStatusProps) {
   const { branch, ahead, behind, hasChanges, modified, deleted, untracked, error } = gitStatus;
+  const scaleValue = useRef(new Animated.Value(1)).current;
 
   if (error) {
     return null; // Don't show anything if there's an error
@@ -20,6 +22,29 @@ export function GitStatus({ gitStatus, compact = true }: GitStatusProps) {
     if (modified > 0 || deleted > 0 || untracked > 0) return semanticColors.warning;
     if (ahead > 0 || behind > 0) return semanticColors.info;
     return semanticColors.textMuted;
+  };
+
+  const handlePressIn = () => {
+    console.log('GitStatus: Press In');
+    Animated.timing(scaleValue, {
+      toValue: 0.9,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    console.log('GitStatus: Press Out');
+    Animated.timing(scaleValue, {
+      toValue: 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePress = () => {
+    console.log('GitStatus clicked:', { branch, hasChanges, ahead, behind });
+    onPress?.();
   };
 
   const renderAheadBehind = () => {
@@ -83,66 +108,84 @@ export function GitStatus({ gitStatus, compact = true }: GitStatusProps) {
 
   if (compact) {
     return (
-      <View style={styles.compactContainer}>
-        <Ionicons
-          name="git-branch"
-          size={12}
-          color={getStatusColor()}
-          style={styles.branchIcon}
-        />
-        <Text style={[styles.branchText, { color: getStatusColor() }]} numberOfLines={1}>
-          {branch}
-        </Text>
-        {renderAheadBehind()}
-        {renderChanges()}
-        {hasChanges && (
-          <View style={styles.changesDot} />
-        )}
-      </View>
+      <TouchableOpacity 
+        style={styles.compactContainer} 
+        onPress={handlePress} 
+        disabled={!onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={0.7}
+      >
+        <Animated.View style={{ flexDirection: 'row', alignItems: 'center', transform: [{ scale: scaleValue }] }}>
+          <Ionicons
+            name="git-branch"
+            size={12}
+            color={getStatusColor()}
+            style={styles.branchIcon}
+          />
+          <Text style={[styles.branchText, { color: getStatusColor() }]} numberOfLines={1}>
+            {branch}
+          </Text>
+          {renderAheadBehind()}
+          {renderChanges()}
+          {hasChanges && (
+            <View style={styles.changesDot} />
+          )}
+        </Animated.View>
+      </TouchableOpacity>
     );
   }
 
   return (
-    <View style={styles.fullContainer}>
-      <View style={styles.branchRow}>
-        <Ionicons 
-          name="git-branch" 
-          size={16} 
-          color={getStatusColor()} 
-          style={styles.branchIcon} 
-        />
-        <Text style={[styles.branchTextFull, { color: getStatusColor() }]}>
-          {branch}
-        </Text>
-        {(modified > 0 || deleted > 0 || untracked > 0) && (
-          <Text style={styles.changesText}>
-            • {modified > 0 ? `${modified} modified ` : ''}
-            {deleted > 0 ? `${deleted} deleted ` : ''}
-            {untracked > 0 ? `${untracked} untracked` : ''}
+    <TouchableOpacity 
+      style={styles.fullContainer} 
+      onPress={handlePress} 
+      disabled={!onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={0.7}
+    >
+      <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
+        <View style={styles.branchRow}>
+          <Ionicons 
+            name="git-branch" 
+            size={16} 
+            color={getStatusColor()} 
+            style={styles.branchIcon} 
+          />
+          <Text style={[styles.branchTextFull, { color: getStatusColor() }]}>
+            {branch}
           </Text>
-        )}
-      </View>
-      {(ahead > 0 || behind > 0) && (
-        <View style={styles.statusRow}>
-          {ahead > 0 && (
-            <View style={styles.statusItem}>
-              <Ionicons name="arrow-up" size={14} color={semanticColors.success} />
-              <Text style={styles.statusItemText}>
-                {ahead} ahead
-              </Text>
-            </View>
-          )}
-          {behind > 0 && (
-            <View style={styles.statusItem}>
-              <Ionicons name="arrow-down" size={14} color={semanticColors.error} />
-              <Text style={styles.statusItemText}>
-                {behind} behind
-              </Text>
-            </View>
+          {(modified > 0 || deleted > 0 || untracked > 0) && (
+            <Text style={styles.changesText}>
+              • {modified > 0 ? `${modified} modified ` : ''}
+              {deleted > 0 ? `${deleted} deleted ` : ''}
+              {untracked > 0 ? `${untracked} untracked` : ''}
+            </Text>
           )}
         </View>
-      )}
-    </View>
+        {(ahead > 0 || behind > 0) && (
+          <View style={styles.statusRow}>
+            {ahead > 0 && (
+              <View style={styles.statusItem}>
+                <Ionicons name="arrow-up" size={14} color={semanticColors.success} />
+                <Text style={styles.statusItemText}>
+                  {ahead} ahead
+                </Text>
+              </View>
+            )}
+            {behind > 0 && (
+              <View style={styles.statusItem}>
+                <Ionicons name="arrow-down" size={14} color={semanticColors.error} />
+                <Text style={styles.statusItemText}>
+                  {behind} behind
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+      </Animated.View>
+    </TouchableOpacity>
   );
 }
 
