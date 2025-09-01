@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
     fontFamily: 'monospace',
-    maxWidth: 60,
+    maxWidth: 180,
   },
   branchTextFull: {
     fontSize: 14,
