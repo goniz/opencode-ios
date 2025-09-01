@@ -1,10 +1,11 @@
-import { sessionCreate, sessionShell, sessionDelete } from '../api/sdk.gen';
+import { sessionCreate, sessionShell, sessionDelete, sessionList } from '../api/sdk.gen';
 import { Client } from '../api/client';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Constants
 const DEFAULT_AGENT = 'build';
-const SESSION_TITLE_MAX_LENGTH = 30;
+const SHELL_SESSION_TITLE = 'OpenCodeMobile-Shell';
+const STORAGE_KEY_SHELL_SESSION = 'shell_session_id';
 
 // Types
 interface MessagePart {
@@ -23,12 +24,46 @@ interface MessagePart {
 
 
 
+// Session cache
+let cachedShellSessionId: string | null = null;
+
 // Utility functions
-function createSessionTitle(command: string): string {
-  const truncated = command.length > SESSION_TITLE_MAX_LENGTH 
-    ? `${command.substring(0, SESSION_TITLE_MAX_LENGTH)}...` 
-    : command;
-  return `Temporary session for command: ${truncated}`;
+async function getCachedSessionId(): Promise<string | null> {
+  if (cachedShellSessionId) {
+    return cachedShellSessionId;
+  }
+  
+  try {
+    const stored = await AsyncStorage.getItem(STORAGE_KEY_SHELL_SESSION);
+    if (stored) {
+      cachedShellSessionId = stored;
+      return stored;
+    }
+  } catch (error) {
+    console.warn('Failed to read cached session ID from storage:', error);
+  }
+  
+  return null;
+}
+
+async function setCachedSessionId(sessionId: string): Promise<void> {
+  cachedShellSessionId = sessionId;
+  
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY_SHELL_SESSION, sessionId);
+  } catch (error) {
+    console.warn('Failed to cache session ID to storage:', error);
+  }
+}
+
+async function clearCachedSessionId(): Promise<void> {
+  cachedShellSessionId = null;
+  
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY_SHELL_SESSION);
+  } catch (error) {
+    console.warn('Failed to clear cached session ID from storage:', error);
+  }
 }
 
 
@@ -54,17 +89,70 @@ function extractTextFromParts(parts: MessagePart[]): string {
     .trim();
 }
 
-async function createSession(client: Client, command: string) {
+async function findExistingShellSession(client: Client): Promise<string | null> {
+  try {
+    const response = await sessionList({ client });
+    
+    if (!response.data) {
+      return null;
+    }
+    
+    const shellSession = response.data.find(session => 
+      session.title === SHELL_SESSION_TITLE
+    );
+    
+    return shellSession?.id || null;
+  } catch (error) {
+    console.warn('Failed to list sessions:', error);
+    return null;
+  }
+}
+
+async function createShellSession(client: Client): Promise<{ id: string }> {
   const response = await sessionCreate({
     client,
-    body: { title: createSessionTitle(command) }
+    body: { title: SHELL_SESSION_TITLE }
   });
   
   if (!response.data) {
-    throw new Error(`Failed to create session for command: ${command}`);
+    throw new Error('Failed to create dedicated shell session');
   }
   
   return response.data;
+}
+
+async function getOrCreateShellSession(client: Client): Promise<string> {
+  // First check memory cache
+  let sessionId = await getCachedSessionId();
+  
+  // Validate cached session exists by trying to use it
+  if (sessionId) {
+    try {
+      // Try a simple test - if this fails, the session is invalid
+      await sessionList({ client });
+      return sessionId;
+    } catch (error) {
+      console.warn('Cached session appears invalid, clearing cache:', error);
+      await clearCachedSessionId();
+      sessionId = null;
+    }
+  }
+  
+  // Look for existing shell session
+  if (!sessionId) {
+    sessionId = await findExistingShellSession(client);
+  }
+  
+  // Create new session if none found
+  if (!sessionId) {
+    const session = await createShellSession(client);
+    sessionId = session.id;
+  }
+  
+  // Cache the session ID
+  await setCachedSessionId(sessionId);
+  
+  return sessionId;
 }
 
 async function executeCommand(client: Client, sessionId: string, command: string) {
@@ -88,20 +176,35 @@ async function executeCommand(client: Client, sessionId: string, command: string
 
 
 
-async function cleanupSession(client: Client, sessionId: string): Promise<void> {
+/**
+ * Manually clean up the persistent shell session (optional - for maintenance)
+ */
+export async function cleanupShellSession(client: Client): Promise<void> {
+  const sessionId = await getCachedSessionId();
+  if (!sessionId) {
+    return;
+  }
+  
   try {
     await sessionDelete({
       client,
       path: { id: sessionId }
     });
+    await clearCachedSessionId();
+    console.log('Shell session cleaned up successfully');
   } catch (error) {
-    // Session cleanup failure is not critical
-    console.warn(`Failed to cleanup session ${sessionId}:`, error);
+    if (error instanceof Error && error.message.includes('not found')) {
+      console.log('Shell session already deleted');
+      await clearCachedSessionId();
+      return;
+    }
+    console.error('Error cleaning up shell session:', error);
+    throw error;
   }
 }
 
 /**
- * Runs a shell command in a temporary session and returns the output
+ * Runs a shell command in a dedicated persistent session and returns the output
  * 
  * @param client - The opencode client instance
  * @param shellCommand - The shell command to execute
@@ -142,10 +245,9 @@ export async function runShellCommandInSession(
   client: Client,
   shellCommand: string
 ): Promise<string> {
-  const session = await createSession(client, shellCommand);
-
   try {
-    const response = await executeCommand(client, session.id, shellCommand);
+    const sessionId = await getOrCreateShellSession(client);
+    const response = await executeCommand(client, sessionId, shellCommand);
     // The response has both info (AssistantMessage) and parts array
     const sessionMessage = response as unknown as SessionShellMessage;
     const parts = sessionMessage.parts || [];
@@ -153,8 +255,22 @@ export async function runShellCommandInSession(
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    // If the error suggests the session is invalid, clear the cache and retry once
+    if (errorMessage.includes('not found') || errorMessage.includes('invalid')) {
+      try {
+        await clearCachedSessionId();
+        const sessionId = await getOrCreateShellSession(client);
+        const response = await executeCommand(client, sessionId, shellCommand);
+        const sessionMessage = response as unknown as SessionShellMessage;
+        const parts = sessionMessage.parts || [];
+        return extractTextFromParts(parts);
+      } catch (retryError) {
+        const retryErrorMessage = retryError instanceof Error ? retryError.message : 'Unknown error';
+        throw new Error(`Error running shell command "${shellCommand}" (retry failed): ${retryErrorMessage}`);
+      }
+    }
+
     throw new Error(`Error running shell command "${shellCommand}": ${errorMessage}`);
-  } finally {
-    await cleanupSession(client, session.id);
   }
 }
