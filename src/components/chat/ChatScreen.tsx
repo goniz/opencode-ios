@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -20,6 +20,7 @@ import { useCommandExecution } from '../../hooks/useCommandExecution';
 import { useChutesIntegration } from '../../hooks/useChutesIntegration';
 import { useConnectionRecovery } from '../../hooks/useConnectionRecovery';
 import { calculateTokenInfo } from '../../utils/chat/tokenCalculation';
+import { getGitStatus, type GitStatusInfo } from '../../utils/gitStatus';
 import { ChatHeader } from './ChatHeader';
 import { ChatEmptyState } from './ChatEmptyState';
 import { ChatErrorBanner } from './ChatErrorBanner';
@@ -28,6 +29,9 @@ import { ChatInputBar } from './ChatInputBar';
 export default function ChatScreen({ sessionId }: { sessionId?: string }) {
   // Connection context
   const connection = useConnection();
+  
+  // Local state
+  const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
   
   // Custom hooks
   const sessionManager = useSessionManager(connection, sessionId);
@@ -46,6 +50,55 @@ export default function ChatScreen({ sessionId }: { sessionId?: string }) {
   useEffect(() => {
     modelSelection.loadProvidersAndModels();
   }, [connection.connectionStatus, connection.client, modelSelection]);
+
+  // Load git status when connected and session changes
+  useEffect(() => {
+    if (connection.connectionStatus === 'connected' && connection.client && sessionManager.currentSession) {
+      const loadGitStatus = async () => {
+        try {
+          const status = await getGitStatus(connection.client!);
+          setGitStatus(status);
+        } catch (error) {
+          console.warn('Failed to load git status:', error);
+          setGitStatus(null);
+        }
+      };
+
+      loadGitStatus();
+      
+      // Refresh git status every 30 seconds
+      const interval = setInterval(loadGitStatus, 30000);
+      
+      return () => clearInterval(interval);
+    } else {
+      setGitStatus(null);
+    }
+  }, [connection.connectionStatus, connection.client, sessionManager.currentSession]);
+
+  // Subscribe to session idle events to refresh git status
+  useEffect(() => {
+    if (connection.connectionStatus !== 'connected' || !connection.client || !sessionManager.currentSession) {
+      return;
+    }
+
+    console.log('Subscribing to session idle events for git status refresh');
+    const unsubscribe = connection.onSessionIdle((sessionId: string) => {
+      // Only refresh git status if the idle session is the current active chat session
+      // This prevents loops from the shell session triggering git status updates
+      if (sessionId === sessionManager.currentSession?.id) {
+        console.log(`[Git] Current session ${sessionId} became idle, refreshing git status`);
+        // Trigger git status refresh
+        getGitStatus(connection.client!).then(setGitStatus).catch(error => {
+          console.warn('Failed to refresh git status on session idle:', error);
+          setGitStatus(null);
+        });
+      } else {
+        console.log(`[Git] Session ${sessionId} became idle (not current session), skipping git status refresh`);
+      }
+    });
+    
+    return unsubscribe;
+  }, [connection, sessionManager.currentSession]);
 
   // Handle session URL copy
   const handleUrlCopy = useCallback(async () => {
@@ -135,6 +188,7 @@ export default function ChatScreen({ sessionId }: { sessionId?: string }) {
           chutesQuota={chutes.chutesQuota || undefined}
           commandStatus={commands.commandStatus || undefined}
           sessionUrl={sessionManager.currentSession.share?.url || undefined}
+          gitStatus={gitStatus || undefined}
           onUrlCopy={handleUrlCopy}
           availableProviders={modelSelection.availableProviders}
           availableModels={modelSelection.currentProviderModels}

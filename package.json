@@ -1,7 +1,7 @@
 {
   "name": "opencode-mobile",
   "main": "expo-router/entry",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "scripts": {
     "start": "expo start -g",
     "start:tunnel": "expo start -g --tunnel",
@@ -37,7 +37,7 @@
     "@expo/vector-icons": "^14.1.0",
     "@hey-api/client-fetch": "^0.13.1",
     "@octokit/rest": "^22.0.0",
-    "@react-native-async-storage/async-storage": "^2.1.2",
+    "@react-native-async-storage/async-storage": "2.1.2",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
