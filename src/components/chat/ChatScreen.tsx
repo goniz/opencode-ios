@@ -75,6 +75,25 @@ export default function ChatScreen({ sessionId }: { sessionId?: string }) {
     }
   }, [connection.connectionStatus, connection.client, sessionManager.currentSession]);
 
+  // Subscribe to session idle events to refresh git status
+  useEffect(() => {
+    if (connection.connectionStatus !== 'connected' || !connection.client) {
+      return;
+    }
+
+    console.log('Subscribing to session idle events for git status refresh');
+    const unsubscribe = connection.onSessionIdle((sessionId: string) => {
+      console.log(`[Git] Session ${sessionId} became idle, refreshing git status`);
+      // Trigger git status refresh
+      getGitStatus(connection.client!).then(setGitStatus).catch(error => {
+        console.warn('Failed to refresh git status on session idle:', error);
+        setGitStatus(null);
+      });
+    });
+    
+    return unsubscribe;
+  }, [connection]);
+
   // Handle session URL copy
   const handleUrlCopy = useCallback(async () => {
     if (sessionManager.currentSession?.share?.url) {

@@ -481,7 +481,22 @@ export default function ChatScreen() {
      fetchGitStatus();
    }, [fetchGitStatus]);
 
-  // Cleanup handled by ChatFlashList component
+    // Subscribe to session idle events to refresh git status
+    useEffect(() => {
+      if (connectionStatus !== 'connected' || !client) {
+        return;
+      }
+
+      console.log('Subscribing to session idle events for git status refresh');
+      const unsubscribe = onSessionIdle((sessionId: string) => {
+        console.log(`[Git] Session ${sessionId} became idle, refreshing git status`);
+        fetchGitStatus();
+      });
+
+      return unsubscribe;
+    }, [connectionStatus, client, onSessionIdle, fetchGitStatus]);
+
+    // Cleanup handled by ChatFlashList component
 
   const handleImageSelected = useCallback((imageUri: string) => {
     console.log('Image selected:', imageUri);
