@@ -483,18 +483,24 @@ export default function ChatScreen() {
 
     // Subscribe to session idle events to refresh git status
     useEffect(() => {
-      if (connectionStatus !== 'connected' || !client) {
+      if (connectionStatus !== 'connected' || !client || !currentSession) {
         return;
       }
 
       console.log('Subscribing to session idle events for git status refresh');
       const unsubscribe = onSessionIdle((sessionId: string) => {
-        console.log(`[Git] Session ${sessionId} became idle, refreshing git status`);
-        fetchGitStatus();
+        // Only refresh git status if the idle session is the current active chat session
+        // This prevents loops from the shell session triggering git status updates
+        if (sessionId === currentSession.id) {
+          console.log(`[Git] Current session ${sessionId} became idle, refreshing git status`);
+          fetchGitStatus();
+        } else {
+          console.log(`[Git] Session ${sessionId} became idle (not current session), skipping git status refresh`);
+        }
       });
 
       return unsubscribe;
-    }, [connectionStatus, client, onSessionIdle, fetchGitStatus]);
+    }, [connectionStatus, client, currentSession, onSessionIdle, fetchGitStatus]);
 
     // Cleanup handled by ChatFlashList component
 

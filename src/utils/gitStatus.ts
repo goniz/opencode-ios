@@ -14,23 +14,17 @@ export interface GitStatusInfo {
  */
 export async function getGitStatus(client: Client): Promise<GitStatusInfo | null> {
   try {
-    console.log('[GitStatus] Starting git status fetch...');
-    
     // Get current branch
     const branch = await getCurrentBranch(client);
     if (!branch) {
-      console.log('[GitStatus] No git branch found, not in a git repository');
       return null;
     }
-    console.log(`[GitStatus] Current branch: ${branch}`);
 
     // Get ahead/behind counts
     const aheadBehind = await getAheadBehindCounts(client, branch);
-    console.log(`[GitStatus] Ahead/behind counts: ${aheadBehind.ahead}/${aheadBehind.behind}`);
     
     // Check for uncommitted changes
     const hasChanges = await hasUncommittedChanges(client);
-    console.log(`[GitStatus] Has changes: ${hasChanges}`);
 
     const result = {
       branch,
@@ -39,7 +33,7 @@ export async function getGitStatus(client: Client): Promise<GitStatusInfo | null
       hasChanges,
     };
     
-    console.log('[GitStatus] Final result:', result);
+    console.log(`[GitStatus] Updated: ${result.branch} ↑${result.ahead} ↓${result.behind} ${result.hasChanges ? '•' : ''}`);
     return result;
   } catch (error) {
     console.warn('[GitStatus] Failed to get git status:', error);
@@ -72,13 +66,9 @@ export async function getCurrentBranch(client: Client): Promise<string | null> {
  */
 export async function getAheadBehindCounts(client: Client, branch: string): Promise<{ ahead: number; behind: number }> {
   try {
-    console.log(`[GitStatus] Getting ahead/behind counts for branch: ${branch}`);
-    
     // First, try to fetch the latest from remote (non-blocking)
     try {
-      console.log('[GitStatus] Attempting git fetch...');
       await runShellCommandInSession(client, 'git fetch --quiet');
-      console.log('[GitStatus] Git fetch completed successfully');
     } catch (fetchError) {
       // Ignore fetch errors, continue with local info
       console.warn('[GitStatus] Could not fetch from remote:', fetchError);
@@ -86,24 +76,21 @@ export async function getAheadBehindCounts(client: Client, branch: string): Prom
 
     // Check if remote branch exists
     const remoteExists = await checkRemoteBranchExists(client, branch);
-    console.log(`[GitStatus] Remote branch origin/${branch} exists: ${remoteExists}`);
     if (!remoteExists) {
       // No remote branch, so we can't determine ahead/behind
-      console.log('[GitStatus] No remote branch found, returning 0/0');
       return { ahead: 0, behind: 0 };
     }
 
     // Get ahead/behind counts using git rev-list
-    const command = `git rev-list --left-right --count HEAD...origin/${branch}`;
-    console.log(`[GitStatus] Running command: ${command}`);
-    const result = await runShellCommandInSession(client, command);
-    console.log(`[GitStatus] Git rev-list result: "${result}"`);
+    const result = await runShellCommandInSession(
+      client, 
+      `git rev-list --left-right --count HEAD...origin/${branch}`
+    );
     
     const match = result.trim().match(/^(\d+)\s+(\d+)$/);
     if (match) {
       const ahead = parseInt(match[1], 10);
       const behind = parseInt(match[2], 10);
-      console.log(`[GitStatus] Parsed ahead/behind: ${ahead}/${behind}`);
       return { ahead, behind };
     }
 

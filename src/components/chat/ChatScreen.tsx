@@ -77,22 +77,28 @@ export default function ChatScreen({ sessionId }: { sessionId?: string }) {
 
   // Subscribe to session idle events to refresh git status
   useEffect(() => {
-    if (connection.connectionStatus !== 'connected' || !connection.client) {
+    if (connection.connectionStatus !== 'connected' || !connection.client || !sessionManager.currentSession) {
       return;
     }
 
     console.log('Subscribing to session idle events for git status refresh');
     const unsubscribe = connection.onSessionIdle((sessionId: string) => {
-      console.log(`[Git] Session ${sessionId} became idle, refreshing git status`);
-      // Trigger git status refresh
-      getGitStatus(connection.client!).then(setGitStatus).catch(error => {
-        console.warn('Failed to refresh git status on session idle:', error);
-        setGitStatus(null);
-      });
+      // Only refresh git status if the idle session is the current active chat session
+      // This prevents loops from the shell session triggering git status updates
+      if (sessionId === sessionManager.currentSession?.id) {
+        console.log(`[Git] Current session ${sessionId} became idle, refreshing git status`);
+        // Trigger git status refresh
+        getGitStatus(connection.client!).then(setGitStatus).catch(error => {
+          console.warn('Failed to refresh git status on session idle:', error);
+          setGitStatus(null);
+        });
+      } else {
+        console.log(`[Git] Session ${sessionId} became idle (not current session), skipping git status refresh`);
+      }
     });
     
     return unsubscribe;
-  }, [connection]);
+  }, [connection, sessionManager.currentSession]);
 
   // Handle session URL copy
   const handleUrlCopy = useCallback(async () => {
