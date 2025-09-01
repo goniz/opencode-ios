@@ -29,6 +29,7 @@ import { ImageAwareTextInput } from '../../src/components/chat/ImageAwareTextInp
 import { ImagePreview } from '../../src/components/chat/ImagePreview';
 import { FilePreview } from '../../src/components/chat/FilePreview';
 import { CrutesApiKeyInput } from '../../src/components/chat/CrutesApiKeyInput';
+import { GitStatus } from '../../src/components/GitStatus';
 import type { AssistantMessage, Command } from '../../src/api/types.gen';
 import type { FilePartLike } from '../../src/integrations/github/GitHubTypes';
 import { convertGitHubFilePartsToInputs } from '../../src/utils/githubFileParts';
@@ -43,10 +44,11 @@ import {
   sessionRevert,
   sessionUnrevert
 } from '../../src/api/sdk.gen';
-import { runShellCommandInSession } from '../../src/utils/sessionUtils';
+
 import type { CommandSuggestion } from '../../src/utils/commandMentions';
 import { ChutesApiKeyInvalidError, fetchChutesQuota } from '../../src/utils/chutes';
 import { secureSettings } from '../../src/utils/secureSettings';
+import { getGitStatus, type GitStatusInfo } from '../../src/utils/gitStatus';
 import type { BuiltInCommand } from '../../src/types/commands';
 
 // MessageWithParts type is now exported from MessageRow component
@@ -103,9 +105,11 @@ export default function ChatScreen() {
    const [chutesQuota, setChutesQuota] = useState<{used: number, quota: number} | null>(null);
    const [showApiKeyInput, setShowApiKeyInput] = useState(false);
    const [pendingApiKeyRequest, setPendingApiKeyRequest] = useState<{providerID: string, modelID: string} | null>(null);
-const [commandStatus, setCommandStatus] = useState<string | null>(null);
+   const [commandStatus, setCommandStatus] = useState<string | null>(null);
    const [sessionUrl, setSessionUrl] = useState<string | null>(null);
-   const [gitBranch, setGitBranch] = useState<string | null>(null);
+
+   const [gitBranch, setGitBranch] = useState<string | null>(null); // Legacy compatibility
+   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
    // FlashList ref will be handled inside ChatFlashList component
    // Swipe gesture for navigation (simplified without coordination)
    
@@ -438,37 +442,44 @@ const [commandStatus, setCommandStatus] = useState<string | null>(null);
      setCommandStatus(null);
    }, [currentSession]);
 
-   // Fetch git branch information
-   const fetchGitBranch = useCallback(async () => {
+   // Fetch git status information
+   const fetchGitStatus = useCallback(async () => {
      if (!client || connectionStatus !== 'connected') {
+       setGitStatus(null);
        setGitBranch(null);
        return;
      }
 
      try {
-       console.log('Fetching git branch...');
-       // Run git branch command in a temporary session
-       const result = await runShellCommandInSession(client, 'git rev-parse --abbrev-ref HEAD');
-       console.log('Git branch result:', result);
-       setGitBranch(result || null); // Use actual result or null if empty
+       console.log('Fetching git status...');
+       const status = await getGitStatus(client);
+       console.log('Git status result:', status);
+       
+       if (status) {
+         setGitStatus(status);
+         setGitBranch(status.branch); // Keep compatibility with existing code
+       } else {
+         setGitStatus(null);
+         setGitBranch(null);
+       }
      } catch (error) {
-       console.error('Failed to fetch git branch:', error);
-       // Show error message in UI for debugging
+       console.error('Failed to fetch git status:', error);
+       setGitStatus(null);
        setGitBranch(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
      }
    }, [client, connectionStatus]);
 
-   // Fetch git branch when connection status changes
+   // Fetch git status when connection status changes
    useEffect(() => {
      if (connectionStatus === 'connected') {
-       fetchGitBranch();
+       fetchGitStatus();
      }
-   }, [connectionStatus, fetchGitBranch]);
+   }, [connectionStatus, fetchGitStatus]);
 
-   // Fetch git branch when component mounts and when session changes
+   // Fetch git status when component mounts and when session changes
    useEffect(() => {
-     fetchGitBranch();
-   }, [fetchGitBranch]);
+     fetchGitStatus();
+   }, [fetchGitStatus]);
 
   // Cleanup handled by ChatFlashList component
 
@@ -1100,7 +1111,7 @@ const commandBody: {
            </View>
            
 {/* Token/cost/quota info row */}
-             {(contextInfo || chutesQuota || commandStatus || sessionUrl || gitBranch) && (
+              {(contextInfo || chutesQuota || commandStatus || sessionUrl || gitStatus) && (
                <View style={styles.headerInfoRow}>
                  {contextInfo && (
                    <Text style={styles.tokenInfoCompact}>
@@ -1120,11 +1131,9 @@ const commandBody: {
                      {commandStatus}
                    </Text>
                  )}
-                 {gitBranch && (
-                   <Text style={styles.tokenInfoCompact}>
-                     🌿 {gitBranch}
-                   </Text>
-                 )}
+                  {gitStatus && (
+                    <GitStatus gitStatus={gitStatus} compact={true} />
+                  )}
                  {sessionUrl && (
                    <TouchableOpacity onPress={async () => {
                      try {

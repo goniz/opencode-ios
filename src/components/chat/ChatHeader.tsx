@@ -3,8 +3,10 @@ import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { semanticColors } from '../../styles/colors';
 import { spacing } from '../../styles/spacing';
+import { GitStatus } from '../GitStatus';
 import type { Session } from '../../api/types.gen';
 import type { ContextInfo, ChutesQuota } from '../../types/chat';
+import type { GitStatusInfo } from '../../utils/gitStatus';
 
 interface ChatHeaderProps {
   session: Session;
@@ -19,7 +21,7 @@ interface ChatHeaderProps {
   chutesQuota?: ChutesQuota;
   commandStatus?: string;
   sessionUrl?: string;
-  gitBranch?: string;
+  gitStatus?: GitStatusInfo;
   onUrlCopy: () => void;
   availableProviders: { id: string; name: string }[];
   availableModels: { modelID: string; name: string }[];
@@ -38,7 +40,7 @@ export function ChatHeader({
   chutesQuota,
   commandStatus,
   sessionUrl,
-  gitBranch,
+  gitStatus,
   onUrlCopy,
   availableProviders,
   availableModels,
@@ -131,7 +133,7 @@ export function ChatHeader({
       </View>
       
       {/* Token/cost/quota info row */}
-      {(contextInfo || chutesQuota || commandStatus || sessionUrl || gitBranch) && !isGenerating && (
+      {(contextInfo || chutesQuota || commandStatus || sessionUrl || gitStatus) && !isGenerating && (
         <View style={styles.headerInfoRow}>
           {contextInfo && (
             <Text style={styles.tokenInfoCompact}>
@@ -151,10 +153,8 @@ export function ChatHeader({
               {commandStatus}
             </Text>
           )}
-          {gitBranch && (
-            <Text style={styles.tokenInfoCompact}>
-              🌿 {gitBranch}
-            </Text>
+          {gitStatus && (
+            <GitStatus gitStatus={gitStatus} compact={true} />
           )}
           {sessionUrl && (
             <TouchableOpacity onPress={onUrlCopy}>
