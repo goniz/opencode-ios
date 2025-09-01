@@ -108,7 +108,7 @@ export default function ChatScreen() {
    const [commandStatus, setCommandStatus] = useState<string | null>(null);
    const [sessionUrl, setSessionUrl] = useState<string | null>(null);
 
-   const [gitBranch, setGitBranch] = useState<string | null>(null); // Legacy compatibility
+
    const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
    // FlashList ref will be handled inside ChatFlashList component
    // Swipe gesture for navigation (simplified without coordination)
@@ -282,14 +282,10 @@ export default function ChatScreen() {
 
     loadChutesQuota();
     
-    // Also subscribe to session.idle events to refresh quota and git branch
+    // Also subscribe to session.idle events to refresh quota
     const unsubscribe = onSessionIdle((sessionId: string) => {
       console.log(`[Chutes] Session ${sessionId} became idle, refreshing quota`);
       loadChutesQuota();
-      
-      // Update git branch when session becomes idle
-      console.log('Git branch update triggered by session.idle event');
-      fetchGitBranch();
     });
     
     return unsubscribe;
@@ -444,29 +440,25 @@ export default function ChatScreen() {
 
    // Fetch git status information
    const fetchGitStatus = useCallback(async () => {
-     if (!client || connectionStatus !== 'connected') {
-       setGitStatus(null);
-       setGitBranch(null);
-       return;
-     }
+      if (!client || connectionStatus !== 'connected') {
+        setGitStatus(null);
+        return;
+      }
 
      try {
        console.log('Fetching git status...');
        const status = await getGitStatus(client);
        console.log('Git status result:', status);
        
-       if (status) {
-         setGitStatus(status);
-         setGitBranch(status.branch); // Keep compatibility with existing code
-       } else {
-         setGitStatus(null);
-         setGitBranch(null);
-       }
-     } catch (error) {
-       console.error('Failed to fetch git status:', error);
-       setGitStatus(null);
-       setGitBranch(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-     }
+        if (status) {
+          setGitStatus(status);
+        } else {
+          setGitStatus(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch git status:', error);
+        setGitStatus(null);
+      }
    }, [client, connectionStatus]);
 
    // Fetch git status when connection status changes
