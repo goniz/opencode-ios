@@ -1,0 +1,8 @@
+#!/bin/bash
+
+export ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic
+export ANTHROPIC_AUTH_TOKEN=176e54add4054d7a8e4fb4eac9ab6535.FaWa8ZBZ7LdP62ek
+export ANTHROPIC_MODEL=glm-4.5
+export ANTHROPIC_SMALL_FAST_MODEL=glm-4.5-air
+
+exec claude "$@"
