@@ -2,6 +2,9 @@ import React from 'react';
 import { renderHook, act } from '@testing-library/react-native';
 import { jest } from '@jest/globals';
 
+import { ConnectionProvider, useConnection } from '../src/contexts/ConnectionContext';
+import type { Session, Message, Part, TextPart } from '../src/api/types.gen';
+
 // Mock functions to control event stream behavior
 let mockEventHandlers: Record<string, (event: any) => void> = {};
 let mockEventSource: any;
@@ -43,9 +46,6 @@ jest.mock('react-native-sse', () => {
     return mockEventSource;
   });
 });
-
-import { ConnectionProvider, useConnection } from '../src/contexts/ConnectionContext';
-import type { Session, Message, Part, TextPart } from '../src/api/types.gen';
 
 // Test data
 const createMockSession = (id: string, title: string): Session => ({

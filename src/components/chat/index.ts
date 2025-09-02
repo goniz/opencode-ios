@@ -4,4 +4,3 @@ export { ChatErrorBanner } from './ChatErrorBanner';
 export { ChatInputBar } from './ChatInputBar';
 export { ChatStatusBar } from './ChatStatusBar';
 export { AttachMenu } from './AttachMenu';
-export { default as ChatScreen } from './ChatScreen';
