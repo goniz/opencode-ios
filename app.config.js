@@ -59,7 +59,16 @@ export default {
         }
       ],
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "./plugins/addSPMDependenciesToMainTarget.js",
+        {
+          version: "0.8.0",
+          repositoryUrl: "https://github.com/apple/swift-nio-ssh.git",
+          repoName: "swift-nio-ssh",
+          productName: "NIOSSH"
+        }
+      ]
     ],
     experiments: {
       typedRoutes: true
