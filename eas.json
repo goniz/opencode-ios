@@ -7,10 +7,18 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_NAME": "opencode-mobile (Dev)",
+        "EXPO_PUBLIC_BUNDLE_ID": "com.goniz.opencodemobile.dev"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_NAME": "opencode-mobile (Preview)",
+        "EXPO_PUBLIC_BUNDLE_ID": "com.goniz.opencodemobile.preview"
+      }
     },
     "production": {
       "autoIncrement": true
