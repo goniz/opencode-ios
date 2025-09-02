@@ -32,7 +32,7 @@ export default function SettingsScreen() {
   const [githubTokenInput, setGithubTokenInput] = useState('');
   const [isLoadingGithubToken, setIsLoadingGithubToken] = useState(false);
    const [isTestingGithubToken, setIsTestingGithubToken] = useState(false);
-  const [showDevSection, setShowDevSection] = useState(__DEV__);
+  const [showDevSection] = useState(__DEV__);
 
 
 

@@ -71,8 +71,8 @@ export const useOTAServer = () => {
         version: '1.0.0',
         displayName: baseName,
         buildNumber: '1',
-        size: fileInfo.exists ? (fileInfo as any).size || 0 : 0,
-        modifiedTime: new Date(fileInfo.exists ? (fileInfo as any).modificationTime || Date.now() : Date.now())
+        size: fileInfo.exists ? fileInfo.size || 0 : 0,
+        modifiedTime: new Date(fileInfo.exists ? fileInfo.modificationTime * 1000 || Date.now() : Date.now())
       };
     } catch (error) {
       console.error('Error extracting IPA metadata:', error);
