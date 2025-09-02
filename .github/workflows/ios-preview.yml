@@ -43,13 +43,28 @@ jobs:
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     
-    - name: Upload IPA artifact
+    - name: Generate OTA artifacts using ota-host script
+      run: |
+        # Generate all artifacts using ota-host script output modes
+        npm run ota-host -- --output json > ipa-info.json
+        npm run ota-host -- --output html > install.html
+        npm run ota-host -- --output markdown > build-summary.md
+        npm run ota-host -- --output manifest > manifest.plist
+        
+        echo 'Generated OTA artifacts:'
+        echo '- IPA file(s): Ready for local installation'
+        echo '- manifest.plist: For OTA installation (use with ota-host script)'
+        echo '- install.html: Standalone installation page'
+        echo '- build-summary.md: Build details and instructions'
+    
+    - name: Upload artifacts (IPA, manifest, HTML)
       uses: actions/upload-artifact@v4
       with:
         name: ios-preview-${{ github.sha }}
-        path: "**/*.ipa"
+        path: |
+          **/*.ipa
+          manifest.plist
+          install.html
+          build-summary.md
+          ipa-info.json
         retention-days: 7
-    
-    - name: Generate workflow summary using OTA host
-      run: |
-        npm run ota-host -- --output markdown >> $GITHUB_STEP_SUMMARY

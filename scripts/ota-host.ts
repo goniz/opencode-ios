@@ -290,9 +290,27 @@ class OTAHost {
       .replace(/{{FILE_SIZE}}/g, this.formatFileSize(ipaInfo.size));
   }
 
-  generateMarkdownSummary(ipaInfo: IPAInfo, commitSha?: string, runId?: string, repoUrl?: string): string {
+  async generateMarkdownSummary(ipaInfo: IPAInfo, commitSha?: string, runId?: string, repoUrl?: string): Promise<string> {
     const commitUrl = commitSha && repoUrl ? `${repoUrl}/commit/${commitSha}` : null;
     const artifactsUrl = runId && repoUrl ? `${repoUrl}/actions/runs/${runId}` : null;
+    
+    // Generate manifest and get URLs for GitHub Actions artifacts
+    const baseUrl = artifactsUrl || 'https://github.com/actions/artifacts';
+    const manifestData: ManifestData = {
+      bundleId: ipaInfo.bundleId,
+      version: ipaInfo.version,
+      title: ipaInfo.displayName,
+      ipaUrl: `${baseUrl}/download/ios-preview-${commitSha}/latest.ipa`,
+      iconUrls: {
+        small: `${baseUrl}/icon57.png`,
+        large: `${baseUrl}/icon512.png`
+      }
+    };
+
+    // Generate manifest.plist file
+    await this.generateManifest(ipaInfo, manifestData);
+    const manifestUrl = `${baseUrl}/download/ios-preview-${commitSha}/manifest.plist`;
+    const installUrl = `itms-services://?action=download-manifest&url=${encodeURIComponent(manifestUrl)}`;
     
     return `# 📱 iOS Preview Build Complete
 
@@ -307,21 +325,25 @@ class OTAHost {
 | **File Size** | ${this.formatFileSize(ipaInfo.size)} |
 | **Built** | ${ipaInfo.modifiedTime.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '')} |${commitUrl ? `\n| **Commit** | [\`${commitSha?.substring(0, 7)}\`](${commitUrl}) |` : ''}
 
-## 📦 Download
+## 📦 Download & Install
 
+${artifactsUrl ? `### Direct Installation (iOS Safari Only)
+Open this link on your iOS device in Safari:
+**[📱 Install ${ipaInfo.displayName}](${installUrl})**
+
+> ⚠️ **Note**: This requires the manifest.plist file to be served from the workflow artifacts. For immediate installation, use the OTA host method below.
+
+### Manual Download` : '### Manual Download'}
 ${artifactsUrl ? `The IPA file has been uploaded as a workflow artifact and can be downloaded from the [Actions artifacts section](${artifactsUrl}).` : 'The IPA file is available in the current directory.'}
 
-## 📋 Installation Instructions
+Use your preferred installation method after downloading:
+- **TestFlight**: Upload to App Store Connect for TestFlight distribution
+- **Xcode**: Install via Xcode → Window → Devices and Simulators  
+- **Third-party tools**: Use tools like 3uTools, AltStore, or similar
 
-### Method 1: Direct Download (Recommended)
-1. Download the IPA file ${artifactsUrl ? 'from the workflow artifacts above' : 'from the current directory'}
-2. Use your preferred installation method:
-   - **TestFlight**: Upload to App Store Connect for TestFlight distribution
-   - **Xcode**: Install via Xcode → Window → Devices and Simulators
-   - **Third-party tools**: Use tools like 3uTools, AltStore, or similar
+## 📋 OTA Installation (Recommended)
 
-### Method 2: OTA Installation (Advanced)
-${artifactsUrl ? 'If you have access to the repository and wish to serve this build via OTA:' : 'To serve this build via OTA:'}
+${artifactsUrl ? 'For immediate OTA installation, download the IPA file from artifacts and serve it locally:' : 'To serve this build via OTA:'}
 
 \`\`\`bash
 ${artifactsUrl ? '# Download the IPA file from artifacts, then:' : '# From the directory containing the IPA:'}
@@ -332,10 +354,10 @@ npm run ota-host
 
 The OTA host will:
 - 🔍 Automatically detect and serve your IPA file
-- 📱 Generate Apple-compatible manifest.plist
+- 📱 Generate Apple-compatible manifest.plist with proper URLs
 - 🌐 Create mobile-friendly installation page
 - 🔐 Support both development (self-signed) and production (Tailscale) modes
-- 📲 Provide \`itms-services://\` URLs for direct iOS installation via Safari
+- 📲 Provide working \`itms-services://\` URLs for direct iOS installation via Safari
 
 ## 🛠 Build Details
 
@@ -343,6 +365,12 @@ The OTA host will:
 - **File Path**: \`${ipaInfo.path}\`
 - **Bundle ID**: \`${ipaInfo.bundleId}\`
 - **Modification Time**: ${ipaInfo.modifiedTime.toISOString()}
+
+## 📋 Generated Files
+
+The following files have been generated and included in the workflow artifacts:
+- \`manifest.plist\` - Apple installation manifest
+- \`${path.basename(ipaInfo.path)}\` - iOS application package
 
 ---
 
@@ -607,10 +635,10 @@ function parseArguments(): CLIArguments {
         break;
       case '--output':
         const outputType = argv[++i];
-        if (['server', 'json', 'markdown', 'html'].includes(outputType)) {
-          args.output = outputType as 'server' | 'json' | 'markdown' | 'html';
+        if (['server', 'json', 'markdown', 'html', 'manifest'].includes(outputType)) {
+          args.output = outputType as 'server' | 'json' | 'markdown' | 'html' | 'manifest';
         } else {
-          throw new Error(`Invalid output type: ${outputType}. Must be one of: server, json, markdown, html`);
+          throw new Error(`Invalid output type: ${outputType}. Must be one of: server, json, markdown, html, manifest`);
         }
         break;
       case '--help':
@@ -648,7 +676,7 @@ Options:
   --port <number>      Server port (default: 443 prod, 8443 dev)
   --ipa <path>         Use specific IPA file
   --once               Exit after serving the first IPA file
-  --output <type>      Output mode: server, json, markdown, html (default: server)
+  --output <type>      Output mode: server, json, markdown, html, manifest (default: server)
   --help, -h           Show this help message
 
 Output Types:
@@ -656,6 +684,7 @@ Output Types:
   json                 Output IPA metadata as JSON
   markdown             Output workflow summary as Markdown
   html                 Output install page as HTML
+  manifest             Output manifest.plist for OTA installation
 
 Examples:
   npm run ota-host                           # Production server mode
@@ -666,6 +695,7 @@ Examples:
   npm run ota-host -- --output json         # Output metadata as JSON
   npm run ota-host -- --output markdown     # Output GitHub Actions summary
   npm run ota-host -- --output html         # Output install page HTML
+  npm run ota-host -- --output manifest     # Output manifest.plist
 `);
 }
 
@@ -716,13 +746,60 @@ async function main(): Promise<void> {
           const repoUrl = process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY 
             ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`
             : undefined;
-          console.log(otaHost.generateMarkdownSummary(latestIpa, commitSha, runId, repoUrl));
+          console.log(await otaHost.generateMarkdownSummary(latestIpa, commitSha, runId, repoUrl));
           break;
           
         case 'html':
           // Generate a basic install URL for HTML output
-          const installUrl = `itms-services://?action=download-manifest&url=https://localhost/manifest.plist`;
+          const installUrl = `itms-services://?action=download-manifest&url=https://localhost:8443/manifest.plist`;
           console.log(otaHost.generateInstallHtml(latestIpa, installUrl));
+          break;
+          
+        case 'manifest':
+          // Generate manifest.plist with localhost URLs for local OTA hosting
+          const manifestData: ManifestData = {
+            bundleId: latestIpa.bundleId,
+            version: latestIpa.version,
+            title: latestIpa.displayName,
+            ipaUrl: 'https://localhost:8443/latest.ipa',
+            iconUrls: {
+              small: 'https://localhost:8443/icon57.png',
+              large: 'https://localhost:8443/icon512.png'
+            }
+          };
+          
+          const template = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>items</key>
+    <array>
+        <dict>
+            <key>assets</key>
+            <array>
+                <dict>
+                    <key>kind</key>
+                    <string>software-package</string>
+                    <key>url</key>
+                    <string>${manifestData.ipaUrl}</string>
+                </dict>
+            </array>
+            <key>metadata</key>
+            <dict>
+                <key>bundle-identifier</key>
+                <string>${manifestData.bundleId}</string>
+                <key>bundle-version</key>
+                <string>${manifestData.version}</string>
+                <key>kind</key>
+                <string>software</string>
+                <key>title</key>
+                <string>${manifestData.title}</string>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>`;
+          console.log(template);
           break;
       }
       return;

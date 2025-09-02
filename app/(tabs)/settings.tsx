@@ -6,6 +6,7 @@ import { getSavedServers, clearAllServers } from '../../src/utils/serverStorage'
 import { secureSettings } from '../../src/utils/secureSettings';
 import { testGitHubConnection } from '../../src/utils/github';
 import { toast } from '../../src/utils/toast';
+import { useOTAServer } from '../../src/hooks/useOTAServer';
 
 
 // Import opencode API version
@@ -17,6 +18,7 @@ const packageJson = require('../../package.json');
 
 export default function SettingsScreen() {
   const { connectionStatus, disconnect } = useConnection();
+  const { serverState, selectIPAFile, startOTAServer, stopOTAServer, getInstallUrl } = useOTAServer();
   const [savedServersCount, setSavedServersCount] = useState(0);
   const [darkMode, setDarkMode] = useState(true); // App is currently dark mode only
   const [notifications, setNotifications] = useState(true);
@@ -30,6 +32,7 @@ export default function SettingsScreen() {
   const [githubTokenInput, setGithubTokenInput] = useState('');
   const [isLoadingGithubToken, setIsLoadingGithubToken] = useState(false);
    const [isTestingGithubToken, setIsTestingGithubToken] = useState(false);
+  const [showDevSection, setShowDevSection] = useState(__DEV__);
 
 
 
@@ -288,6 +291,44 @@ useEffect(() => {
     return apiKey.substring(0, 4) + '••••••••' + apiKey.substring(apiKey.length - 4);
   };
 
+  const handleSelectIPAFile = async () => {
+    const file = await selectIPAFile();
+    if (file) {
+      Alert.alert(
+        'IPA Selected',
+        `Selected: ${file.name}\n\nWould you like to start the OTA server?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Start Server',
+            onPress: () => startOTAServer(file)
+          }
+        ]
+      );
+    }
+  };
+
+  const handleCopyInstallUrl = () => {
+    if (serverState.serverUrl) {
+      const installUrl = getInstallUrl(serverState.serverUrl);
+      // In a real implementation, copy to clipboard
+      Alert.alert(
+        'Install URL',
+        `Copy this URL and open it in Safari on your iOS device:\n\n${installUrl}`,
+        [
+          { text: 'OK' }
+        ]
+      );
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    if (bytes === 0) return '0 B';
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
@@ -453,6 +494,68 @@ useEffect(() => {
             />
           </View>
         </View>
+
+        {/* Development Section */}
+        {showDevSection && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Development</Text>
+            
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>OTA Server</Text>
+                <Text style={styles.settingDescription}>
+                  {serverState.isRunning 
+                    ? `Serving: ${serverState.ipaInfo?.displayName || 'Unknown'} v${serverState.ipaInfo?.version || '0.0.0'}`
+                    : 'Install IPA files directly from this device'
+                  }
+                </Text>
+                {serverState.ipaInfo && (
+                  <Text style={styles.apiKeyMasked}>
+                    {serverState.ipaInfo.bundleId} • {formatFileSize(serverState.ipaInfo.size)}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.statusContainer}>
+                <View style={[
+                  styles.statusIndicator, 
+                  { backgroundColor: serverState.isRunning ? '#10b981' : '#6b7280' }
+                ]} />
+                <Text style={[
+                  styles.statusText, 
+                  { color: serverState.isRunning ? '#10b981' : '#6b7280' }
+                ]}>
+                  {serverState.isRunning ? 'Running' : 'Stopped'}
+                </Text>
+              </View>
+            </View>
+
+            {!serverState.isRunning ? (
+              <TouchableOpacity style={styles.actionButton} onPress={handleSelectIPAFile}>
+                <Ionicons name="folder-outline" size={20} color="#10b981" />
+                <Text style={[styles.actionButtonText, { color: '#10b981' }]}>Select IPA File</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity style={styles.actionButton} onPress={handleCopyInstallUrl}>
+                  <Ionicons name="link-outline" size={20} color="#3b82f6" />
+                  <Text style={[styles.actionButtonText, { color: '#3b82f6' }]}>Copy Install URL</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.actionButton} onPress={stopOTAServer}>
+                  <Ionicons name="stop-outline" size={20} color="#ef4444" />
+                  <Text style={[styles.actionButtonText, { color: '#ef4444' }]}>Stop OTA Server</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {serverState.error && (
+              <View style={styles.errorContainer}>
+                <Ionicons name="warning-outline" size={16} color="#ef4444" />
+                <Text style={styles.errorText}>{serverState.error}</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* About Section */}
         <View style={styles.section}>
@@ -830,6 +933,22 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2a1a1a',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#ef4444',
+    marginLeft: 8,
+    flex: 1,
   },
 
 });
