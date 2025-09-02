@@ -39,7 +39,7 @@ yarn-error.*
 # testing
 coverage/
 
-# iOS native files
+# iOS native files (only root level)
 /ios/
 
 # Build artifacts
