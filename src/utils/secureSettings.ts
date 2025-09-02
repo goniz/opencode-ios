@@ -74,28 +74,28 @@ export const secureSettings: SecureSettingsService = {
 
   async getShowThinking(): Promise<boolean> {
     try {
-      const value = await AsyncStorage.getItem(SHOW_THINKING_KEY);
+      const value = await SecureStore.getItemAsync(SHOW_THINKING_KEY);
       return value === null ? true : value === 'true'; // Default to true
     } catch (error) {
-      console.error('Failed to get show thinking setting from storage:', error);
+      console.error('Failed to get show thinking setting from secure storage:', error);
       return true; // Default to true on error
     }
   },
 
   async setShowThinking(show: boolean): Promise<void> {
     try {
-      await AsyncStorage.setItem(SHOW_THINKING_KEY, show.toString());
+      await SecureStore.setItemAsync(SHOW_THINKING_KEY, show.toString());
     } catch (error) {
-      console.error('Failed to save show thinking setting to storage:', error);
+      console.error('Failed to save show thinking setting to secure storage:', error);
       throw error;
     }
   },
 
   async removeShowThinking(): Promise<void> {
     try {
-      await AsyncStorage.removeItem(SHOW_THINKING_KEY);
+      await SecureStore.deleteItemAsync(SHOW_THINKING_KEY);
     } catch (error) {
-      console.error('Failed to remove show thinking setting from storage:', error);
+      console.error('Failed to remove show thinking setting from secure storage:', error);
       throw error;
     }
   }
