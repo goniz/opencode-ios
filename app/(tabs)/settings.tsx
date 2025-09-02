@@ -5,6 +5,7 @@ import { useConnection } from '../../src/contexts/ConnectionContext';
 import { getSavedServers, clearAllServers } from '../../src/utils/serverStorage';
 import { secureSettings } from '../../src/utils/secureSettings';
 import { testGitHubConnection } from '../../src/utils/github';
+import { toast } from '../../src/utils/toast';
 
 
 // Import opencode API version
@@ -19,6 +20,7 @@ export default function SettingsScreen() {
   const [savedServersCount, setSavedServersCount] = useState(0);
   const [darkMode, setDarkMode] = useState(true); // App is currently dark mode only
   const [notifications, setNotifications] = useState(true);
+  const [showThinking, setShowThinking] = useState(true);
   const [chutesApiKey, setChutesApiKey] = useState<string | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -31,11 +33,12 @@ export default function SettingsScreen() {
 
 
 
-   useEffect(() => {
-     loadSavedServersCount();
-     loadChutesApiKey();
-     loadGithubToken();
-   }, [connectionStatus]);
+useEffect(() => {
+      loadSavedServersCount();
+      loadChutesApiKey();
+      loadGithubToken();
+      loadShowThinking();
+    }, [connectionStatus]);
 
   const loadSavedServersCount = async () => {
     const servers = await getSavedServers();
@@ -57,6 +60,15 @@ export default function SettingsScreen() {
       setGithubToken(token);
     } catch (error) {
       console.error('Failed to load GitHub token:', error);
+    }
+  };
+
+  const loadShowThinking = async () => {
+    try {
+      const show = await secureSettings.getShowThinking();
+      setShowThinking(show);
+    } catch (error) {
+      console.error('Failed to load show thinking setting:', error);
     }
   };
 
@@ -417,6 +429,27 @@ export default function SettingsScreen() {
               onValueChange={setNotifications}
               trackColor={{ false: '#2a2a2a', true: '#10b981' }}
               thumbColor={notifications ? '#ffffff' : '#6b7280'}
+            />
+          </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Show Thinking Blocks</Text>
+              <Text style={styles.settingDescription}>Display AI reasoning and thought process</Text>
+            </View>
+            <Switch
+              value={showThinking}
+              onValueChange={async (value) => {
+                setShowThinking(value);
+                try {
+                  await secureSettings.setShowThinking(value);
+                } catch (error) {
+                  console.error('Failed to save show thinking setting:', error);
+                  toast.showError('Failed to save setting');
+                }
+              }}
+              trackColor={{ false: '#2a2a2a', true: '#10b981' }}
+              thumbColor={showThinking ? '#ffffff' : '#6b7280'}
             />
           </View>
         </View>
