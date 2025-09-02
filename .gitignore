@@ -40,7 +40,7 @@ yarn-error.*
 coverage/
 
 # iOS native files
-ios/
+/ios/
 
 # Build artifacts
 *.ipa
