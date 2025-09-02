@@ -6,7 +6,7 @@ import EventSource from 'react-native-sse';
 import { createClient } from '../api/client';
 import type { Client } from '../api/client/types.gen';
 import type { Session, Message, Part, Command, TextPartInput, FilePartInput } from '../api/types.gen';
-import { sessionList, sessionMessages, sessionChat, sessionAbort, commandList } from '../api/sdk.gen';
+import { sessionList, sessionMessages, sessionPrompt, sessionAbort, commandList } from '../api/sdk.gen';
 import { saveServer, type SavedServer } from '../utils/serverStorage';
 import { cacheAppPaths } from '../utils/pathUtils';
 import { processImageUris } from '../utils/imageProcessing';
@@ -1047,8 +1047,10 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
 
         // Log the actual request body being sent
         const requestBody = {
-          providerID,
-          modelID,
+          model: {
+            providerID,
+            modelID
+          },
           parts
         };
         console.log('📤 [sendMessage] Full request body:', JSON.stringify(requestBody, null, 2));
@@ -1075,17 +1077,20 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
           });
         });
 
-        const response = await sessionChat({
+        const response = await sessionPrompt({
           client: state.client!,
           path: { id: sessionId },
           body: requestBody
-        }).catch(error => {
+        }).catch((error: unknown) => {
           console.error('❌ [sendMessage] API call failed:', error);
-          console.error('❌ [sendMessage] Error details:', {
-            message: error.message,
-            status: error.status,
-            data: error.data
-          });
+          if (error instanceof Error) {
+            const httpError = error as Error & { status?: number; data?: unknown };
+            console.error('❌ [sendMessage] Error details:', {
+              message: httpError.message,
+              status: httpError.status,
+              data: httpError.data
+            });
+          }
           throw error;
         });
 

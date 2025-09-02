@@ -50,6 +50,8 @@ jest.mock('react-native-sse', () => {
 // Test data
 const createMockSession = (id: string, title: string): Session => ({
   id,
+  projectID: 'test-project',
+  directory: '/test/directory',
   title,
   version: '1.0.0',
   time: {
