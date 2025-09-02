@@ -59,6 +59,7 @@ export interface CLIArguments {
   ipa?: string;
   help?: boolean;
   once?: boolean;
+  output?: 'server' | 'json' | 'markdown' | 'html';
 }
 
 export interface CertificateFiles {

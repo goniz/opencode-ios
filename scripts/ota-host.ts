@@ -280,6 +280,88 @@ class OTAHost {
     this.logger.debug('Generated install.html');
   }
 
+  generateInstallHtml(ipaInfo: IPAInfo, installUrl: string): string {
+    const template = this.getDefaultInstallTemplate();
+    return template
+      .replace(/{{APP_NAME}}/g, ipaInfo.displayName)
+      .replace(/{{VERSION}}/g, ipaInfo.version)
+      .replace(/{{BUNDLE_ID}}/g, ipaInfo.bundleId)
+      .replace(/{{INSTALL_URL}}/g, installUrl)
+      .replace(/{{FILE_SIZE}}/g, this.formatFileSize(ipaInfo.size));
+  }
+
+  generateMarkdownSummary(ipaInfo: IPAInfo, commitSha?: string, runId?: string, repoUrl?: string): string {
+    const commitUrl = commitSha && repoUrl ? `${repoUrl}/commit/${commitSha}` : null;
+    const artifactsUrl = runId && repoUrl ? `${repoUrl}/actions/runs/${runId}` : null;
+    
+    return `# 📱 iOS Preview Build Complete
+
+## App Information
+
+| Property | Value |
+|----------|-------|
+| **App Name** | ${ipaInfo.displayName} |
+| **Version** | ${ipaInfo.version} |
+| **Build Number** | ${ipaInfo.buildNumber || 'N/A'} |
+| **Bundle ID** | ${ipaInfo.bundleId} |
+| **File Size** | ${this.formatFileSize(ipaInfo.size)} |
+| **Built** | ${ipaInfo.modifiedTime.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '')} |${commitUrl ? `\n| **Commit** | [\`${commitSha?.substring(0, 7)}\`](${commitUrl}) |` : ''}
+
+## 📦 Download
+
+${artifactsUrl ? `The IPA file has been uploaded as a workflow artifact and can be downloaded from the [Actions artifacts section](${artifactsUrl}).` : 'The IPA file is available in the current directory.'}
+
+## 📋 Installation Instructions
+
+### Method 1: Direct Download (Recommended)
+1. Download the IPA file ${artifactsUrl ? 'from the workflow artifacts above' : 'from the current directory'}
+2. Use your preferred installation method:
+   - **TestFlight**: Upload to App Store Connect for TestFlight distribution
+   - **Xcode**: Install via Xcode → Window → Devices and Simulators
+   - **Third-party tools**: Use tools like 3uTools, AltStore, or similar
+
+### Method 2: OTA Installation (Advanced)
+${artifactsUrl ? 'If you have access to the repository and wish to serve this build via OTA:' : 'To serve this build via OTA:'}
+
+\`\`\`bash
+${artifactsUrl ? '# Download the IPA file from artifacts, then:' : '# From the directory containing the IPA:'}
+npm run ota-host:dev
+# Or for production with Tailscale:
+npm run ota-host
+\`\`\`
+
+The OTA host will:
+- 🔍 Automatically detect and serve your IPA file
+- 📱 Generate Apple-compatible manifest.plist
+- 🌐 Create mobile-friendly installation page
+- 🔐 Support both development (self-signed) and production (Tailscale) modes
+- 📲 Provide \`itms-services://\` URLs for direct iOS installation via Safari
+
+## 🛠 Build Details
+
+- **Build Type**: Local preview build (\`build:ios:local\`)
+- **File Path**: \`${ipaInfo.path}\`
+- **Bundle ID**: \`${ipaInfo.bundleId}\`
+- **Modification Time**: ${ipaInfo.modifiedTime.toISOString()}
+
+---
+
+> 💡 **Tip**: For production builds that automatically submit to the App Store, modify \`app.json\` or \`package.json\` to trigger the production workflow.`;
+  }
+
+  outputJson(ipaInfo: IPAInfo): string {
+    return JSON.stringify({
+      displayName: ipaInfo.displayName,
+      version: ipaInfo.version,
+      buildNumber: ipaInfo.buildNumber,
+      bundleId: ipaInfo.bundleId,
+      size: ipaInfo.size,
+      sizeFormatted: this.formatFileSize(ipaInfo.size),
+      path: ipaInfo.path,
+      modifiedTime: ipaInfo.modifiedTime.toISOString(),
+    }, null, 2);
+  }
+
   private getDefaultManifestTemplate(): string {
     return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -523,6 +605,14 @@ function parseArguments(): CLIArguments {
       case '--once':
         args.once = true;
         break;
+      case '--output':
+        const outputType = argv[++i];
+        if (['server', 'json', 'markdown', 'html'].includes(outputType)) {
+          args.output = outputType as 'server' | 'json' | 'markdown' | 'html';
+        } else {
+          throw new Error(`Invalid output type: ${outputType}. Must be one of: server, json, markdown, html`);
+        }
+        break;
       case '--help':
       case '-h':
         args.help = true;
@@ -554,18 +644,28 @@ OTA Host - iOS App Over-The-Air Distribution
 Usage: npm run ota-host [options]
 
 Options:
-  --dev             Development mode (self-signed certs, localhost)
-  --port <number>   Server port (default: 443 prod, 8443 dev)
-  --ipa <path>      Use specific IPA file
-  --once            Exit after serving the first IPA file
-  --help, -h        Show this help message
+  --dev                Development mode (self-signed certs, localhost)
+  --port <number>      Server port (default: 443 prod, 8443 dev)
+  --ipa <path>         Use specific IPA file
+  --once               Exit after serving the first IPA file
+  --output <type>      Output mode: server, json, markdown, html (default: server)
+  --help, -h           Show this help message
+
+Output Types:
+  server               Start HTTP/HTTPS server (default)
+  json                 Output IPA metadata as JSON
+  markdown             Output workflow summary as Markdown
+  html                 Output install page as HTML
 
 Examples:
-  npm run ota-host                    # Production mode
-  npm run ota-host:dev               # Development mode  
-  npm run ota-host -- --port 9000    # Custom port
-  npm run ota-host -- --ipa app.ipa  # Specific IPA file
-  npm run ota-host -- --once         # Exit after first IPA served
+  npm run ota-host                           # Production server mode
+  npm run ota-host:dev                      # Development server mode  
+  npm run ota-host -- --port 9000           # Custom port
+  npm run ota-host -- --ipa app.ipa         # Specific IPA file
+  npm run ota-host -- --once                # Exit after first IPA served
+  npm run ota-host -- --output json         # Output metadata as JSON
+  npm run ota-host -- --output markdown     # Output GitHub Actions summary
+  npm run ota-host -- --output html         # Output install page HTML
 `);
 }
 
@@ -591,6 +691,44 @@ async function main(): Promise<void> {
     };
 
     const otaHost = new OTAHost(config);
+
+    // Handle output modes
+    const outputMode = args.output || 'server';
+    
+    if (outputMode !== 'server') {
+      // For non-server modes, just extract IPA info and output
+      const ipaFiles = await otaHost.findIpaFiles();
+      if (ipaFiles.length === 0) {
+        throw new Error('No IPA files found in current directory');
+      }
+
+      const latestIpa = ipaFiles[0];
+      
+      switch (outputMode) {
+        case 'json':
+          console.log(otaHost.outputJson(latestIpa));
+          break;
+          
+        case 'markdown':
+          // Get environment variables for GitHub Actions context
+          const commitSha = process.env.GITHUB_SHA;
+          const runId = process.env.GITHUB_RUN_ID;
+          const repoUrl = process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY 
+            ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`
+            : undefined;
+          console.log(otaHost.generateMarkdownSummary(latestIpa, commitSha, runId, repoUrl));
+          break;
+          
+        case 'html':
+          // Generate a basic install URL for HTML output
+          const installUrl = `itms-services://?action=download-manifest&url=https://localhost/manifest.plist`;
+          console.log(otaHost.generateInstallHtml(latestIpa, installUrl));
+          break;
+      }
+      return;
+    }
+
+    // Default server mode
     await otaHost.startServer();
 
   } catch (error) {
