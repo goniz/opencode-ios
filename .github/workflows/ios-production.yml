@@ -1,8 +1,11 @@
-name: iOS Build
+name: iOS Production Build
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'app.json'
+      - 'package.json'
   workflow_dispatch:
     inputs:
       submit:
@@ -12,7 +15,7 @@ on:
         type: boolean
 
 jobs:
-  build-ios:
+  build-production:
     runs-on: macos-15
     
     steps:
@@ -34,8 +37,9 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.expo
-        key: ${{ runner.os }}-expo-${{ hashFiles('**/package-lock.json', 'app.json', 'eas.json') }}
+        key: ${{ runner.os }}-expo-prod-${{ hashFiles('**/package-lock.json', 'app.json', 'eas.json') }}
         restore-keys: |
+          ${{ runner.os }}-expo-prod-
           ${{ runner.os }}-expo-
     
     - name: Install dependencies
@@ -51,7 +55,7 @@ jobs:
     - name: Upload IPA artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ios-app-${{ github.sha }}
+        name: ios-production-${{ github.sha }}
         path: "**/*.ipa"
         retention-days: 30
     
@@ -61,6 +65,7 @@ jobs:
       run: |
         IPA_FILE=$(find . -name "*.ipa" -type f | head -n 1)
         echo "ipa_file=$IPA_FILE" >> $GITHUB_OUTPUT
+        echo "Found production IPA: $IPA_FILE"
     
     - name: Submit iOS to App Store
       if: ${{ github.event_name == 'push' || inputs.submit != false }}
