@@ -2,4 +2,4 @@
 export * from './types.gen';
 export * from './sdk.gen';
 // opencode version
-export const OPENCODE_VERSION = '0.5.29';
+export const OPENCODE_VERSION = '0.6.3';

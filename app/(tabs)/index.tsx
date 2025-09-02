@@ -3,7 +3,7 @@ import { Text, View, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView,
 import { router } from "expo-router";
 import * as Clipboard from 'expo-clipboard';
 import { getSavedServers, removeServer, SavedServer } from '../../src/utils/serverStorage';
-import { appGet } from '../../src/api/sdk.gen';
+import { projectCurrent } from '../../src/api/sdk.gen';
 import { useConnection } from '../../src/contexts/ConnectionContext';
 
 export default function Index() {
@@ -47,24 +47,24 @@ export default function Index() {
       // Use the connection context to connect
       await connect(baseUrl);
 
-      // Fetch app info after successful connection
+      // Fetch project info after successful connection
       if (client) {
         try {
-          const appResponse = await appGet({ client });
+          const projectResponse = await projectCurrent({ client });
           
-          if (!appResponse.error && appResponse.data) {
-            const appData = appResponse.data;
+          if (!projectResponse.error && projectResponse.data) {
+            const projectData = projectResponse.data;
             const apiVersion = '1.0.0'; // From OpenAPI spec info.version
-            const hostname = appData.hostname || 'localhost';
-            const rootPathValue = appData.path?.root || 'unknown';
-            const homePathValue = appData.path?.home || 'unknown';
+            const projectId = projectData.id || 'unknown';
+            const worktree = projectData.worktree || 'unknown';
+            const vcs = projectData.vcs || 'none';
 
-            setAppVersion(`API v${apiVersion} (${hostname})`);
-            setRootPath(rootPathValue);
-            setHomePath(homePathValue);
+            setAppVersion(`API v${apiVersion} (${projectId})`);
+            setRootPath(worktree);
+            setHomePath(`VCS: ${vcs}`);
           }
         } catch (error) {
-          console.error('Failed to fetch app info:', error);
+          console.error('Failed to fetch project info:', error);
         }
       }
 
@@ -220,12 +220,12 @@ export default function Index() {
                    <Text style={styles.detailText}>
                      Server: {appVersion || 'Connected'}
                    </Text>
-                   <Text style={styles.detailText}>
-                     Home Directory: {homePath || 'Unknown'}
-                   </Text>
-                   <Text style={styles.detailText}>
-                     Root Directory: {rootPath || 'Unknown'}
-                   </Text>
+                    <Text style={styles.detailText}>
+                      Version Control: {homePath || 'Unknown'}
+                    </Text>
+                    <Text style={styles.detailText}>
+                      Project Root: {rootPath || 'Unknown'}
+                    </Text>
                  </View>
                )}
 

@@ -1,7 +1,7 @@
 {
   "name": "opencode-mobile",
   "main": "expo-router/entry",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "scripts": {
     "start": "expo start -g",
     "start:tunnel": "expo start -g --tunnel",
