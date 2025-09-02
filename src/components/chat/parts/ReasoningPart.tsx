@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MessagePartProps, MessagePartContainer, getRenderMode, getMessagePartStyles } from './MessagePart';
 import { useExpandable } from '../../../hooks/useExpandable';
 import { ExpandButton } from '../ExpandButton';
+import { secureSettings } from '../../../utils/secureSettings';
 
 export const ReasoningPart: React.FC<MessagePartProps> = ({ 
   part, 
@@ -10,7 +11,21 @@ export const ReasoningPart: React.FC<MessagePartProps> = ({
   messageRole = 'assistant',
   renderMode = 'auto'
 }) => {
+  const [showThinking, setShowThinking] = useState(true);
   const actualRenderMode = getRenderMode(renderMode, messageRole);
+
+  useEffect(() => {
+    const loadShowThinking = async () => {
+      try {
+        const show = await secureSettings.getShowThinking();
+        setShowThinking(show);
+      } catch (error) {
+        console.error('Failed to load show thinking setting:', error);
+      }
+    };
+    
+    loadShowThinking();
+  }, []);
   
   // Type guard for reasoning parts
   const thinkingContent = ('thinking' in part ? part.thinking : undefined) || 
@@ -28,6 +43,11 @@ export const ReasoningPart: React.FC<MessagePartProps> = ({
     contentType: 'reasoning',
   });
   
+  // Don't render thinking blocks if the setting is disabled
+  if (!showThinking) {
+    return null;
+  }
+
   // For user messages in bubble mode, show a simplified version
   if (messageRole === 'user' && actualRenderMode === 'bubble') {
     return (

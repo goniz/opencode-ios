@@ -1,8 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const GITHUB_TOKEN_KEY = 'github_token';
 const CHUTES_API_KEY = 'chutes_api_key';
+const SHOW_THINKING_KEY = 'show_thinking';
 
 export interface SecureSettingsService {
   getGitHubToken(): Promise<string | null>;
@@ -11,6 +11,9 @@ export interface SecureSettingsService {
   getChutesApiKey(): Promise<string | null>;
   setChutesApiKey(apiKey: string): Promise<void>;
   removeChutesApiKey(): Promise<void>;
+  getShowThinking(): Promise<boolean>;
+  setShowThinking(show: boolean): Promise<void>;
+  removeShowThinking(): Promise<void>;
 }
 
 export const secureSettings: SecureSettingsService = {
@@ -43,27 +46,55 @@ export const secureSettings: SecureSettingsService = {
 
   async getChutesApiKey(): Promise<string | null> {
     try {
-      return await AsyncStorage.getItem(CHUTES_API_KEY);
+      return await SecureStore.getItemAsync(CHUTES_API_KEY);
     } catch (error) {
-      console.error('Failed to get Chutes API key from storage:', error);
+      console.error('Failed to get Chutes API key from secure storage:', error);
       return null;
     }
   },
 
   async setChutesApiKey(apiKey: string): Promise<void> {
     try {
-      await AsyncStorage.setItem(CHUTES_API_KEY, apiKey);
+      await SecureStore.setItemAsync(CHUTES_API_KEY, apiKey);
     } catch (error) {
-      console.error('Failed to save Chutes API key to storage:', error);
+      console.error('Failed to save Chutes API key to secure storage:', error);
       throw error;
     }
   },
 
   async removeChutesApiKey(): Promise<void> {
     try {
-      await AsyncStorage.removeItem(CHUTES_API_KEY);
+      await SecureStore.deleteItemAsync(CHUTES_API_KEY);
     } catch (error) {
-      console.error('Failed to remove Chutes API key from storage:', error);
+      console.error('Failed to remove Chutes API key from secure storage:', error);
+      throw error;
+    }
+  },
+
+  async getShowThinking(): Promise<boolean> {
+    try {
+      const value = await SecureStore.getItemAsync(SHOW_THINKING_KEY);
+      return value === null ? true : value === 'true'; // Default to true
+    } catch (error) {
+      console.error('Failed to get show thinking setting from secure storage:', error);
+      return true; // Default to true on error
+    }
+  },
+
+  async setShowThinking(show: boolean): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(SHOW_THINKING_KEY, show.toString());
+    } catch (error) {
+      console.error('Failed to save show thinking setting to secure storage:', error);
+      throw error;
+    }
+  },
+
+  async removeShowThinking(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(SHOW_THINKING_KEY);
+    } catch (error) {
+      console.error('Failed to remove show thinking setting from secure storage:', error);
       throw error;
     }
   }
