@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["ExpoSSHModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.ssh.ExpoSSHModule"]
+  }
+}

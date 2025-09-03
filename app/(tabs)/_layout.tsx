@@ -29,6 +29,8 @@ export default function TabLayout() {
         return <Ionicons name="chatbubble-ellipses-outline" size={size} color={iconColor} />;
       case 'settings':
         return <Ionicons name="settings-outline" size={size} color={iconColor} />;
+      case 'ssh-demo':
+        return <Ionicons name="terminal-outline" size={size} color={iconColor} />;
       default:
         return <Ionicons name="help-outline" size={size} color={iconColor} />;
     }
@@ -78,6 +80,13 @@ export default function TabLayout() {
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, size, focused }) => getTabIcon('settings', focused, color, size),
+        }}
+      />
+      <Tabs.Screen
+        name="ssh-demo"
+        options={{
+          title: 'SSH Demo',
+          tabBarIcon: ({ color, size, focused }) => getTabIcon('ssh-demo', focused, color, size),
         }}
       />
     </Tabs>

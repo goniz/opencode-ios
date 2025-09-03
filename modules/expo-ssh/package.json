@@ -1,0 +1,32 @@
+{
+  "name": "expo-ssh",
+  "version": "1.0.0",
+  "description": "SSH client module for Expo apps using Swift NIO SSH",
+  "main": "index.js",
+  "scripts": {
+    "build": "expo-module build",
+    "clean": "expo-module clean",
+    "test": "expo-module test",
+    "prepare": "expo-module prepare",
+    "lint": "expo-module lint",
+    "typecheck": "expo-module typecheck"
+  },
+  "keywords": [
+    "expo",
+    "ssh",
+    "swift",
+    "nio",
+    "react-native"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/react": "~19.0.10",
+    "expo-module-scripts": "^4.1.10",
+    "typescript": "~5.8.3"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-native": "^0.79.5"
+  }
+}
