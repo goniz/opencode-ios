@@ -13,6 +13,10 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
+  
+  # Swift NIO SSH dependencies
+  s.dependency 'SwiftNIO'
+  s.dependency 'SwiftNIOSSH'
 
   # Swift/Objective-C compatibility
   s.pod_target_xcconfig = {
