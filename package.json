@@ -48,6 +48,7 @@
     "adm-zip": "^0.5.16",
     "bplist-parser": "^0.3.2",
     "date-fns": "^4.1.0",
+    "eas-build-cache-provider": "^16.4.2",
     "expo": "53.0.22",
     "expo-blur": "~14.1.5",
     "expo-clipboard": "~7.1.5",

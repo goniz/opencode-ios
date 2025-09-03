@@ -8,6 +8,7 @@ export default {
     scheme: "opencodemobile",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
+    buildCacheProvider: "eas",
     ios: {
       supportsTablet: true,
       bundleIdentifier: process.env.EXPO_PUBLIC_BUNDLE_ID || "com.goniz.opencodemobile",

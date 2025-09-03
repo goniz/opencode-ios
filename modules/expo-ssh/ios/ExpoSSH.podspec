@@ -14,13 +14,6 @@ Pod::Spec.new do |s|
 
   s.dependency 'ExpoModulesCore'
 
-  # Add Swift NIO SSH as an SPM dependency
-  spm_dependency(s,
-    url: 'https://github.com/apple/swift-nio-ssh.git',
-    requirement: {kind: 'upToNextMajorVersion', minimumVersion: '0.8.0'},
-    products: ['NIOSSH']
-  )
-
   # Swift/Objective-C compatibility
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
