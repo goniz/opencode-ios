@@ -64,10 +64,28 @@ export default {
       [
         "./plugins/addSPMDependenciesToMainTarget.js",
         {
+          version: "2.8.0",
+          repositoryUrl: "https://github.com/apple/swift-nio.git",
+          repoName: "swift-nio",
+          productName: "NIO"
+        }
+      ],
+      [
+        "./plugins/addSPMDependenciesToMainTarget.js",
+        {
           version: "0.8.0",
           repositoryUrl: "https://github.com/apple/swift-nio-ssh.git",
           repoName: "swift-nio-ssh",
           productName: "NIOSSH"
+        }
+      ],
+      [
+        "./plugins/addSPMDependenciesToMainTarget.js",
+        {
+          version: "3.0.0",
+          repositoryUrl: "https://github.com/apple/swift-crypto.git",
+          repoName: "swift-crypto",
+          productName: "Crypto"
         }
       ]
     ],
